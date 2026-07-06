@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "export": "GITHUB_PAGES=true NEXT_PUBLIC_BASE_PATH=/LIBERTYK next build && node scripts/prepare-github-pages.mjs",
+    "monitor:ai": "node scripts/ai-monitor-report.mjs",
     "start": "next start",
     "lint": "next lint"
   },

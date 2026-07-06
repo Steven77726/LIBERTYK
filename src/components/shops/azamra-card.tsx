@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Heart, Shirt } from "lucide-react";
+import { ArrowRight, Shirt } from "lucide-react";
 import { azamra } from "@/data/shops";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { EntityEngagement } from "@/components/ui/entity-engagement";
 
 export function AzamraCard() {
   const [open, setOpen] = useState(false);
@@ -17,7 +18,7 @@ export function AzamraCard() {
         </button>
       </article>
       <EntityDrawer open={open} onClose={() => setOpen(false)} title="Azamra">
-        <div><div className="relative aspect-[3/4] max-h-[65vh]"><img src={azamra.image} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" /><div className="absolute bottom-6 left-6 text-white"><Shirt size={20} /><p className="mt-3 text-xs text-white/55">{azamra.type}</p><h2 className="mt-1 text-3xl font-semibold">{azamra.name}</h2></div></div><div className="p-6"><CustomerRating rating={azamra.rating} reviewCount={azamra.reviewCount} /><p className="mt-5 text-sm leading-7 text-ink/55">{azamra.description}</p><div className="mt-5 flex gap-2">{azamra.tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs">{tag}</span>)}</div><button className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white"><Heart size={15} /> Ajouter aux favoris</button></div></div>
+        <div><div className="relative aspect-[3/4] max-h-[65vh]"><img src={azamra.image} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" /><div className="absolute bottom-6 left-6 text-white"><Shirt size={20} /><p className="mt-3 text-xs text-white/55">{azamra.type}</p><h2 className="mt-1 text-3xl font-semibold">{azamra.name}</h2></div></div><div className="space-y-5 p-6"><CustomerRating rating={azamra.rating} reviewCount={azamra.reviewCount} /><p className="text-sm leading-7 text-ink/55">{azamra.description}</p><div className="flex gap-2">{azamra.tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs">{tag}</span>)}</div><EntityEngagement entityId="shop-azamra" title={azamra.name} url="/shopping/vetements/azamra" /></div></div>
       </EntityDrawer>
     </>
   );

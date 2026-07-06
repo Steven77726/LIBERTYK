@@ -9,10 +9,10 @@ export type SearchItem = {
 };
 
 const concepts: Record<string, string[]> = {
-  cacher: ["cacher", "casher", "kasher", "kosher", "certifié", "beth din"],
-  viande: ["viande", "bassari", "carné", "grill", "grillade", "steak", "burger"],
-  lait: ["lait", "halavi", "halavi", "fromage", "dairy"],
-  restaurant: ["restaurant", "resto", "table", "déjeuner", "dîner", "manger", "repas"],
+  cacher: ["cacher", "casher", "kasher", "kosher", "certifié", "certification", "beth din", "rav rottenberg", "rabbinat"],
+  viande: ["viande", "bassari", "basari", "carné", "grill", "grillade", "steak", "burger", "barbecue", "viande grillée"],
+  lait: ["lait", "halavi", "halavi", "halavi", "fromage", "dairy", "pizza", "pizzeria", "salon de thé"],
+  restaurant: ["restaurant", "resto", "restau", "table", "déjeuner", "dîner", "manger", "repas", "adresse", "sortir manger"],
   brunch: ["brunch", "petit déjeuner", "pancakes", "avocado toast", "œufs", "bagel", "gaufre"],
   voyage: ["voyage", "séjour", "vacances", "hôtel", "club", "destination", "pessah"],
   evenement: ["événement", "concert", "conférence", "soirée", "dj", "spectacle", "dégustation"],
@@ -22,6 +22,9 @@ const concepts: Record<string, string[]> = {
   religion: ["religion", "torah", "cours", "synagogue", "mikvé", "chabbat", "shabbat"],
   famille: ["famille", "familial", "enfant", "kids", "menu enfant"],
   paris17: ["17", "17e", "75017", "paris 17", "paris17", "dix-septième arrondissement"],
+  ouvert: ["ouvert", "ouvert maintenant", "ouvert midi", "ouvert soir", "ouvert dimanche", "ouvert tard"],
+  livraison: ["livraison", "livrer", "deliveroo", "uber eats", "à emporter", "take away", "click collect"],
+  vin: ["vin", "vins", "spiritueux", "caviste", "dégustation", "masterclass", "cocktail", "tequila", "whisky", "champagne"],
 };
 
 export function normalizeSearchText(value: string) {
@@ -61,6 +64,16 @@ function expandQuery(query: string) {
   return { normalized, tokens: [...expanded] };
 }
 
+function closeEnough(token: string, word: string) {
+  if (token.length < 4 || word.length < 4) return false;
+  if (word.startsWith(token) || token.startsWith(word)) return true;
+  let mismatch = Math.abs(token.length - word.length);
+  if (mismatch > 1) return false;
+  const max = Math.min(token.length, word.length);
+  for (let index = 0; index < max; index++) if (token[index] !== word[index]) mismatch++;
+  return mismatch <= 1;
+}
+
 export function searchItems(items: SearchItem[], query: string) {
   if (query.trim().length < 2) return [];
   const { normalized, tokens } = expandQuery(query);
@@ -69,6 +82,7 @@ export function searchItems(items: SearchItem[], query: string) {
     const category = normalizeSearchText(item.category);
     const keywords = item.keywords.map(normalizeSearchText);
     const corpus = normalizeSearchText(`${item.title} ${item.subtitle} ${item.category} ${item.keywords.join(" ")}`);
+    const words = corpus.split(" ");
     let score = title === normalized ? 160 : title.includes(normalized) ? 90 : corpus.includes(normalized) ? 55 : 0;
     tokens.forEach((token) => {
       if (title.includes(token)) score += 18;
@@ -76,9 +90,11 @@ export function searchItems(items: SearchItem[], query: string) {
       else if (keywords.some((keyword) => keyword === token)) score += 10;
       else if (keywords.some((keyword) => keyword.includes(token))) score += 6;
       else if (corpus.includes(token)) score += 3;
+      else if (words.some((word) => closeEnough(token, word))) score += 2;
     });
     const matchedOriginalTokens = normalizeSearchText(query).split(" ").filter((token) => token.length > 1 && corpus.includes(token)).length;
-    score += matchedOriginalTokens * 15;
+    const coverage = matchedOriginalTokens / Math.max(1, normalizeSearchText(query).split(" ").filter(Boolean).length);
+    score += matchedOriginalTokens * 15 + coverage * 20;
     return { item, score };
   }).filter(({ score }) => score > 8).sort((a, b) => b.score - a.score).slice(0, 8).map(({ item }) => item);
 }

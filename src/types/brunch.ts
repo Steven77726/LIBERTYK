@@ -1,0 +1,41 @@
+export type Brunch = {
+  slug: string;
+  name: string;
+  address?: string;
+  postalCode?: string;
+  arrondissement?: number;
+  phone?: string;
+  specialty: string;
+  cuisine: string;
+  kosherType: "Lait" | "Viande" | "Parvé";
+  certification?: string;
+  services: {
+    dineIn?: boolean;
+    takeaway?: boolean;
+    delivery?: boolean;
+    clickCollect?: boolean;
+    reservation?: boolean;
+  };
+  hours: Record<string, string | undefined>;
+  price?: "€" | "€€" | "€€€";
+  amenities: {
+    family?: boolean;
+    accessible?: boolean;
+    parking?: boolean;
+    terrace?: boolean;
+    wifi?: boolean;
+    kidsMenu?: boolean;
+    privateHire?: boolean;
+  };
+  tags: string[];
+  source?: string;
+  rawData: Record<string, string>;
+  images: string[];
+  description: string;
+  rating?: number;
+  reviewCount: number;
+  distanceKm: number;
+  latitude: number;
+  longitude: number;
+  importedAt: string;
+};

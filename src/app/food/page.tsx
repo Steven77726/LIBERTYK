@@ -4,6 +4,8 @@ import {
   ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
+import { RestaurantExplorer } from "@/components/restaurants/restaurant-explorer";
+import { restaurants } from "@/data/restaurants";
 import { withBasePath } from "@/lib/paths";
 
 export const metadata: Metadata = {
@@ -117,6 +119,8 @@ export default function FoodPage() {
           </div>
         </div>
       </section>
+
+      <RestaurantExplorer initialRestaurants={restaurants} embedded />
     </>
   );
 }

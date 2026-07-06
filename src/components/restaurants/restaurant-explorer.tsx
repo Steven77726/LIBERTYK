@@ -108,7 +108,7 @@ function RestaurantMap({ restaurants, selected, onSelect }: { restaurants: Resta
   );
 }
 
-export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants: Restaurant[] }) {
+export function RestaurantExplorer({ initialRestaurants, embedded = false }: { initialRestaurants: Restaurant[]; embedded?: boolean }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<string[]>([]);
   const [sort, setSort] = useState("Les plus proches");
@@ -189,12 +189,16 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
 
   return (
     <>
-      <section className="page-shell pt-6">
-        <div className="rounded-[2rem] bg-ink px-6 py-10 text-white sm:px-10">
-          <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">Food · Paris</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Restaurants casher</h1>
+      <section className={`page-shell ${embedded ? "pt-4" : "pt-6"}`}>
+        <div className={`bg-ink text-white ${embedded ? "rounded-[2rem] px-6 py-8 sm:px-10" : "rounded-[2rem] px-6 py-10 sm:px-10"}`}>
+          <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">{embedded ? "Toutes les fiches · Food" : "Food · Paris"}</p>
+          {embedded ? (
+            <h2 className="mt-3 text-3xl font-semibold tracking-[-.055em] sm:text-5xl">Tous les restaurants</h2>
+          ) : (
+            <h1 className="mt-3 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Restaurants casher</h1>
+          )}
           <p className="mt-3 text-sm text-white/45">{initialRestaurants.length} adresses · Catalogue Liberty</p>
-          <div className="mt-7 flex max-w-3xl items-center rounded-2xl bg-white p-2 text-ink shadow-2xl">
+          <div className={`${embedded ? "mt-5" : "mt-7"} flex max-w-3xl items-center rounded-2xl bg-white p-2 text-ink shadow-2xl`}>
             <Search size={19} className="ml-3 shrink-0 text-ink/30" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, arrondissement, cuisine…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />
             {query && <button onClick={() => setQuery("")} className="grid size-9 place-items-center rounded-full hover:bg-cream"><X size={15} /></button>}

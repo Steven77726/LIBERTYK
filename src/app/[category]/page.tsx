@@ -7,8 +7,12 @@ import { categoryCards } from "@/data/mock";
 
 type Props = { params: Promise<{ category: string }> };
 
+const dedicatedCategoryPages = new Set(["food", "shopping", "vin-spiritueux", "mikve"]);
+
 export function generateStaticParams() {
-  return categories.map(({ slug }) => ({ category: slug }));
+  return categories
+    .filter(({ slug }) => !dedicatedCategoryPages.has(slug))
+    .map(({ slug }) => ({ category: slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

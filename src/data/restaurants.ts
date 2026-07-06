@@ -1,5 +1,4 @@
 import { normalizeRestaurantRow } from "@/lib/restaurant-import";
-import { withBasePath } from "@/lib/paths";
 
 const importedRows = [
   ["Khan", "Paris 17e", "75017", 17, "", "Grill, viande grillée, déjeuner, dîner", "Israélienne, Orientale"],
@@ -40,7 +39,7 @@ export const restaurants = importedRows.map((row, index) => {
       ...restaurant,
       type: "Viande" as const,
       certification: "À compléter",
-      image: withBasePath("/images/food/restaurants-khan.jpg"),
+      image: "/images/food/restaurants-khan.jpg",
       services: { ...restaurant.services, dineIn: true, takeaway: true, delivery: true },
       amenities: { ...restaurant.amenities, familyFriendly: true },
     };

@@ -5,7 +5,6 @@ import { ArrowRight, ExternalLink, MapPin, Wine } from "lucide-react";
 import type { WineActivity } from "@/data/wine-activities";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
-import { EntityEngagement } from "@/components/ui/entity-engagement";
 
 export function WineActivityGrid({ activities }: { activities: WineActivity[] }) {
   const [selected, setSelected] = useState<WineActivity | null>(null);
@@ -23,7 +22,7 @@ export function WineActivityGrid({ activities }: { activities: WineActivity[] })
         ))}
       </div>
       <EntityDrawer open={!!selected} onClose={() => setSelected(null)} title={selected?.title ?? "Vin & Spiritueux"}>
-        {selected && <div><div className="relative aspect-[4/3]"><img src={selected.image} alt="" className="size-full object-cover" style={{ objectPosition: selected.imagePosition }} /><div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><Wine size={20} /><p className="mt-3 text-xs text-white/55">{selected.type}</p><h2 className="mt-1 text-3xl font-semibold">{selected.title}</h2></div></div><div className="space-y-6 p-6"><CustomerRating rating={selected.rating} reviewCount={selected.reviewCount} /><p className="text-sm leading-7 text-ink/55">{selected.description}</p><div className="flex flex-wrap gap-2">{selected.tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs">{tag}</span>)}</div>{selected.address && <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{selected.address}</p></div>}<EntityEngagement entityId={`wine-${selected.slug}`} title={selected.title} url={`/vin-spiritueux/${selected.slug}`} />{selected.website && <a href={selected.website} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white">{selected.action} <ExternalLink size={15} /></a>}</div></div>}
+        {selected && <div><div className="relative aspect-[4/3]"><img src={selected.image} alt="" className="size-full object-cover" style={{ objectPosition: selected.imagePosition }} /><div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><Wine size={20} /><p className="mt-3 text-xs text-white/55">{selected.type}</p><h2 className="mt-1 text-3xl font-semibold">{selected.title}</h2></div></div><div className="space-y-6 p-6"><CustomerRating rating={selected.rating} reviewCount={selected.reviewCount} /><p className="text-sm leading-7 text-ink/55">{selected.description}</p><div className="flex flex-wrap gap-2">{selected.tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs">{tag}</span>)}</div>{selected.address && <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{selected.address}</p></div>}{selected.website && <a href={selected.website} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white">{selected.action} <ExternalLink size={15} /></a>}</div></div>}
       </EntityDrawer>
     </>
   );

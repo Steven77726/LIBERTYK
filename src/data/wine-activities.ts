@@ -1,5 +1,3 @@
-import { withBasePath } from "@/lib/paths";
-
 export type WineActivity = {
   slug: string;
   title: string;
@@ -21,7 +19,7 @@ export const wineActivities: WineActivity[] = [
     title: "Winess",
     type: "Caviste",
     address: "42 rue des Acacias, 75017 Paris",
-    image: withBasePath("/images/winess/winess-shop.webp"),
+    image: "/images/winess/winess-shop.webp",
     tags: ["🍷 Caviste"],
     description: "Une sélection exigeante de vins, champagnes et spiritueux au cœur du 17e arrondissement.",
     action: "Visiter le site",
@@ -32,7 +30,7 @@ export const wineActivities: WineActivity[] = [
     title: "Winess Experience",
     type: "Dégustations de vins privées",
     address: "42 rue des Acacias, 75017 Paris",
-    image: withBasePath("/images/winess/winess-experience.webp"),
+    image: "/images/winess/winess-experience.webp",
     tags: ["🍷 Dégustation privée", "🥂 Masterclass", "🍇 Vins du monde"],
     description: "Des expériences privées et des masterclass guidées pour découvrir le vin autrement.",
     action: "Découvrir l’expérience",
@@ -41,7 +39,7 @@ export const wineActivities: WineActivity[] = [
     slug: "winess-signature",
     title: "Winess Signature",
     type: "Bar mobile",
-    image: withBasePath("/images/winess/winess-signature.jpeg"),
+    image: "/images/winess/winess-signature.jpeg",
     imagePosition: "center 42%",
     tags: ["💍 Mariage", "🎉 Événements", "🎂 Anniversaire", "🍸 Cocktails", "🍷 Bar à vin"],
     description: "Un bar mobile élégant et entièrement personnalisé pour donner une vraie signature à vos événements.",

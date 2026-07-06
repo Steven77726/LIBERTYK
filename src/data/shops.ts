@@ -1,10 +1,8 @@
-import { withBasePath } from "@/lib/paths";
-
 export const azamra = {
   slug: "azamra",
   name: "Azamra",
   type: "Vêtements",
-  image: withBasePath("/images/shopping/azamra.webp"),
+  image: "/images/shopping/azamra.webp",
   tags: ["Homme", "Femme", "Enfant"],
   rating: null as number | null,
   reviewCount: 0,

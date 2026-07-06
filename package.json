@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "monitor:ai": "node scripts/ai-monitor-report.mjs",
     "start": "next start",
     "lint": "next lint"
   },

@@ -9,7 +9,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { Restaurant } from "@/types/restaurant";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
-import { EntityEngagement } from "@/components/ui/entity-engagement";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
@@ -109,7 +108,7 @@ function RestaurantMap({ restaurants, selected, onSelect }: { restaurants: Resta
   );
 }
 
-export function RestaurantExplorer({ initialRestaurants, embedded = false }: { initialRestaurants: Restaurant[]; embedded?: boolean }) {
+export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants: Restaurant[] }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<string[]>([]);
   const [sort, setSort] = useState("Les plus proches");
@@ -190,16 +189,12 @@ export function RestaurantExplorer({ initialRestaurants, embedded = false }: { i
 
   return (
     <>
-      <section className={`page-shell ${embedded ? "pt-4" : "pt-6"}`}>
-        <div className={`bg-ink text-white ${embedded ? "rounded-[2rem] px-6 py-8 sm:px-10" : "rounded-[2rem] px-6 py-10 sm:px-10"}`}>
-          <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">{embedded ? "Toutes les fiches · Food" : "Food · Paris"}</p>
-          {embedded ? (
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-.055em] sm:text-5xl">Tous les restaurants</h2>
-          ) : (
-            <h1 className="mt-3 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Restaurants casher</h1>
-          )}
-          <p className="mt-3 text-sm text-white/45">{initialRestaurants.length} adresses · Catalogue Liberty</p>
-          <div className={`${embedded ? "mt-5" : "mt-7"} flex max-w-3xl items-center rounded-2xl bg-white p-2 text-ink shadow-2xl`}>
+      <section className="page-shell pt-6">
+        <div className="rounded-[2rem] bg-ink px-6 py-10 text-white sm:px-10">
+          <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">Food · Paris</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Restaurants casher</h1>
+          <p className="mt-3 text-sm text-white/45">20 adresses importées · Données du 3 juillet 2026</p>
+          <div className="mt-7 flex max-w-3xl items-center rounded-2xl bg-white p-2 text-ink shadow-2xl">
             <Search size={19} className="ml-3 shrink-0 text-ink/30" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, arrondissement, cuisine…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />
             {query && <button onClick={() => setQuery("")} className="grid size-9 place-items-center rounded-full hover:bg-cream"><X size={15} /></button>}
@@ -244,7 +239,7 @@ export function RestaurantExplorer({ initialRestaurants, embedded = false }: { i
         </div>
       </section>
       <EntityDrawer open={!!detailRestaurant} onClose={() => setDetailRestaurant(null)} title={detailRestaurant?.name ?? "Restaurant"}>
-        {detailRestaurant && <div><div className="relative aspect-[16/10]"><img src={detailRestaurant.image} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><p className="text-xs text-white/55">{detailRestaurant.cuisine}</p><h2 className="mt-1 text-3xl font-semibold">{detailRestaurant.name}</h2></div></div><div className="space-y-6 p-6"><CustomerRating rating={detailRestaurant.rating} reviewCount={detailRestaurant.reviewCount} /><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</span><span className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</span><span className="rounded-full bg-white px-3 py-2">{detailRestaurant.price}</span></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{detailRestaurant.fullAddress}, {detailRestaurant.postalCode} Paris</p></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Spécialité</p><p className="mt-2 text-sm leading-6 text-ink/60">{detailRestaurant.specialty}</p></div><EntityEngagement entityId={`restaurant-${detailRestaurant.id}`} title={detailRestaurant.name} url={`/food/restaurants#${detailRestaurant.id}`} /><button onClick={() => { setDetailRestaurant(null); setReservationRestaurant(detailRestaurant); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white"><CalendarDays size={16} /> Demander une réservation</button></div></div>}
+        {detailRestaurant && <div><div className="relative aspect-[16/10]"><img src={detailRestaurant.image} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><p className="text-xs text-white/55">{detailRestaurant.cuisine}</p><h2 className="mt-1 text-3xl font-semibold">{detailRestaurant.name}</h2></div></div><div className="space-y-6 p-6"><CustomerRating rating={detailRestaurant.rating} reviewCount={detailRestaurant.reviewCount} /><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</span><span className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</span><span className="rounded-full bg-white px-3 py-2">{detailRestaurant.price}</span></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{detailRestaurant.fullAddress}, {detailRestaurant.postalCode} Paris</p></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Spécialité</p><p className="mt-2 text-sm leading-6 text-ink/60">{detailRestaurant.specialty}</p></div><button onClick={() => { setDetailRestaurant(null); setReservationRestaurant(detailRestaurant); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white"><CalendarDays size={16} /> Demander une réservation</button></div></div>}
       </EntityDrawer>
       <EntityDrawer open={!!reservationRestaurant} onClose={() => setReservationRestaurant(null)} title="Demande de réservation">
         {reservationRestaurant && <ReservationForm restaurant={reservationRestaurant} onDone={() => setReservationRestaurant(null)} />}

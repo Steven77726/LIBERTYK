@@ -4,9 +4,6 @@ import {
   ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
-import { RestaurantExplorer } from "@/components/restaurants/restaurant-explorer";
-import { restaurants } from "@/data/restaurants";
-import { withBasePath } from "@/lib/paths";
 
 export const metadata: Metadata = {
   title: "Food",
@@ -14,16 +11,16 @@ export const metadata: Metadata = {
 };
 
 const addressTypes = [
-  { label: "Restaurants", description: "Les tables incontournables", icon: UtensilsCrossed, image: withBasePath("/images/food/restaurants-khan.jpg") },
-  { label: "Brunch", description: "Pour prendre le temps", icon: Coffee, image: withBasePath("/images/food/brunch-marceau.jpg") },
-  { label: "Salons de thé", description: "Douceurs et conversations", icon: Coffee, image: withBasePath("/images/food/salon-de-the.webp") },
-  { label: "Pâtisseries", description: "Créations gourmandes", icon: CakeSlice, image: withBasePath("/images/food/patisserie.webp") },
-  { label: "Traiteurs", description: "Pour recevoir sans compromis", icon: ChefHat, image: withBasePath("/images/food/traiteur.jpg") },
-  { label: "Traiteur Shabbat", description: "Vos repas de Shabbat, prêts avec soin", icon: ChefHat, image: withBasePath("/images/food/traiteur.jpg") },
-  { label: "Fast-food", description: "Rapide et généreux", icon: Sandwich, image: withBasePath("/images/food/fast-food.jpg") },
+  { label: "Restaurants", description: "Les tables incontournables", icon: UtensilsCrossed, image: "/images/food/restaurants-khan.jpg" },
+  { label: "Brunch", description: "Pour prendre le temps", icon: Coffee, image: "/images/food/brunch-marceau.jpg" },
+  { label: "Salons de thé", description: "Douceurs et conversations", icon: Coffee, image: "/images/food/salon-de-the.webp" },
+  { label: "Pâtisseries", description: "Créations gourmandes", icon: CakeSlice, image: "/images/food/patisserie.webp" },
+  { label: "Traiteurs", description: "Pour recevoir sans compromis", icon: ChefHat, image: "/images/food/traiteur.jpg" },
+  { label: "Traiteur Shabbat", description: "Vos repas de Shabbat, prêts avec soin", icon: ChefHat, image: "/images/food/traiteur.jpg" },
+  { label: "Fast-food", description: "Rapide et généreux", icon: Sandwich, image: "/images/food/fast-food.jpg" },
   { label: "Street Food", description: "Saveurs sur le pouce", icon: Soup, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" },
-  { label: "Boulangeries", description: "Le goût du savoir-faire", icon: Croissant, image: withBasePath("/images/food/boulangerie.jpg") },
-  { label: "Glaciers", description: "Fraîcheur et plaisir", icon: IceCreamBowl, image: withBasePath("/images/food/glacier.webp") },
+  { label: "Boulangeries", description: "Le goût du savoir-faire", icon: Croissant, image: "/images/food/boulangerie.jpg" },
+  { label: "Glaciers", description: "Fraîcheur et plaisir", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
 ];
 
 const cuisines = [
@@ -119,8 +116,6 @@ export default function FoodPage() {
           </div>
         </div>
       </section>
-
-      <RestaurantExplorer initialRestaurants={restaurants} embedded />
     </>
   );
 }

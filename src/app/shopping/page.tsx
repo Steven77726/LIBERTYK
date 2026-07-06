@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Baby, House, Shirt, Sparkles } from "lucide-react";
-import { withBasePath } from "@/lib/paths";
 
 export const metadata: Metadata = { title: "Shopping" };
 
 const sections = [
-  { title: "Vêtements", description: "Mode pour homme, femme et enfant.", href: "/shopping/vetements", icon: Shirt, image: withBasePath("/images/shopping/azamra.webp") },
+  { title: "Vêtements", description: "Mode pour homme, femme et enfant.", href: "/shopping/vetements", icon: Shirt, image: "/images/shopping/azamra.webp" },
   { title: "Maison", description: "Objets, décoration et art de vivre.", href: "/shopping?type=maison", icon: House, image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=85" },
   { title: "Enfants", description: "Les belles trouvailles pour les plus jeunes.", href: "/shopping?type=enfants", icon: Baby, image: "https://images.unsplash.com/photo-1472162072942-cd5147eb3902?auto=format&fit=crop&w=1200&q=85" },
 ];

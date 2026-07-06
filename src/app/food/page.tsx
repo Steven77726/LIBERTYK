@@ -4,6 +4,7 @@ import {
   ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
+import { assetPath } from "@/lib/assets";
 
 export const metadata: Metadata = {
   title: "Food",
@@ -72,7 +73,7 @@ export default function FoodPage() {
                   href={label === "Restaurants" ? "/food/restaurants" : label === "Brunch" ? "/food/brunch" : `/food?type=${slugify(label)}`}
                   className={`group relative min-h-[255px] overflow-hidden rounded-[1.75rem] bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${index === 0 ? "sm:col-span-2 sm:min-h-[350px]" : ""}`}
                 >
-                  <img src={image} alt="" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
+                  <img src={assetPath(image)} alt="" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
                     <div>

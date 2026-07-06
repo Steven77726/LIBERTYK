@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUpRight, BookOpenText, HandPlatter, Mic, Plane, Search, Sparkles, Utensils, X } from "lucide-react";
 import { searchIndex } from "@/data/search-index";
 import { searchItems } from "@/lib/search-engine";
+import { assetPath } from "@/lib/assets";
 
 const ideas = [
   { label: "Restaurant viande Paris", icon: Utensils },
@@ -58,7 +59,7 @@ export function AiSearch() {
               <div className="grid max-h-[420px] gap-1 overflow-y-auto">
                 {results.map((result) => (
                   <button key={result.id} onClick={() => router.push(result.href)} className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition hover:bg-cream">
-                    <img src={result.image} alt="" className="size-11 shrink-0 rounded-xl object-cover" />
+                    <img src={assetPath(result.image)} alt="" className="size-11 shrink-0 rounded-xl object-cover" />
                     <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{result.title}</p><p className="mt-0.5 truncate text-[11px] text-ink/42">{result.category} · {result.subtitle}</p></div>
                     <ArrowUpRight size={15} className="shrink-0 text-ink/25 transition group-hover:text-ink" />
                   </button>

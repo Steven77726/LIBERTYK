@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, ExternalLink, Grape, MapPin, Wine } from "lucide
 import { notFound } from "next/navigation";
 import { wineActivities, wineActivityBySlug } from "@/data/wine-activities";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
+import { assetPath } from "@/lib/assets";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -24,7 +25,7 @@ export default async function WineActivityPage({ params }: Props) {
       <Link href="/vin-spiritueux" className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-ink/50 hover:text-ink"><ArrowLeft size={14} /> Vin & Spiritueux</Link>
       <div className="overflow-hidden rounded-[2.25rem] bg-white shadow-soft">
         <div className="relative min-h-[430px] sm:min-h-[560px]">
-          <img src={activity.image} alt="" className="absolute inset-0 size-full object-cover" style={{ objectPosition: activity.imagePosition }} />
+          <img src={assetPath(activity.image)} alt="" className="absolute inset-0 size-full object-cover" style={{ objectPosition: activity.imagePosition }} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-7 text-white sm:p-12">
             <span className="mb-5 grid size-12 place-items-center rounded-2xl border border-white/20 bg-white/15 backdrop-blur"><Wine size={21} /></span>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { categories } from "@/data/categories";
+import { assetPath } from "@/lib/assets";
 
 export function CategoryGrid() {
   return (
@@ -9,7 +10,7 @@ export function CategoryGrid() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {categories.map(({ slug, label, description, image, icon: Icon, softColor }) => (
           <Link key={slug} href={`/${slug}`} className="group relative min-h-[205px] overflow-hidden rounded-2xl bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl">
-            <img src={image} alt="" className="absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]" />
+            <img src={assetPath(image)} alt="" className="absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/5" />
             <div className="absolute inset-x-0 bottom-0 p-4">
               <div className="mb-2.5 flex items-center justify-between">

@@ -7,6 +7,7 @@ import {
 import { notFound } from "next/navigation";
 import { brunchBySlug, brunches } from "@/data/brunches";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
+import { assetPath } from "@/lib/assets";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -37,11 +38,11 @@ export default async function BrunchDetailPage({ params }: Props) {
       <section className="page-shell pt-6">
         <Link href="/food/brunch" className="mb-5 inline-flex items-center gap-2 text-xs font-semibold text-ink/50 hover:text-ink"><ArrowLeft size={14} /> Retour aux brunchs</Link>
         <div className="grid h-[480px] grid-cols-1 gap-2 overflow-hidden rounded-[2rem] sm:grid-cols-2 lg:grid-cols-[1.5fr_.75fr_.75fr]">
-          <img src={brunch.images[0]} alt="" className="size-full object-cover sm:row-span-2" />
-          <img src={brunch.images[1]} alt="" className="hidden size-full object-cover sm:block" />
-          <img src={brunch.images[2]} alt="" className="hidden size-full object-cover lg:block" />
-          <img src={brunch.images[2]} alt="" className="hidden size-full object-cover sm:block" />
-          <img src={brunch.images[1]} alt="" className="hidden size-full object-cover lg:block" />
+          <img src={assetPath(brunch.images[0])} alt="" className="size-full object-cover sm:row-span-2" />
+          <img src={assetPath(brunch.images[1])} alt="" className="hidden size-full object-cover sm:block" />
+          <img src={assetPath(brunch.images[2])} alt="" className="hidden size-full object-cover lg:block" />
+          <img src={assetPath(brunch.images[2])} alt="" className="hidden size-full object-cover sm:block" />
+          <img src={assetPath(brunch.images[1])} alt="" className="hidden size-full object-cover lg:block" />
         </div>
       </section>
 

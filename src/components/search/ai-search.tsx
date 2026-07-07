@@ -6,6 +6,7 @@ import { ArrowUpRight, BookOpenText, HandPlatter, Mic, Plane, Search, Sparkles, 
 import { searchIndex } from "@/data/search-index";
 import { searchItems } from "@/lib/search-engine";
 import { assetPath } from "@/lib/assets";
+import { trackEvent } from "@/lib/client-store";
 
 const ideas = [
   { label: "Restaurant viande Paris", icon: Utensils },
@@ -22,6 +23,7 @@ export function AiSearch() {
   const open = focused && query.trim().length >= 2;
 
   const submit = () => {
+    if (query.trim().length >= 2) trackEvent("ai_search", query.trim(), results[0]?.id);
     if (results[0]) router.push(results[0].href);
   };
 
@@ -58,7 +60,7 @@ export function AiSearch() {
             {results.length > 0 ? (
               <div className="grid max-h-[420px] gap-1 overflow-y-auto">
                 {results.map((result) => (
-                  <button key={result.id} onClick={() => router.push(result.href)} className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition hover:bg-cream">
+                  <button key={result.id} onClick={() => { trackEvent("ai_search", query.trim(), result.id); router.push(result.href); }} className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition hover:bg-cream">
                     <img src={assetPath(result.image)} alt="" className="size-11 shrink-0 rounded-xl object-cover" />
                     <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{result.title}</p><p className="mt-0.5 truncate text-[11px] text-ink/42">{result.category} · {result.subtitle}</p></div>
                     <ArrowUpRight size={15} className="shrink-0 text-ink/25 transition group-hover:text-ink" />

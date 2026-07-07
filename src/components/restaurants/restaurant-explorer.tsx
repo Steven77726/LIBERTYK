@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ArrowUpRight, CalendarDays, Car, ChevronDown, Filter, Globe2, Heart, Instagram,
-  List, Map, MapPin, Navigation, Phone, Search, Send, Share2, SlidersHorizontal,
+  ArrowUpRight, CalendarDays, Car, ChevronDown, Filter, Globe2, Instagram,
+  List, Map, MapPin, Navigation, Phone, Search, SlidersHorizontal,
   Store, UtensilsCrossed, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -11,6 +11,7 @@ import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-ra
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
 import { assetPath } from "@/lib/assets";
+import { EntityActions, LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -51,15 +52,16 @@ function FilterSection({ title, options, active, toggle }: { title: string; opti
   );
 }
 
-function RestaurantCard({ restaurant, favorite, onFavorite, onOpen, onReserve }: { restaurant: Restaurant; favorite: boolean; onFavorite: () => void; onOpen: () => void; onReserve: () => void }) {
+function RestaurantCard({ restaurant, onOpen, onReserve }: { restaurant: Restaurant; onOpen: () => void; onReserve: () => void }) {
   const unknown = "À compléter";
+  const entity = { id: `restaurant-${restaurant.id}`, title: restaurant.name, url: `/food/restaurants#${restaurant.id}`, text: `${restaurant.name} · ${restaurant.fullAddress}` };
   return (
     <article id={restaurant.id} className="group overflow-hidden rounded-[1.75rem] border border-black/[.055] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft">
       <div className="relative aspect-[16/10] overflow-hidden bg-sage">
         <button onClick={onOpen} className="absolute inset-0 size-full text-left" aria-label={`Ouvrir la fiche ${restaurant.name}`}><img src={assetPath(restaurant.image)} alt="" className="size-full object-cover transition duration-700 group-hover:scale-105" /></button>
         <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
           <div className="flex flex-col items-start gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.08em] text-ink backdrop-blur">{restaurant.cuisine}</span><RecommendationBadge rating={restaurant.rating} reviewCount={restaurant.reviewCount} /></div>
-          <button onClick={onFavorite} className={`grid size-10 place-items-center rounded-full backdrop-blur transition ${favorite ? "bg-[#a54b4b] text-white" : "bg-white/90 text-ink"}`} aria-label="Ajouter aux favoris"><Heart size={17} fill={favorite ? "currentColor" : "none"} /></button>
+          <LikeButton entity={entity} />
         </div>
         <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2"><span className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{restaurant.isOpenNow === null ? "Horaires à compléter" : restaurant.isOpenNow ? "Ouvert" : "Fermé"}</span><button onClick={onReserve} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-ink shadow-sm"><CalendarDays size={12} /> Réservation</button></div>
       </div>
@@ -86,7 +88,10 @@ function RestaurantCard({ restaurant, favorite, onFavorite, onOpen, onReserve }:
           <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.fullAddress)}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold"><Navigation size={14} /> Itinéraire</a>
         </div>
         <div className="mt-2 flex items-center justify-center gap-1">
-          {[Globe2, Instagram, Share2, Send].map((Icon, index) => <button key={index} className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label={["Site internet", "Instagram", "Partager", "Donner un avis"][index]}><Icon size={14} /></button>)}
+          <button className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Site internet"><Globe2 size={14} /></button>
+          <button className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Instagram"><Instagram size={14} /></button>
+          <ShareButton entity={entity} compact />
+          <ReviewButton entity={entity} compact />
         </div>
       </div>
     </article>
@@ -115,15 +120,12 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   const [sort, setSort] = useState("Les plus proches");
   const [showFilters, setShowFilters] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [selected, setSelected] = useState<Restaurant | null>(null);
   const [detailRestaurant, setDetailRestaurant] = useState<Restaurant | null>(null);
   const [reservationRestaurant, setReservationRestaurant] = useState<Restaurant | null>(null);
   const [restaurantData, setRestaurantData] = useState(initialRestaurants);
 
   useEffect(() => {
-    const saved = localStorage.getItem("liberty-restaurant-favorites");
-    if (saved) setFavorites(JSON.parse(saved));
     navigator.geolocation?.getCurrentPosition(({ coords }) => {
       setRestaurantData((current) => current.map((restaurant) => ({
         ...restaurant,
@@ -133,12 +135,6 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   }, []);
 
   const toggleFilter = (filter: string) => setFilters((current) => current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter]);
-  const toggleFavorite = (id: string) => setFavorites((current) => {
-    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-    localStorage.setItem("liberty-restaurant-favorites", JSON.stringify(next));
-    return next;
-  });
-
   const results = useMemo(() => {
     const search = normalize(query);
     let filtered = restaurantData.filter((restaurant) => {
@@ -233,14 +229,14 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
 
           <div className={view === "map" ? "hidden xl:block" : ""}>
             <div className="mb-4 flex items-center justify-between"><p className="text-sm font-semibold">{results.length} restaurant{results.length > 1 ? "s" : ""}</p>{filters.length > 0 && <span className="text-xs text-ink/40">{filters.length} filtre{filters.length > 1 ? "s" : ""} actif{filters.length > 1 ? "s" : ""}</span>}</div>
-            {results.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{results.map((restaurant) => <RestaurantCard key={restaurant.id} restaurant={restaurant} favorite={favorites.includes(restaurant.id)} onFavorite={() => toggleFavorite(restaurant.id)} onOpen={() => setDetailRestaurant(restaurant)} onReserve={() => setReservationRestaurant(restaurant)} />)}</div> : <div className="grid min-h-80 place-items-center rounded-[2rem] bg-white text-center"><div><Search className="mx-auto text-ink/20" size={30} /><p className="mt-4 font-semibold">Aucun résultat</p><button onClick={() => { setFilters([]); setQuery(""); }} className="mt-3 text-xs font-semibold text-moss">Réinitialiser la recherche</button></div></div>}
+            {results.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{results.map((restaurant) => <RestaurantCard key={restaurant.id} restaurant={restaurant} onOpen={() => setDetailRestaurant(restaurant)} onReserve={() => setReservationRestaurant(restaurant)} />)}</div> : <div className="grid min-h-80 place-items-center rounded-[2rem] bg-white text-center"><div><Search className="mx-auto text-ink/20" size={30} /><p className="mt-4 font-semibold">Aucun résultat</p><button onClick={() => { setFilters([]); setQuery(""); }} className="mt-3 text-xs font-semibold text-moss">Réinitialiser la recherche</button></div></div>}
           </div>
 
           <div className={`${view === "map" ? "block lg:col-span-1 xl:col-span-1" : "hidden xl:block"}`}><RestaurantMap restaurants={results} selected={selected} onSelect={(restaurant) => setSelected(selected?.id === restaurant.id ? null : restaurant)} /></div>
         </div>
       </section>
       <EntityDrawer open={!!detailRestaurant} onClose={() => setDetailRestaurant(null)} title={detailRestaurant?.name ?? "Restaurant"}>
-        {detailRestaurant && <div><div className="relative aspect-[16/10]"><img src={assetPath(detailRestaurant.image)} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><p className="text-xs text-white/55">{detailRestaurant.cuisine}</p><h2 className="mt-1 text-3xl font-semibold">{detailRestaurant.name}</h2></div></div><div className="space-y-6 p-6"><CustomerRating rating={detailRestaurant.rating} reviewCount={detailRestaurant.reviewCount} /><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</span><span className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</span><span className="rounded-full bg-white px-3 py-2">{detailRestaurant.price}</span></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{detailRestaurant.fullAddress}, {detailRestaurant.postalCode} Paris</p></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Spécialité</p><p className="mt-2 text-sm leading-6 text-ink/60">{detailRestaurant.specialty}</p></div><button onClick={() => { setDetailRestaurant(null); setReservationRestaurant(detailRestaurant); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white"><CalendarDays size={16} /> Demander une réservation</button></div></div>}
+        {detailRestaurant && <div><div className="relative aspect-[16/10]"><img src={assetPath(detailRestaurant.image)} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><p className="text-xs text-white/55">{detailRestaurant.cuisine}</p><h2 className="mt-1 text-3xl font-semibold">{detailRestaurant.name}</h2></div></div><div className="space-y-6 p-6"><CustomerRating rating={detailRestaurant.rating} reviewCount={detailRestaurant.reviewCount} /><EntityActions entity={{ id: `restaurant-${detailRestaurant.id}`, title: detailRestaurant.name, url: `/food/restaurants#${detailRestaurant.id}`, text: `${detailRestaurant.name} · ${detailRestaurant.fullAddress}` }} /><div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</span><span className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</span><span className="rounded-full bg-white px-3 py-2">{detailRestaurant.price}</span></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{detailRestaurant.fullAddress}, {detailRestaurant.postalCode} Paris</p></div><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Spécialité</p><p className="mt-2 text-sm leading-6 text-ink/60">{detailRestaurant.specialty}</p></div><button onClick={() => { setDetailRestaurant(null); setReservationRestaurant(detailRestaurant); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white"><CalendarDays size={16} /> Demander une réservation</button></div></div>}
       </EntityDrawer>
       <EntityDrawer open={!!reservationRestaurant} onClose={() => setReservationRestaurant(null)} title="Demande de réservation">
         {reservationRestaurant && <ReservationForm restaurant={reservationRestaurant} onDone={() => setReservationRestaurant(null)} />}

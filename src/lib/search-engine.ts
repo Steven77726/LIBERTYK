@@ -10,16 +10,22 @@ export type SearchItem = {
 
 const concepts: Record<string, string[]> = {
   cacher: ["cacher", "casher", "kasher", "kosher", "certifié", "beth din"],
-  viande: ["viande", "bassari", "carné", "grill", "grillade", "steak", "burger"],
-  lait: ["lait", "halavi", "halavi", "fromage", "dairy"],
+  viande: ["viande", "bassari", "bassari 17", "carné", "grill", "grillade", "steak", "burger", "viande paris", "restaurant viande"],
+  lait: ["lait", "halavi", "halavi", "fromage", "dairy", "laitier", "halavi paris"],
   restaurant: ["restaurant", "resto", "table", "déjeuner", "dîner", "manger", "repas"],
   brunch: ["brunch", "petit déjeuner", "pancakes", "avocado toast", "œufs", "bagel", "gaufre"],
-  voyage: ["voyage", "séjour", "vacances", "hôtel", "club", "destination", "pessah"],
+  traiteur: ["traiteur", "traiteur shabbat", "traiteur chabbat", "plateau chabbat", "repas shabbat", "réception"],
+  patisserie: ["patisserie", "pâtisserie", "gateau", "gâteau", "dessert", "salon de thé", "glacier", "boulangerie"],
+  voyage: ["voyage", "séjour", "vacances", "hôtel", "club", "destination", "pessah", "marrakech", "mai", "orthodoxe", "famille"],
   evenement: ["événement", "concert", "conférence", "soirée", "dj", "spectacle", "dégustation"],
   sport: ["sport", "padel", "coach", "musculation", "salle", "cours privé", "fitness"],
   mariage: ["mariage", "houppa", "dj", "salle", "traiteur", "décoration", "photographe"],
-  shopping: ["shopping", "boutique", "mode", "costume", "robe", "chaussures", "judaïca", "vêtement"],
-  religion: ["religion", "torah", "cours", "synagogue", "mikvé", "chabbat", "shabbat"],
+  shopping: ["shopping", "boutique", "mode", "costume", "robe", "chaussures", "judaïca", "vêtement", "vetement", "azamra"],
+  religion: ["religion", "torah", "cours", "synagogue", "mikvé", "mikve", "chabbat", "shabbat", "librairie", "cadeau religieux"],
+  vin: ["vin", "spiritueux", "caviste", "dégustation", "masterclass", "cocktail", "bar à vin", "tequila casher", "winess"],
+  chauffeur: ["chauffeur", "transport", "taxi", "vtc", "aéroport", "navette"],
+  calendrier: ["calendrier juif", "fête juive", "horaire chabbat", "chabbat", "pessah", "roch hachana", "kippour"],
+  bonplan: ["bon plan", "promotion", "promo", "pas cher", "réduction", "offre"],
   famille: ["famille", "familial", "enfant", "kids", "menu enfant"],
   paris17: ["17", "17e", "75017", "paris 17", "paris17", "dix-septième arrondissement"],
 };
@@ -38,13 +44,16 @@ export function buildInvisibleKeywords(seed: string[], context: { category?: str
   });
   if (context.category) base.add(context.category);
   if (context.location) base.add(context.location);
-  const core = [...base].slice(0, 24);
-  const prefixes = ["près de moi", "meilleur", "adresse", "trouver", "recommandé"];
+  const core = [...base].slice(0, 36);
+  const prefixes = ["près de moi", "meilleur", "adresse", "trouver", "recommandé", "ouvert", "familial", "romantique"];
   core.slice(0, 12).forEach((value) => {
     if (context.category) base.add(`${context.category} ${value}`);
     if (context.location) base.add(`${value} ${context.location}`);
   });
-  prefixes.forEach((prefix) => core.slice(0, 5).forEach((value) => base.add(`${prefix} ${value}`)));
+  prefixes.forEach((prefix) => core.slice(0, 8).forEach((value) => base.add(`${prefix} ${value}`)));
+  core.slice(0, 10).forEach((left) => core.slice(0, 10).forEach((right) => {
+    if (left !== right) base.add(`${left} ${right}`);
+  }));
   return [...base].slice(0, 100);
 }
 

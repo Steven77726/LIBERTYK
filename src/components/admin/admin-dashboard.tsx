@@ -265,6 +265,7 @@ const cleanTextList = (value: string) =>
 const defaultFieldVisibility: FieldVisibility = {
   phone: true,
   whatsapp: true,
+  email: true,
   instagram: true,
   website: true,
   reservation: true,
@@ -281,6 +282,7 @@ const defaultFieldVisibility: FieldVisibility = {
 const visibilityLabels: Array<{ key: string; label: string }> = [
   { key: "phone", label: "Téléphone" },
   { key: "whatsapp", label: "WhatsApp" },
+  { key: "email", label: "Email" },
   { key: "instagram", label: "Instagram" },
   { key: "website", label: "Site internet" },
   { key: "reservation", label: "Réservation" },
@@ -293,6 +295,43 @@ const visibilityLabels: Array<{ key: string; label: string }> = [
   { key: "gallery", label: "Galerie" },
   { key: "certification", label: "Certification" },
 ];
+
+const weekDays = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+
+function parseAdminHours(value: string) {
+  const parsed = Object.fromEntries(weekDays.map((day) => [day, { open: false, slot1Start: "", slot1End: "", slot2Start: "", slot2End: "" }])) as Record<string, { open: boolean; slot1Start: string; slot1End: string; slot2Start: string; slot2End: string }>;
+  value.split("\n").forEach((line) => {
+    const [rawDay, ...rest] = line.split(":");
+    const day = rawDay?.trim().toLowerCase();
+    if (!weekDays.includes(day)) return;
+    const text = rest.join(":").trim();
+    if (!text || text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes("ferme")) {
+      parsed[day] = { ...parsed[day], open: false };
+      return;
+    }
+    const slots = text.split("/").map((slot) => slot.trim());
+    const first = slots[0]?.split(/[–-]/).map((part) => part.trim().replace("h", ":")) ?? [];
+    const second = slots[1]?.split(/[–-]/).map((part) => part.trim().replace("h", ":")) ?? [];
+    parsed[day] = {
+      open: Boolean(first[0] && first[1]),
+      slot1Start: first[0] ?? "",
+      slot1End: first[1] ?? "",
+      slot2Start: second[0] ?? "",
+      slot2End: second[1] ?? "",
+    };
+  });
+  return parsed;
+}
+
+function serializeAdminHours(hours: ReturnType<typeof parseAdminHours>) {
+  return weekDays.map((day) => {
+    const value = hours[day];
+    if (!value.open) return `${day}: Fermé`;
+    const slots = [`${value.slot1Start || "09:00"}–${value.slot1End || "18:00"}`];
+    if (value.slot2Start && value.slot2End) slots.push(`${value.slot2Start}–${value.slot2End}`);
+    return `${day}: ${slots.join(" / ")}`;
+  }).join("\n");
+}
 
 function getCompleteness(item: AdminEstablishment) {
   const missing: string[] = [];
@@ -540,7 +579,7 @@ function createSeedState(): AdminState {
     whatsapp: "",
     instagram: "",
     website: activity.website ?? "",
-    hours: "Horaires à compléter",
+    hours: "",
     terrace: false,
     delivery: false,
     takeaway: true,
@@ -577,7 +616,7 @@ function createSeedState(): AdminState {
     whatsapp: "",
     instagram: "",
     website: "",
-    hours: "Horaires à compléter",
+    hours: "",
     terrace: false,
     delivery: false,
     takeaway: false,
@@ -788,6 +827,50 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       <span>{label}</span>
       <span className={`size-5 rounded-full border ${checked ? "border-moss bg-moss" : "border-black/20 bg-white"}`} />
     </button>
+  );
+}
+
+function HoursEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const hours = parseAdminHours(value);
+  const updateDay = (day: string, next: Partial<(typeof hours)[string]>) => {
+    onChange(serializeAdminHours({ ...hours, [day]: { ...hours[day], ...next } }));
+  };
+  const copyToAll = (day: string) => {
+    const source = hours[day];
+    onChange(serializeAdminHours(Object.fromEntries(weekDays.map((current) => [current, { ...source }])) as typeof hours));
+  };
+
+  return (
+    <div className="rounded-3xl bg-white p-5 shadow-sm lg:col-span-2">
+      <div className="mb-4">
+        <p className="text-sm font-semibold">Horaires</p>
+        <p className="mt-1 text-xs text-ink/45">Saisissez les horaires par jour. Les fiches publiques et le statut ouvert/fermé utiliseront ces données.</p>
+      </div>
+      <div className="space-y-3">
+        {weekDays.map((day) => {
+          const current = hours[day];
+          return (
+            <div key={day} className="rounded-2xl bg-cream p-3">
+              <div className="grid gap-3 lg:grid-cols-[120px_110px_1fr_auto] lg:items-center">
+                <p className="text-sm font-semibold capitalize">{day}</p>
+                <Toggle label={current.open ? "Ouvert" : "Fermé"} checked={current.open} onChange={(open) => updateDay(day, { open })} />
+                {current.open ? (
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    <input type="time" value={current.slot1Start} onChange={(event) => updateDay(day, { slot1Start: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
+                    <input type="time" value={current.slot1End} onChange={(event) => updateDay(day, { slot1End: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
+                    <input type="time" value={current.slot2Start} onChange={(event) => updateDay(day, { slot2Start: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
+                    <input type="time" value={current.slot2End} onChange={(event) => updateDay(day, { slot2End: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink/40">Fermé</p>
+                )}
+                <button type="button" onClick={() => copyToAll(day)} className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-ink/55">Copier sur les autres jours</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -1184,7 +1267,7 @@ export function AdminDashboard() {
         whatsapp: "",
         instagram: "",
         website: "",
-        hours: "Horaires à compléter",
+        hours: "",
         terrace: false,
         delivery: false,
         takeaway: false,
@@ -1949,7 +2032,7 @@ export function AdminDashboard() {
                       </SelectField>
                       <Field label="Description courte" value={selectedEstablishment.shortDescription ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { shortDescription: value })} />
                       <Field label="Description" value={selectedEstablishment.description} textarea onChange={(value) => updateEstablishment(selectedEstablishment.id, { description: value })} />
-                      <Field label="Horaires" value={selectedEstablishment.hours} textarea onChange={(value) => updateEstablishment(selectedEstablishment.id, { hours: value })} />
+                      <HoursEditor value={selectedEstablishment.hours} onChange={(value) => updateEstablishment(selectedEstablishment.id, { hours: value })} />
                       <Field label="Adresse" value={selectedEstablishment.address} onChange={(value) => updateEstablishment(selectedEstablishment.id, { address: value })} />
                       <Field label="Ville" value={selectedEstablishment.city} onChange={(value) => updateEstablishment(selectedEstablishment.id, { city: value })} />
                       <Field label="Arrondissement" value={selectedEstablishment.arrondissement} onChange={(value) => updateEstablishment(selectedEstablishment.id, { arrondissement: value })} />

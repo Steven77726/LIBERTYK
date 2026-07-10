@@ -44,9 +44,16 @@ export type Restaurant = {
   openSunday: boolean | null;
   openLate: boolean | null;
   image: string;
+  gallery?: string[];
   website?: string;
   instagram?: string;
   whatsapp?: string;
+  email?: string;
+  city?: string;
+  country?: string;
+  tags?: string[];
+  sponsored?: boolean;
+  sponsorshipLevel?: string;
   fieldVisibility?: Record<string, boolean>;
   latitude: number;
   longitude: number;

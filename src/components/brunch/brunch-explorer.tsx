@@ -44,7 +44,7 @@ function BrunchCard({ brunch, onOpen }: { brunch: Brunch; onOpen: () => void }) 
         <img src={assetPath(brunch.images[0])} alt="" className="size-full object-cover transition duration-700 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
         <div className="absolute left-4 top-4"><RecommendationBadge rating={brunch.rating} reviewCount={brunch.reviewCount} /></div>
-        <span className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold backdrop-blur">Horaires à compléter</span>
+        <span className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold backdrop-blur">Voir les horaires</span>
       </button>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">

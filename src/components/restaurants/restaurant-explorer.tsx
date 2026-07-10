@@ -2,7 +2,7 @@
 
 import {
   ArrowUpRight, CalendarDays, Car, ChevronDown, Filter, Globe2, Instagram,
-  List, Map, MapPin, Navigation, Phone, Search, SlidersHorizontal,
+  List, Map as MapIcon, MapPin, Navigation, Phone, Search, SlidersHorizontal,
   Store, UtensilsCrossed, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -12,6 +12,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
 import { assetPath } from "@/lib/assets";
 import { EntityActions, LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
+import { loadAdminStateFromSupabase } from "@/lib/supabase/admin-state";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -21,8 +22,21 @@ const budgetFilters = ["Moins de 20 €", "20 € à 40 €", "40 € à 70 €"
 const comfortFilters = ["Adapté aux familles", "Terrasse", "Wifi", "Menu enfant", "Privatisation"];
 const accessibilityFilters = ["Accessible PMR", "Parking", "Métro à moins de 500 mètres"];
 const locationFilters = ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"];
+const publicDefaultFieldVisibility: Record<string, boolean> = {
+  phone: true,
+  instagram: true,
+  website: true,
+  reservation: true,
+  takeaway: true,
+  delivery: true,
+  price: true,
+  map: true,
+  reviews: true,
+  certification: true,
+};
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const slugify = (value: string) => normalize(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const distanceBetween = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const radius = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -30,6 +44,160 @@ const distanceBetween = (lat1: number, lon1: number, lat2: number, lon2: number)
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
+
+type AdminStateRestaurantsPreview = {
+  rubrics?: Array<{ id: string; slug?: string; name: string }>;
+  subrubrics?: Array<{ id: string; rubricId: string; slug?: string; name: string }>;
+  establishments?: Array<{
+    id: string;
+    rubricId: string;
+    subrubricId: string;
+    mainPhoto?: string;
+    photos?: string[];
+    name: string;
+    description?: string;
+    address?: string;
+    city?: string;
+    arrondissement?: string;
+    postalCode?: string;
+    phone?: string;
+    website?: string;
+    instagram?: string;
+    hours?: string;
+    terrace?: boolean;
+    delivery?: boolean;
+    takeaway?: boolean;
+    reservation?: boolean;
+    privateHire?: boolean;
+    certification?: string;
+    kosherType?: string;
+    averagePrice?: string;
+    latitude?: string;
+    longitude?: string;
+    status: string;
+    visible?: boolean;
+    cuisineTypes?: string[];
+    customerSearches?: string[];
+    fieldVisibility?: Record<string, boolean>;
+    order?: number;
+  }>;
+};
+
+const ADMIN_STORAGE_KEY = "liberty-admin-dashboard-v1";
+
+function parseArrondissement(value?: string) {
+  const match = String(value ?? "").match(/\d{1,2}/);
+  return match ? Number(match[0]) : 0;
+}
+
+function mapKosherType(value?: string): Restaurant["type"] {
+  const normalized = normalize(value ?? "");
+  if (normalized.includes("bassari") || normalized.includes("viande")) return "Viande";
+  if (normalized.includes("halavi") || normalized.includes("lait")) return "Lait";
+  if (normalized.includes("parve") || normalized.includes("parvé")) return "Parvé";
+  return "À compléter";
+}
+
+function mapPrice(value?: string): Restaurant["price"] {
+  if (value === "€" || value === "€€" || value === "€€€") return value;
+  return "À compléter";
+}
+
+function hourLinesToRecord(value?: string) {
+  const fallback = {
+    lundi: "Horaires à compléter",
+    mardi: "Horaires à compléter",
+    mercredi: "Horaires à compléter",
+    jeudi: "Horaires à compléter",
+    vendredi: "Horaires à compléter",
+    samedi: "Fermé / à compléter",
+    dimanche: "Horaires à compléter",
+  };
+  if (!value?.trim()) return fallback;
+  return value.split("\n").reduce<Record<string, string>>((acc, line) => {
+    const [day, ...rest] = line.split(":");
+    if (day?.trim() && rest.join(":").trim()) acc[day.trim().toLowerCase()] = rest.join(":").trim();
+    return acc;
+  }, { ...fallback });
+}
+
+function adminStateToRestaurants(state: AdminStateRestaurantsPreview | null | undefined): Restaurant[] {
+  if (!state?.establishments?.length) return [];
+  const rubrics = new Map((state.rubrics ?? []).map((rubric) => [rubric.id, rubric]));
+  const subrubrics = new Map((state.subrubrics ?? []).map((subrubric) => [subrubric.id, subrubric]));
+
+  return state.establishments
+    .filter((item) => {
+      if (item.status !== "Publié" || item.visible === false) return false;
+      const rubric = rubrics.get(item.rubricId);
+      const subrubric = subrubrics.get(item.subrubricId);
+      const rubricKey = normalize(`${item.rubricId} ${rubric?.slug ?? ""} ${rubric?.name ?? ""}`);
+      const subrubricKey = normalize(`${item.subrubricId} ${subrubric?.slug ?? ""} ${subrubric?.name ?? ""}`);
+      return rubricKey.includes("food") && (subrubricKey.includes("restaurant") || item.subrubricId === "food-restaurants");
+    })
+    .map((item, index) => {
+      const arrondissement = parseArrondissement(item.arrondissement);
+      const postalCode = item.postalCode || (arrondissement ? `750${String(arrondissement).padStart(2, "0")}` : "");
+      const cuisine = item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : item.kosherType || "Restaurant casher";
+      const specialty = item.customerSearches?.length ? item.customerSearches.slice(0, 4).join(", ") : item.description || "Restaurant casher";
+      return {
+        id: item.id || slugify(`${item.name}-${item.address ?? ""}`),
+        name: item.name,
+        fullAddress: item.address || "Adresse à compléter",
+        postalCode,
+        arrondissement,
+        phone: item.phone || "",
+        specialty,
+        cuisine,
+        type: mapKosherType(item.kosherType),
+        certification: item.certification || "À compléter",
+        services: {
+          dineIn: true,
+          takeaway: item.takeaway ?? null,
+          delivery: item.delivery ?? null,
+          clickAndCollect: null,
+          reservation: item.reservation ?? null,
+        },
+        amenities: {
+          familyFriendly: null,
+          accessible: null,
+          parking: null,
+          terrace: item.terrace ?? null,
+          wifi: null,
+          kidsMenu: null,
+          privateHire: item.privateHire ?? null,
+          metroNearby: null,
+        },
+        hours: hourLinesToRecord(item.hours),
+        price: mapPrice(item.averagePrice),
+        rating: null,
+        reviewCount: 0,
+        distanceKm: 0,
+        isOpenNow: null,
+        openLunch: null,
+        openDinner: null,
+        openSunday: null,
+        openLate: null,
+        image: item.mainPhoto || item.photos?.find(Boolean) || "/images/food/restaurants-khan.jpg",
+        website: item.website,
+        instagram: item.instagram,
+        fieldVisibility: { ...publicDefaultFieldVisibility, ...(item.fieldVisibility ?? {}) },
+        latitude: Number(item.latitude) || 48.8566,
+        longitude: Number(item.longitude) || 2.3522,
+        importedAt: new Date(Date.now() + index).toISOString(),
+      };
+    });
+}
+
+function mergeRestaurants(base: Restaurant[], adminRestaurants: Restaurant[]) {
+  const merged = new Map<string, Restaurant>();
+  [...base, ...adminRestaurants].forEach((restaurant) => {
+    const key = normalize(`${restaurant.name}-${restaurant.fullAddress}`);
+    const existing = merged.get(key);
+    if (!existing || restaurant.importedAt >= existing.importedAt) merged.set(key, restaurant);
+  });
+  return [...merged.values()];
+}
 const cuisineMatch = (restaurant: Restaurant, filter: string) => {
   const corpus = normalize(`${restaurant.cuisine} ${restaurant.specialty}`);
   const aliases: Record<string, string[]> = {
@@ -54,6 +222,7 @@ function FilterSection({ title, options, active, toggle }: { title: string; opti
 
 function RestaurantCard({ restaurant, onOpen, onReserve }: { restaurant: Restaurant; onOpen: () => void; onReserve: () => void }) {
   const unknown = "À compléter";
+  const visibility = { ...publicDefaultFieldVisibility, ...(restaurant.fieldVisibility ?? {}) };
   const entity = { id: `restaurant-${restaurant.id}`, title: restaurant.name, url: `/food/restaurants#${restaurant.id}`, text: `${restaurant.name} · ${restaurant.fullAddress}` };
   return (
     <article id={restaurant.id} className="group overflow-hidden rounded-[1.75rem] border border-black/[.055] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft">
@@ -63,33 +232,33 @@ function RestaurantCard({ restaurant, onOpen, onReserve }: { restaurant: Restaur
           <div className="flex flex-col items-start gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.08em] text-ink backdrop-blur">{restaurant.cuisine}</span><RecommendationBadge rating={restaurant.rating} reviewCount={restaurant.reviewCount} /></div>
           <LikeButton entity={entity} />
         </div>
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2"><span className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{restaurant.isOpenNow === null ? "Horaires à compléter" : restaurant.isOpenNow ? "Ouvert" : "Fermé"}</span><button onClick={onReserve} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-ink shadow-sm"><CalendarDays size={12} /> Réservation</button></div>
+        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2"><span className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{restaurant.isOpenNow === null ? "Horaires à compléter" : restaurant.isOpenNow ? "Ouvert" : "Fermé"}</span>{visibility.reservation !== false && <button onClick={onReserve} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-ink shadow-sm"><CalendarDays size={12} /> Réservation</button>}</div>
       </div>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div><button onClick={onOpen} className="text-left"><h2 className="text-xl font-semibold tracking-[-.035em]">{restaurant.name}</h2></button><p className="mt-1 text-xs text-ink/43">{restaurant.specialty}</p></div>
         </div>
-        <div className="mt-3"><CustomerRating rating={restaurant.rating} reviewCount={restaurant.reviewCount} /></div>
+        {visibility.reviews !== false && <div className="mt-3"><CustomerRating rating={restaurant.rating} reviewCount={restaurant.reviewCount} /></div>}
         <div className="mt-4 flex flex-wrap gap-1.5 text-[10px]">
           <span className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.type}</span>
-          <span className="rounded-full bg-cream px-2.5 py-1.5">✡ {restaurant.certification}</span>
-          <span className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.price}</span>
+          {visibility.certification !== false && <span className="rounded-full bg-cream px-2.5 py-1.5">✡ {restaurant.certification}</span>}
+          {visibility.price !== false && <span className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.price}</span>}
         </div>
         <div className="mt-4 flex items-start gap-2 text-xs leading-5 text-ink/52"><MapPin size={14} className="mt-0.5 shrink-0" /><span>{restaurant.fullAddress}, {restaurant.postalCode}<br />Paris {restaurant.arrondissement}<sup>e</sup> · {restaurant.distanceKm} km</span></div>
         <div className="mt-4 flex gap-2 border-t border-black/[.06] pt-4">
           {[
             { value: restaurant.services.dineIn, label: "Sur place", icon: Store },
-            { value: restaurant.services.takeaway, label: "À emporter", icon: UtensilsCrossed },
-            { value: restaurant.services.delivery, label: "Livraison", icon: Car },
+            { value: visibility.takeaway === false ? false : restaurant.services.takeaway, label: "À emporter", icon: UtensilsCrossed },
+            { value: visibility.delivery === false ? false : restaurant.services.delivery, label: "Livraison", icon: Car },
           ].map(({ value, label, icon: Icon }) => <span key={label} title={value === null ? unknown : label} className={`flex items-center gap-1 text-[10px] ${value ? "text-moss" : "text-ink/25"}`}><Icon size={13} />{label}</span>)}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <a href={`tel:${restaurant.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-semibold text-white"><Phone size={14} /> Appeler</a>
-          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.fullAddress)}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold"><Navigation size={14} /> Itinéraire</a>
+          {visibility.phone !== false && restaurant.phone && <a href={`tel:${restaurant.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-semibold text-white"><Phone size={14} /> Appeler</a>}
+          {visibility.map !== false && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.fullAddress)}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold"><Navigation size={14} /> Itinéraire</a>}
         </div>
         <div className="mt-2 flex items-center justify-center gap-1">
-          <button className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Site internet"><Globe2 size={14} /></button>
-          <button className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Instagram"><Instagram size={14} /></button>
+          {visibility.website !== false && restaurant.website && <a href={restaurant.website} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Site internet"><Globe2 size={14} /></a>}
+          {visibility.instagram !== false && restaurant.instagram && <a href={restaurant.instagram} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Instagram"><Instagram size={14} /></a>}
           <ShareButton entity={entity} compact />
           <ReviewButton entity={entity} compact />
         </div>
@@ -124,6 +293,34 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   const [detailRestaurant, setDetailRestaurant] = useState<Restaurant | null>(null);
   const [reservationRestaurant, setReservationRestaurant] = useState<Restaurant | null>(null);
   const [restaurantData, setRestaurantData] = useState(initialRestaurants);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadAdminRestaurants = async () => {
+      let localState: AdminStateRestaurantsPreview | null = null;
+      try {
+        const raw = window.localStorage.getItem(ADMIN_STORAGE_KEY);
+        localState = raw ? JSON.parse(raw) as AdminStateRestaurantsPreview : null;
+      } catch {
+        localState = null;
+      }
+
+      const remoteState = await loadAdminStateFromSupabase<AdminStateRestaurantsPreview>();
+      if (!mounted) return;
+      const adminRestaurants = adminStateToRestaurants(remoteState ?? localState);
+      setRestaurantData(mergeRestaurants(initialRestaurants, adminRestaurants));
+    };
+
+    void loadAdminRestaurants();
+    const refresh = () => void loadAdminRestaurants();
+    window.addEventListener("storage", refresh);
+    window.addEventListener("liberty-admin-published", refresh);
+    return () => {
+      mounted = false;
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("liberty-admin-published", refresh);
+    };
+  }, [initialRestaurants]);
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(({ coords }) => {
@@ -190,7 +387,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         <div className="rounded-[2rem] bg-ink px-6 py-10 text-white sm:px-10">
           <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">Food · Paris</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Restaurants casher</h1>
-          <p className="mt-3 text-sm text-white/45">20 adresses importées · Données du 3 juillet 2026</p>
+          <p className="mt-3 text-sm text-white/45">{restaurantData.length} adresse{restaurantData.length > 1 ? "s" : ""} disponible{restaurantData.length > 1 ? "s" : ""} · Données Admin incluses</p>
           <div className="mt-7 flex max-w-3xl items-center rounded-2xl bg-white p-2 text-ink shadow-2xl">
             <Search size={19} className="ml-3 shrink-0 text-ink/30" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, arrondissement, cuisine…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />
@@ -205,7 +402,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
             <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-semibold lg:hidden"><Filter size={15} /> Filtres {filters.length > 0 && `(${filters.length})`}</button>
             <div className="flex rounded-xl bg-white p-1">
               <button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "list" ? "bg-ink text-white" : "text-ink/45"}`}><List size={14} /> Liste</button>
-              <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "map" ? "bg-ink text-white" : "text-ink/45"}`}><Map size={14} /> Carte</button>
+              <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "map" ? "bg-ink text-white" : "text-ink/45"}`}><MapIcon size={14} /> Carte</button>
             </div>
           </div>
           <label className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs"><SlidersHorizontal size={14} className="text-ink/40" /><select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent font-medium outline-none">{["Les plus proches", "Les mieux notés", "Les plus populaires", "Les nouveautés", "Ordre alphabétique"].map((option) => <option key={option}>{option}</option>)}</select><ChevronDown size={13} /></label>

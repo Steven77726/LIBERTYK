@@ -15,14 +15,8 @@ const categoryIntentions: Record<string, string[]> = {
   religion: ["Torah", "cours de Torah", "synagogue", "rabbin", "chabbat", "judaïsme"],
   mikve: ["mikvé femme", "mikvé vaisselle", "tévilat kélim", "bain rituel", "pureté familiale"],
   enfants: ["famille", "enfant", "école", "activité enfant", "vacances", "colonie"],
-  services: ["service", "dépannage", "transport", "maison", "professionnel"],
-  professionnels: ["entreprise", "expert", "réseau", "professionnel", "b2b"],
-  formations: ["formation", "cours", "apprendre", "reconversion", "coaching"],
-  "bons-plans": ["promotion", "réduction", "offre", "bon plan", "pas cher"],
-  sante: ["médecin", "santé", "bien-être", "praticien", "consultation"],
-  immobilier: ["appartement", "maison", "achat", "location", "agence"],
-  emploi: ["emploi", "travail", "offre", "recrutement", "carrière"],
-  medias: ["actualité", "podcast", "vidéo", "média", "information"],
+  chauffeurs: ["chauffeur", "transport", "taxi", "vtc", "aéroport", "navette"],
+  "calendrier-juif": ["calendrier juif", "fêtes juives", "chabbat", "horaires", "dates importantes"],
   "vin-spiritueux": ["vin", "spiritueux", "caviste", "dégustation", "cocktail", "wine tour"],
 };
 
@@ -58,13 +52,42 @@ const restaurantItems: SearchItem[] = restaurants.map((restaurant) => {
     title: restaurant.name,
     subtitle: `${restaurant.cuisine} · ${restaurant.fullAddress}`,
     category: "Restaurant",
+    subcategory: "Restaurants",
     href: `/food/restaurants#${restaurant.id}`,
     image: restaurant.image,
+    customerSearches: [
+      restaurant.name, restaurant.fullAddress, restaurant.postalCode, `${restaurant.arrondissement}e arrondissement`,
+      `Paris ${restaurant.arrondissement}`, restaurant.specialty, restaurant.cuisine, restaurant.type,
+      restaurant.certification, "restaurant casher", "restaurant cacher", "restaurant kasher", ...services, ...khanKeywords,
+    ].filter(Boolean) as string[],
     keywords: buildInvisibleKeywords([
       restaurant.name, restaurant.fullAddress, restaurant.postalCode, `${restaurant.arrondissement}e arrondissement`,
       `Paris ${restaurant.arrondissement}`, restaurant.specialty, restaurant.cuisine, restaurant.type,
       restaurant.certification, "restaurant casher", "restaurant cacher", "restaurant kasher", ...services, ...khanKeywords,
     ], { category: "restaurant food", location: `Paris ${restaurant.arrondissement} ${restaurant.postalCode}` }),
+    location: {
+      city: "Paris",
+      arrondissement: String(restaurant.arrondissement || ""),
+      postalCode: restaurant.postalCode,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+    },
+    filters: {
+      certification: restaurant.certification,
+      kosherType: restaurant.type === "Viande" ? "Bassari" : restaurant.type === "Lait" ? "Halavi" : restaurant.type,
+      terrace: restaurant.amenities.terrace === true,
+      openNow: restaurant.isOpenNow,
+      delivery: restaurant.services.delivery === true,
+      takeaway: restaurant.services.takeaway === true,
+      reservation: restaurant.services.reservation === true,
+      price: restaurant.price,
+    },
+    ranking: {
+      sponsored: restaurant.name === "Khan",
+      popularity: restaurant.name === "Khan" ? 92 : 45 + restaurant.arrondissement,
+      favorites: restaurant.name === "Khan" ? 34 : restaurant.reviewCount,
+      reviewCount: restaurant.reviewCount,
+    },
   };
 });
 
@@ -73,13 +96,42 @@ const brunchItems: SearchItem[] = brunches.map((brunch) => ({
   title: brunch.name,
   subtitle: `${brunch.cuisine}${brunch.address ? ` · ${brunch.address}` : ""}`,
   category: "Brunch",
+  subcategory: "Brunch",
   href: `/food/brunch/${brunch.slug}`,
   image: brunch.images[0],
+  customerSearches: [
+    brunch.name, brunch.address ?? "Paris", brunch.postalCode ?? "", `${brunch.arrondissement ?? ""}e arrondissement`,
+    brunch.specialty, brunch.cuisine, brunch.kosherType, brunch.certification ?? "", ...brunch.tags,
+    "brunch casher", "petit déjeuner casher", "brunch Paris", "avocado toast", "pancakes", "healthy",
+  ].filter(Boolean),
   keywords: buildInvisibleKeywords([
     brunch.name, brunch.address ?? "Paris", brunch.postalCode ?? "", `${brunch.arrondissement ?? ""}e arrondissement`,
     brunch.specialty, brunch.cuisine, brunch.kosherType, brunch.certification ?? "", ...brunch.tags,
     "brunch casher", "petit déjeuner casher", "brunch Paris",
   ], { category: "brunch food", location: `Paris ${brunch.arrondissement ?? ""}` }),
+  location: {
+    city: "Paris",
+    arrondissement: String(brunch.arrondissement ?? ""),
+    postalCode: brunch.postalCode,
+    latitude: brunch.latitude,
+    longitude: brunch.longitude,
+  },
+  filters: {
+    certification: brunch.certification,
+    kosherType: brunch.kosherType === "Lait" ? "Halavi" : brunch.kosherType === "Viande" ? "Bassari" : brunch.kosherType,
+    terrace: brunch.amenities.terrace === true,
+    openNow: null,
+    delivery: brunch.services.delivery === true,
+    takeaway: brunch.services.takeaway === true,
+    reservation: brunch.services.reservation === true,
+    price: brunch.price,
+  },
+  ranking: {
+    sponsored: false,
+    popularity: 55 + (brunch.arrondissement ?? 1),
+    favorites: brunch.reviewCount,
+    reviewCount: brunch.reviewCount,
+  },
 }));
 
 const wineItems: SearchItem[] = wineActivities.map((activity) => ({
@@ -87,9 +139,26 @@ const wineItems: SearchItem[] = wineActivities.map((activity) => ({
   title: activity.title,
   subtitle: activity.type,
   category: "Vin & Spiritueux",
+  subcategory: activity.type,
   href: `/vin-spiritueux/${activity.slug}`,
   image: activity.image,
+  customerSearches: [activity.title, activity.type, activity.address ?? "Paris", activity.description, ...activity.tags, "vin casher", "spiritueux casher", "tequila casher", "dégustation", "cocktail"],
   keywords: buildInvisibleKeywords([activity.title, activity.type, activity.address ?? "Paris", activity.description, ...activity.tags, "vin casher", "dégustation"], { category: "vin spiritueux", location: "Paris France" }),
+  location: { city: "Paris", arrondissement: activity.address?.includes("75017") ? "17" : "", postalCode: activity.address?.includes("75017") ? "75017" : undefined },
+  filters: {
+    kosherType: "Parvé",
+    reservation: activity.slug !== "winess",
+    takeaway: true,
+    delivery: false,
+    openNow: null,
+    price: "€€€",
+  },
+  ranking: {
+    sponsored: true,
+    popularity: 88,
+    favorites: 26,
+    reviewCount: activity.reviewCount ?? 0,
+  },
 }));
 
 const shopItems: SearchItem[] = [{
@@ -97,9 +166,14 @@ const shopItems: SearchItem[] = [{
   title: azamra.name,
   subtitle: "Mode · Homme · Femme · Enfant",
   category: "Vêtements",
+  subcategory: "Mode",
   href: "/shopping/vetements/azamra",
   image: azamra.image,
+  customerSearches: [azamra.name, azamra.type, azamra.description, ...azamra.tags, "boutique juive", "mode pudique", "vêtement Paris", "shopping", "robe", "homme", "femme", "enfant"],
   keywords: buildInvisibleKeywords([azamra.name, azamra.type, azamra.description, ...azamra.tags, "boutique juive", "mode pudique", "vêtement Paris", "spiritual studio"], { category: "shopping mode vêtements", location: "Paris" }),
+  location: { city: "Paris" },
+  filters: { openNow: null },
+  ranking: { sponsored: false, popularity: 64, favorites: azamra.reviewCount, reviewCount: azamra.reviewCount },
 }];
 
 export const searchIndex: SearchItem[] = [...restaurantItems, ...brunchItems, ...wineItems, ...shopItems, ...categoryItems];

@@ -1,7 +1,7 @@
 import {
-  Baby, BadgePercent, CalendarDays, CarFront, Dumbbell,
-  HandPlatter, HeartPulse, Landmark, Plane, ShoppingBag,
-  Sparkles, Utensils, Wine, Wrench, Droplets,
+  Baby, CalendarDays, CarFront, Dumbbell,
+  HandPlatter, Landmark, Plane, ShoppingBag,
+  Sparkles, Utensils, Wine, Droplets,
 } from "lucide-react";
 import type { Category } from "@/types/category";
 
@@ -15,11 +15,8 @@ export const categories: Category[] = [
   { slug: "sport", label: "Sport", eyebrow: "Bouger", description: "Clubs, coachs et activités pour prendre soin de votre énergie.", icon: Dumbbell, color: "#3b7257", softColor: "#e1eee6", image: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=1200&q=85", featured: ["Coachs", "Clubs", "Activités"] },
   { slug: "religion", label: "Religion", eyebrow: "Transmettre", description: "Ressources, lieux et rendez-vous pour nourrir la vie juive.", icon: Landmark, color: "#566995", softColor: "#e5e9f3", image: "https://images.unsplash.com/photo-1561361058-c24e02d11d8e?auto=format&fit=crop&w=1200&q=85", featured: ["Mikvé", "Calendrier des fêtes juives", "Librairies", "Cadeaux religieux"] },
   { slug: "enfants", label: "Enfants", eyebrow: "Grandir", description: "Activités, écoles et bonnes adresses pour toute la famille.", icon: Baby, color: "#b27a2f", softColor: "#f6ecd9", image: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=1200&q=85", featured: ["Activités", "Parcs", "Anniversaires", "Spectacles", "Colonies"] },
-  { slug: "services", label: "Services", eyebrow: "Au quotidien", description: "Des professionnels de confiance pour vous simplifier la vie.", icon: Wrench, color: "#557267", softColor: "#e5ece9", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=85", featured: ["Maison", "Transport", "Dépannage"] },
   { slug: "chauffeurs", label: "Chauffeurs", eyebrow: "Se déplacer", description: "Des chauffeurs de confiance pour tous vos déplacements.", icon: CarFront, color: "#405f68", softColor: "#e1ebed", image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=85", featured: ["Transferts", "Mise à disposition", "Événements"] },
   { slug: "calendrier-juif", label: "Calendrier juif", shortLabel: "Calendrier", eyebrow: "Se repérer", description: "Fêtes, horaires et temps forts du calendrier hébraïque.", icon: CalendarDays, color: "#6c5d8c", softColor: "#ebe7f1", image: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1200&q=85", featured: ["Fêtes juives", "Chabbat", "Dates importantes"] },
-  { slug: "bons-plans", label: "Bons plans", eyebrow: "En profiter", description: "Offres, nouveautés et avantages à ne pas manquer.", icon: BadgePercent, color: "#b05a35", softColor: "#f6e6de", image: "https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=1200&q=85", featured: ["Promos", "Exclusivités", "Nouveautés"] },
-  { slug: "sante", label: "Santé", eyebrow: "Prendre soin", description: "Praticiens, conseils et ressources pour votre bien-être.", icon: HeartPulse, color: "#397567", softColor: "#e0eeea", image: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=1200&q=85", featured: ["Praticiens", "Bien-être", "Conseils"] },
   { slug: "mikve", label: "Mikvé", eyebrow: "Pureté & tradition", description: "Les adresses et informations utiles pour les mikvaot.", icon: Droplets, color: "#367184", softColor: "#dfeef1", image: "https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?auto=format&fit=crop&w=1200&q=85", featured: ["Mikvé femme", "Mikvé vaisselle"] },
 ];
 

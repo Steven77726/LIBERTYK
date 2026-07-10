@@ -1,3 +1,5 @@
+import { syncAnalyticsEvent, syncFavorite, syncLike, syncReview } from "@/lib/supabase/sync";
+
 export type LibertyUser = {
   id: string;
   name: string;
@@ -14,16 +16,6 @@ export type LibertyReview = {
   createdAt: string;
 };
 
-export type LibertyAiProfile = {
-  id: string;
-  name: string;
-  theme: string;
-  avatar?: string;
-  memory: string[];
-  preferences: string[];
-  notifications: string[];
-};
-
 export type LibertyEvent = {
   id: string;
   type: string;
@@ -37,7 +29,6 @@ const LIKES_KEY = "liberty-likes";
 const FAVORITES_KEY = "liberty-favorites";
 const REVIEWS_KEY = "liberty-reviews";
 const EVENTS_KEY = "liberty-analytics-events";
-const AI_PROFILES_KEY = "liberty-ai-profiles";
 
 function safeRead<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -95,6 +86,7 @@ export function toggleLike(entityId: string, label?: string) {
   const next = current.includes(entityId) ? current.filter((id) => id !== entityId) : [entityId, ...current];
   safeWrite(LIKES_KEY, next);
   trackEvent(next.includes(entityId) ? "like_added" : "like_removed", label, entityId);
+  void syncLike(entityId, label, next.includes(entityId));
   return next;
 }
 
@@ -109,6 +101,7 @@ export function toggleFavorite(entityId: string, label?: string) {
   const next = current.includes(entityId) ? current.filter((id) => id !== entityId) : [entityId, ...current];
   safeWrite(FAVORITES_KEY, next);
   trackEvent(next.includes(entityId) ? "favorite_added" : "favorite_removed", label, entityId);
+  void syncFavorite(entityId, label, next.includes(entityId));
   return next;
 }
 
@@ -130,25 +123,14 @@ export function publishReview(entityId: string, text: string, label?: string) {
   const review: LibertyReview = { entityId, userId: user.id, userName: user.name, text: cleanText, createdAt: new Date().toISOString() };
   safeWrite(REVIEWS_KEY, [review, ...getReviews()]);
   trackEvent("review_published", label, entityId);
+  void syncReview(entityId, cleanText, label);
   return { ok: true as const, review };
-}
-
-export function getAiProfiles() {
-  return safeRead<LibertyAiProfile[]>(AI_PROFILES_KEY, [
-    { id: "batata", name: "BATATA", theme: "🍽 Food & Restaurants", memory: ["Brunch casher Paris 17", "Restaurant bassari 17"], preferences: ["bassari", "Paris 17"], notifications: [] },
-    { id: "tsadik", name: "TSADIK", theme: "🍷 Vin & Spiritueux", memory: ["Dégustation de vin sur Paris", "Tequila casher"], preferences: ["vins casher"], notifications: [] },
-    { id: "favoris", name: "MES FAVORIS", theme: "💰 Bons plans", memory: ["Restaurant préféré", "Vin préféré"], preferences: ["coups de cœur"], notifications: [] },
-  ]);
-}
-
-export function saveAiProfiles(profiles: LibertyAiProfile[]) {
-  safeWrite(AI_PROFILES_KEY, profiles.slice(0, 5));
-  trackEvent("ai_profiles_saved", "Agent IA");
 }
 
 export function trackEvent(type: string, label?: string, entityId?: string) {
   const event: LibertyEvent = { id: crypto.randomUUID(), type, label, entityId, createdAt: new Date().toISOString() };
   safeWrite(EVENTS_KEY, [event, ...safeRead<LibertyEvent[]>(EVENTS_KEY, [])].slice(0, 500));
+  void syncAnalyticsEvent(type, label, entityId);
 }
 
 export function getAnalyticsEvents() {

@@ -46,6 +46,8 @@ export type Restaurant = {
   image: string;
   website?: string;
   instagram?: string;
+  whatsapp?: string;
+  fieldVisibility?: Record<string, boolean>;
   latitude: number;
   longitude: number;
   importedAt: string;

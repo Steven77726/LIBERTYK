@@ -30,6 +30,7 @@ import {
   Tags,
   Trash2,
   UsersRound,
+  X,
 } from "lucide-react";
 import { categories } from "@/data/categories";
 import { restaurants } from "@/data/restaurants";
@@ -48,7 +49,7 @@ type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moye
 type BannerPosition = "Home" | "Rubrique" | "Sous-rubrique" | "Fiche";
 type KosherType = "Bassari" | "Halavi" | "Parvé" | "À compléter";
 type SponsorshipLevel = "Standard" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
-type RubricFormat = "Petit carré" | "Carré" | "Grand carré" | "Rectangle horizontal" | "Bannière";
+type RubricFormat = "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
 type FieldVisibility = Record<string, boolean>;
 type AdminUserProfile = {
   id: string;
@@ -62,6 +63,8 @@ type AdminUserProfile = {
   created_at: string;
   last_sign_in_at: string | null;
 };
+
+type AdminHoursValue = Record<string, { open: boolean; slot1Start: string; slot1End: string; slot2Start: string; slot2End: string }>;
 
 type AdminRubric = {
   id: string;
@@ -310,8 +313,15 @@ const visibilityLabels: Array<{ key: string; label: string }> = [
 
 const weekDays = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
 
-function parseAdminHours(value: string) {
-  const parsed = Object.fromEntries(weekDays.map((day) => [day, { open: false, slot1Start: "", slot1End: "", slot2Start: "", slot2End: "" }])) as Record<string, { open: boolean; slot1Start: string; slot1End: string; slot2Start: string; slot2End: string }>;
+function normalizePhotoSlots(mainPhoto: string | undefined, photos: string[] | undefined, slots = 2) {
+  const main = mainPhoto?.trim() ?? "";
+  const clean = (photos ?? []).map((photo) => photo?.trim()).filter(Boolean) as string[];
+  const unique = clean.filter((photo, index, list) => photo !== main && list.indexOf(photo) === index).slice(0, slots);
+  return [...unique, ...Array(Math.max(0, slots - unique.length)).fill("")];
+}
+
+function parseAdminHours(value: string): AdminHoursValue {
+  const parsed = Object.fromEntries(weekDays.map((day) => [day, { open: false, slot1Start: "", slot1End: "", slot2Start: "", slot2End: "" }])) as AdminHoursValue;
   value.split("\n").forEach((line) => {
     const [rawDay, ...rest] = line.split(":");
     const day = rawDay?.trim().toLowerCase();
@@ -335,7 +345,7 @@ function parseAdminHours(value: string) {
   return parsed;
 }
 
-function serializeAdminHours(hours: ReturnType<typeof parseAdminHours>) {
+function serializeAdminHours(hours: AdminHoursValue) {
   return weekDays.map((day) => {
     const value = hours[day];
     if (!value.open) return `${day}: Fermé`;
@@ -343,6 +353,37 @@ function serializeAdminHours(hours: ReturnType<typeof parseAdminHours>) {
     if (value.slot2Start && value.slot2End) slots.push(`${value.slot2Start}–${value.slot2End}`);
     return `${day}: ${slots.join(" / ")}`;
   }).join("\n");
+}
+
+function getAdminHoursStatus(value: string) {
+  const hours = parseAdminHours(value);
+  const today = weekDays[(new Date().getDay() + 6) % 7];
+  const yesterday = weekDays[(new Date().getDay() + 5) % 7];
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const isInDay = (day: string, offset = 0) => {
+    const current = hours[day];
+    if (!current.open) return false;
+    return [
+      [current.slot1Start, current.slot1End],
+      [current.slot2Start, current.slot2End],
+    ].some(([start, end]) => {
+      if (!start || !end) return false;
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+      if (![sh, sm, eh, em].every(Number.isFinite)) return false;
+      const startMinutes = sh * 60 + sm + offset;
+      let endMinutes = eh * 60 + em + offset;
+      let currentMinutes = nowMinutes;
+      if (endMinutes < startMinutes) endMinutes += 24 * 60;
+      if (offset < 0) currentMinutes += 24 * 60;
+      return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    });
+  };
+  const hasHours = Object.values(hours).some((day) => day.open || day.slot1Start || day.slot1End || day.slot2Start || day.slot2End);
+  if (!hasHours) return { label: "Horaires non renseignés", open: null as boolean | null };
+  const isOpen = isInDay(today) || isInDay(yesterday, -24 * 60);
+  return { label: isOpen ? "Ouvert actuellement" : "Fermé actuellement", open: isOpen };
 }
 
 function getCompleteness(item: AdminEstablishment) {
@@ -388,7 +429,7 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
   return {
     ...seed,
     ...state,
-    rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), showOnHome: item.showOnHome ?? true, format: item.format ?? "Carré", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
+    rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), showOnHome: item.showOnHome ?? true, format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
     subrubrics: (state.subrubrics ?? seed.subrubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), visible: item.visible ?? true, gridColumns: item.gridColumns ?? 3, searchKeywords: item.searchKeywords ?? [] })),
     tags: (state.tags ?? seed.tags).map((item) => ({ ...item, kind: item.kind ?? "visible", color: item.color ?? "#1f4d3b", rubricIds: item.rubricIds ?? [], status: item.status ?? "Publié" })),
     certifications: state.certifications ?? seed.certifications,
@@ -396,7 +437,8 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
       ...item,
       slug: item.slug ?? slugify(item.name),
       shortDescription: item.shortDescription ?? item.description.slice(0, 120),
-      photoAlts: item.photoAlts ?? ["", "", "", ""],
+      photos: normalizePhotoSlots(item.mainPhoto, item.photos, 2),
+      photoAlts: [...(item.photoAlts ?? []), "", ""].slice(0, 2),
       postalCode: item.postalCode ?? "",
       email: item.email ?? "",
       sponsorStartsAt: item.sponsorStartsAt ?? "",
@@ -434,7 +476,7 @@ function createSeedState(): AdminState {
     image: category.image,
     imageAlt: category.label,
     showOnHome: true,
-    format: "Carré",
+    format: "Carré standard",
     columnsDesktop: 3,
     columnsTablet: 2,
     columnsMobile: 1,
@@ -495,7 +537,7 @@ function createSeedState(): AdminState {
     rubricId: "food",
     subrubricId: restaurantSubrubric,
     mainPhoto: restaurant.image,
-    photos: [restaurant.image, "", "", ""],
+        photos: ["", ""],
     name: restaurant.name,
     description: `${restaurant.specialty || "Restaurant casher"} — ${restaurant.cuisine || "Cuisine à compléter"}.`,
     address: restaurant.fullAddress,
@@ -544,7 +586,7 @@ function createSeedState(): AdminState {
     rubricId: "food",
     subrubricId: brunchSubrubric,
     mainPhoto: brunch.images[0] ?? "",
-    photos: [brunch.images[0] ?? "", brunch.images[1] ?? "", brunch.images[2] ?? "", ""],
+        photos: normalizePhotoSlots(brunch.images[0] ?? "", [brunch.images[1], brunch.images[2]], 2),
     name: brunch.name,
     description: brunch.description ?? "",
     address: brunch.address ?? "",
@@ -581,7 +623,7 @@ function createSeedState(): AdminState {
     rubricId: wineRubric,
     subrubricId: `${wineRubric}-selections`,
     mainPhoto: activity.image,
-    photos: [activity.image, "", "", ""],
+        photos: ["", ""],
     name: activity.title,
     description: activity.description,
     address: activity.address ?? "",
@@ -618,7 +660,7 @@ function createSeedState(): AdminState {
     rubricId: shoppingRubric,
     subrubricId: `${shoppingRubric}-mode`,
     mainPhoto: azamra.image,
-    photos: [azamra.image, "", "", ""],
+        photos: ["", ""],
     name: azamra.name,
     description: azamra.description,
     address: "",
@@ -868,16 +910,25 @@ function HoursEditor({ value, onChange }: { value: string; onChange: (value: str
                 <p className="text-sm font-semibold capitalize">{day}</p>
                 <Toggle label={current.open ? "Ouvert" : "Fermé"} checked={current.open} onChange={(open) => updateDay(day, { open })} />
                 {current.open ? (
-                  <div className="grid gap-2 sm:grid-cols-4">
-                    <input type="time" value={current.slot1Start} onChange={(event) => updateDay(day, { slot1Start: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
-                    <input type="time" value={current.slot1End} onChange={(event) => updateDay(day, { slot1End: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
-                    <input type="time" value={current.slot2Start} onChange={(event) => updateDay(day, { slot2Start: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
-                    <input type="time" value={current.slot2End} onChange={(event) => updateDay(day, { slot2End: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
+                  <div className="grid gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="text-[11px] font-semibold uppercase tracking-[.12em] text-ink/35">Heure d’ouverture<input required type="time" value={current.slot1Start} onChange={(event) => updateDay(day, { slot1Start: event.target.value })} className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none" /></label>
+                      <label className="text-[11px] font-semibold uppercase tracking-[.12em] text-ink/35">Heure de fermeture<input required type="time" value={current.slot1End} onChange={(event) => updateDay(day, { slot1End: event.target.value })} className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none" /></label>
+                    </div>
+                    {(current.slot2Start || current.slot2End) ? (
+                      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                        <label className="text-[11px] font-semibold uppercase tracking-[.12em] text-ink/35">2e ouverture<input type="time" value={current.slot2Start} onChange={(event) => updateDay(day, { slot2Start: event.target.value })} className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none" /></label>
+                        <label className="text-[11px] font-semibold uppercase tracking-[.12em] text-ink/35">2e fermeture<input type="time" value={current.slot2End} onChange={(event) => updateDay(day, { slot2End: event.target.value })} className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-ink outline-none" /></label>
+                        <button type="button" onClick={() => updateDay(day, { slot2Start: "", slot2End: "" })} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Supprimer</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => updateDay(day, { slot2Start: "19:00", slot2End: "23:00" })} className="w-fit rounded-full bg-white px-3 py-2 text-xs font-semibold text-ink/55">Ajouter un créneau</button>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-ink/40">Fermé</p>
                 )}
-                <button type="button" onClick={() => copyToAll(day)} className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-ink/55">Copier sur les autres jours</button>
+                <button type="button" onClick={() => copyToAll(day)} className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-ink/55">Copier ces horaires sur les autres jours</button>
               </div>
             </div>
           );
@@ -889,6 +940,7 @@ function HoursEditor({ value, onChange }: { value: string; onChange: (value: str
 
 function FormActionBar({
   disabled,
+  publishing,
   onDraft,
   onPreview,
   onPublish,
@@ -896,6 +948,7 @@ function FormActionBar({
   onTrash,
 }: {
   disabled?: boolean;
+  publishing?: boolean;
   onDraft: () => void;
   onPreview: () => void;
   onPublish: () => void;
@@ -903,7 +956,7 @@ function FormActionBar({
   onTrash: () => void;
 }) {
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-2 rounded-3xl border border-black/[.06] bg-cream p-3">
+    <div className="sticky bottom-4 z-20 mt-5 flex flex-wrap items-center gap-2 rounded-3xl border border-black/[.06] bg-white/92 p-3 shadow-[0_18px_60px_rgba(16,26,21,.12)] backdrop-blur-xl">
       <button disabled={disabled} onClick={onDraft} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-45">
         Enregistrer en brouillon
       </button>
@@ -911,13 +964,13 @@ function FormActionBar({
         Prévisualiser
       </button>
       <button disabled={disabled} onClick={onPublish} className="rounded-full bg-ink px-5 py-2.5 text-xs font-semibold uppercase tracking-[.08em] text-white shadow-[0_14px_32px_rgba(16,26,21,.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45">
-        VALIDER ET PUBLIER
+        {publishing ? "Publication en cours…" : "Valider et publier"}
       </button>
       <button disabled={disabled} onClick={onHide} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink/55 shadow-sm disabled:cursor-not-allowed disabled:opacity-45">
-        Masquer
+        Annuler
       </button>
       <button disabled={disabled} onClick={onTrash} className="rounded-full bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-500 disabled:cursor-not-allowed disabled:opacity-45">
-        Supprimer vers la corbeille
+        Supprimer
       </button>
     </div>
   );
@@ -969,6 +1022,89 @@ function PreviewImage({ src, alt }: { src: string; alt: string }) {
   return <img src={src} alt={alt} className="aspect-[4/3] w-full rounded-2xl object-cover" />;
 }
 
+function EstablishmentPreviewModal({
+  item,
+  tags,
+  onClose,
+}: {
+  item: AdminEstablishment | null;
+  tags: AdminTag[];
+  onClose: () => void;
+}) {
+  if (!item) return null;
+  const images = [item.mainPhoto, ...normalizePhotoSlots(item.mainPhoto, item.photos, 2)].filter(Boolean);
+  const visibleTags = item.visibleTagIds
+    .map((id) => tags.find((tag) => tag.id === id && tag.status !== "Masqué")?.label)
+    .filter(Boolean) as string[];
+  const hours = parseAdminHours(item.hours);
+  const status = getAdminHoursStatus(item.hours);
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-ink/45 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="mx-auto flex max-h-[92vh] max-w-5xl flex-col overflow-hidden rounded-[2rem] bg-cream shadow-2xl">
+        <div className="flex items-center justify-between border-b border-black/[.06] bg-white px-5 py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[.16em] text-moss/60">Prévisualisation non publiée</p>
+            <h3 className="mt-1 text-xl font-semibold tracking-[-.035em]">{item.name || "Nouvelle fiche"}</h3>
+          </div>
+          <button onClick={onClose} className="grid size-10 place-items-center rounded-full bg-cream text-ink/55 transition hover:bg-ink hover:text-white"><X size={18} /></button>
+        </div>
+        <div className="overflow-y-auto p-5">
+          <div className="grid gap-5 lg:grid-cols-[1fr_.85fr]">
+            <div className="space-y-3">
+              {images[0] ? <img src={images[0]} alt={item.name} className="aspect-[16/10] w-full rounded-3xl object-cover shadow-sm" /> : <EmptyPhoto label="Photo principale" />}
+              {images.length > 1 && (
+                <div className="grid grid-cols-2 gap-3">
+                  {images.slice(1).map((photo, index) => (
+                    <img key={`${photo}-${index}`} src={photo} alt={`${item.name} ${index + 2}`} className="aspect-square w-full rounded-2xl object-cover shadow-sm" />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-3xl bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[.14em] text-moss/55">{item.kosherType} · {item.averagePrice}</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-.055em]">{item.name || "Nom à compléter"}</h2>
+                {item.description && <p className="mt-3 text-sm leading-7 text-ink/60">{item.description}</p>}
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  {[item.certification, item.reservation ? "Réservation" : "", item.delivery ? "Livraison" : "", item.takeaway ? "À emporter" : "", item.terrace ? "Terrasse" : "", ...visibleTags].filter(Boolean).map((tag) => (
+                    <span key={tag} className="rounded-full bg-sage px-3 py-2 font-semibold text-moss">{tag}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-3xl bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Coordonnées</p>
+                {[item.address, [item.postalCode, item.city].filter(Boolean).join(" "), item.phone, item.website, item.instagram].filter(Boolean).map((line) => (
+                  <p key={line} className="mt-2 text-sm text-ink/65">{line}</p>
+                ))}
+              </div>
+              <div className="rounded-3xl bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Horaires disponibles</p>
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${status.open ? "bg-sage text-moss" : "bg-rose-50 text-rose-600"}`}>{status.label}</span>
+                </div>
+                <div className="mt-3 overflow-hidden rounded-2xl border border-black/[.05]">
+                  {weekDays.map((day, index) => {
+                    const current = hours[day];
+                    const isToday = index === ((new Date().getDay() + 6) % 7);
+                    const slots = current.open ? [[current.slot1Start, current.slot1End], [current.slot2Start, current.slot2End]].filter(([start, end]) => start && end).map(([start, end]) => `${start}–${end}`).join(" / ") : "Fermé";
+                    return (
+                      <div key={day} className={`flex items-center justify-between border-b border-black/[.05] px-4 py-3 text-sm last:border-0 ${isToday ? "bg-sage/70 font-semibold text-moss" : ""}`}>
+                        <span className="capitalize">{day}</span>
+                        <span className="text-right text-ink/60">{slots || "Horaires non renseignés"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ctr(clicks: number, impressions: number) {
   if (!impressions) return "0%";
   return `${((clicks / impressions) * 100).toFixed(1)}%`;
@@ -1005,6 +1141,7 @@ export function AdminDashboard() {
   const [simpleAdminReady, setSimpleAdminReady] = useState(false);
   const [simpleAdminGranted, setSimpleAdminGranted] = useState(false);
   const [savingAction, setSavingAction] = useState("");
+  const [previewEstablishment, setPreviewEstablishment] = useState<AdminEstablishment | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUserProfile[]>([]);
   const [usersMessage, setUsersMessage] = useState("");
   const [usersSearch, setUsersSearch] = useState("");
@@ -1293,7 +1430,7 @@ export function AdminDashboard() {
         ...current,
         rubrics: [
           ...current.rubrics,
-          { id, name: "Nouvelle rubrique", description: "Description à compléter", icon: "✨", image: "", format: "Carré", order: current.rubrics.length + 1, status: "Brouillon" },
+          { id, name: "Nouvelle rubrique", description: "Description à compléter", icon: "✨", image: "", format: "Carré standard", order: current.rubrics.length + 1, status: "Brouillon" },
         ],
       };
     });
@@ -1327,7 +1464,7 @@ export function AdminDashboard() {
         rubricId: firstSubrubric?.rubricId ?? "food",
         subrubricId: firstSubrubric?.id ?? "food-restaurants",
         mainPhoto: "",
-        photos: ["", "", "", ""],
+        photos: ["", ""],
         name: "Nouvel établissement",
         description: "Description à compléter",
         address: "",
@@ -1430,10 +1567,11 @@ export function AdminDashboard() {
   };
 
   const commitState = (updater: (current: AdminState) => AdminState, successMessage: string, actionLabel = "Sauvegarde") => {
+    if (savingAction) return;
     setSavingAction(actionLabel);
     setAdminMessage(`${actionLabel} en cours…`);
     setState((current) => {
-      const next = updater(current);
+      const next = normalizeAdminState(updater(current));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       window.dispatchEvent(new Event("liberty-admin-published"));
       if (auth.configured && hasAdminAccess) {
@@ -1503,6 +1641,7 @@ export function AdminDashboard() {
   };
 
   const saveEstablishmentDraft = (establishment: AdminEstablishment) => {
+    if (savingAction) return;
     commitState((current) => ({
       ...current,
       establishments: current.establishments.map((item) => (item.id === establishment.id ? { ...item, status: "Brouillon" } : item)),
@@ -1511,6 +1650,7 @@ export function AdminDashboard() {
   };
 
   const publishEstablishment = (establishment: AdminEstablishment) => {
+    if (savingAction) return;
     const slug = establishment.slug || slugify(establishment.name);
     if (!requireFields([["nom", establishment.name], ["slug", slug], ["description", establishment.description], ["photo principale", establishment.mainPhoto], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
     commitState((current) => ({
@@ -1637,6 +1777,7 @@ export function AdminDashboard() {
   }
 
   return (
+    <>
     <section className="page-shell py-8">
       <div className="overflow-hidden rounded-4xl border border-black/5 bg-[#f2f3ef] shadow-soft">
         <div className="flex min-h-[840px]">
@@ -1886,12 +2027,12 @@ export function AdminDashboard() {
                         <SelectField label="Statut" value={rubric.status} onChange={(value) => updateRubric(rubric.id, { status: value as AdminStatus })}>
                           <option>Publié</option><option>Brouillon</option><option>Masqué</option>
                         </SelectField>
-                        <SelectField label="Format de carte" value={rubric.format ?? "Carré"} onChange={(value) => updateRubric(rubric.id, { format: value as RubricFormat })}>
-                          <option>Petit carré</option>
-                          <option>Carré</option>
+                      <SelectField label="Format de carte" value={rubric.format ?? "Carré"} onChange={(value) => updateRubric(rubric.id, { format: value as RubricFormat })}>
+                        <option>Petit carré</option>
+                          <option>Carré standard</option>
                           <option>Grand carré</option>
                           <option>Rectangle horizontal</option>
-                          <option>Bannière</option>
+                          <option>Bannière pleine largeur</option>
                         </SelectField>
                         <Toggle label="Afficher sur la Home" checked={rubric.showOnHome ?? true} onChange={(value) => updateRubric(rubric.id, { showOnHome: value })} />
                         <Field label="Mots-clés" value={(rubric.searchKeywords ?? []).join(", ")} onChange={(value) => updateRubric(rubric.id, { searchKeywords: cleanTextList(value) })} />
@@ -1999,21 +2140,8 @@ export function AdminDashboard() {
                   <div className="mt-6 grid gap-6">
                     <div className="flex flex-wrap gap-2">
                       <button onClick={() => { const copy = { ...selectedEstablishment, id: newId("fiche"), name: `${selectedEstablishment.name} copie`, slug: `${selectedEstablishment.slug ?? slugify(selectedEstablishment.name)}-copie`, status: "Brouillon" as AdminStatus }; setState((current) => ({ ...current, establishments: [copy, ...current.establishments] })); setSelectedEstablishmentId(copy.id); audit("duplication", "fiche", selectedEstablishment.id, selectedEstablishment.name); }} className="rounded-full bg-sage px-4 py-2 text-xs font-semibold text-moss">Dupliquer</button>
-                      <button onClick={() => updateEstablishment(selectedEstablishment.id, { status: selectedEstablishment.status === "Publié" ? "Masqué" : "Publié" })} className="rounded-full bg-cream px-4 py-2 text-xs font-semibold text-ink/55">{selectedEstablishment.status === "Publié" ? "Masquer" : "Publier"}</button>
-                      <button onClick={() => moveToTrash("fiche", selectedEstablishment.name, selectedEstablishment, (current) => ({ ...current, establishments: current.establishments.filter((item) => item.id !== selectedEstablishment.id) }))} className="rounded-full bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-500">Envoyer à la corbeille</button>
+                      <span className={`rounded-full border px-3 py-2 text-xs font-semibold ${statusBadge(selectedEstablishment.status)}`}>{selectedEstablishment.status}</span>
                     </div>
-                    <FormActionBar
-                      disabled={Boolean(savingAction)}
-                      onDraft={() => saveEstablishmentDraft(selectedEstablishment)}
-                      onPreview={() => {
-                        const rubric = state.rubrics.find((item) => item.id === selectedEstablishment.rubricId);
-                        const subrubric = state.subrubrics.find((item) => item.id === selectedEstablishment.subrubricId);
-                        previewPublicUrl(`/${rubric?.slug ?? selectedEstablishment.rubricId}/${subrubric?.slug ?? ""}#${selectedEstablishment.slug ?? selectedEstablishment.id}`.replace(/\/#/g, "#"));
-                      }}
-                      onPublish={() => publishEstablishment(selectedEstablishment)}
-                      onHide={() => commitState((current) => ({ ...current, establishments: current.establishments.map((item) => item.id === selectedEstablishment.id ? { ...item, status: "Masqué", visible: false } : item) }), "Fiche masquée avec succès.", "Masquage")}
-                      onTrash={() => moveToTrash("fiche", selectedEstablishment.name, selectedEstablishment, (current) => ({ ...current, establishments: current.establishments.filter((item) => item.id !== selectedEstablishment.id) }))}
-                    />
                     {(() => {
                       const completeness = getCompleteness(selectedEstablishment);
                       return (
@@ -2051,22 +2179,23 @@ export function AdminDashboard() {
                             <button onClick={() => updateEstablishment(selectedEstablishment.id, { mainPhoto: "" })} className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-500">Supprimer la photo</button>
                           )}
                         </div>
-                      {selectedEstablishment.photos.map((photo, index) => (
+                      {normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 2).map((photo, index) => (
                           <div key={index} className="grid gap-2">
-                            <Field
-                              label={`Photo ${index + 1}`}
+                            <ImageUploadField
+                              label={`Photo ${index + 2}`}
+                              folder="establishments"
                               value={photo}
                               onChange={(value) => {
-                                const photos = [...selectedEstablishment.photos];
+                                const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 2);
                                 photos[index] = value;
                                 updateEstablishment(selectedEstablishment.id, { photos });
                               }}
                             />
                             <Field
-                              label={`Alt photo ${index + 1}`}
+                              label={`Alt photo ${index + 2}`}
                               value={selectedEstablishment.photoAlts?.[index] ?? ""}
                               onChange={(value) => {
-                                const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""])];
+                                const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", ""]), ""].slice(0, 2);
                                 photoAlts[index] = value;
                                 updateEstablishment(selectedEstablishment.id, { photoAlts });
                               }}
@@ -2074,7 +2203,7 @@ export function AdminDashboard() {
                             {photo && (
                               <button
                                 onClick={() => {
-                                  const photos = [...selectedEstablishment.photos];
+                                  const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 2);
                                   photos[index] = "";
                                   updateEstablishment(selectedEstablishment.id, { photos });
                                 }}
@@ -2259,6 +2388,16 @@ export function AdminDashboard() {
                         ))}
                       </div>
                     </div>
+
+                    <FormActionBar
+                      disabled={Boolean(savingAction)}
+                      publishing={savingAction === "Publication"}
+                      onDraft={() => saveEstablishmentDraft(selectedEstablishment)}
+                      onPreview={() => setPreviewEstablishment(selectedEstablishment)}
+                      onPublish={() => publishEstablishment(selectedEstablishment)}
+                      onHide={() => setState(normalizeAdminState(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<AdminState>))}
+                      onTrash={() => moveToTrash("fiche", selectedEstablishment.name, selectedEstablishment, (current) => ({ ...current, establishments: current.establishments.filter((item) => item.id !== selectedEstablishment.id) }))}
+                    />
                   </div>
                 </Panel>
               </div>
@@ -2303,10 +2442,11 @@ export function AdminDashboard() {
                       </div>
                       <FormActionBar
                         disabled={Boolean(savingAction)}
+                        publishing={savingAction === "Publication"}
                         onDraft={() => saveEstablishmentDraft(item)}
-                        onPreview={() => setAdminMessage(`Prévisualisation recherches : ${(item.customerSearches ?? []).slice(0, 6).join(", ") || "aucune recherche"}`)}
+                        onPreview={() => setPreviewEstablishment(item)}
                         onPublish={() => publishEstablishment(item)}
-                        onHide={() => commitState((current) => ({ ...current, establishments: current.establishments.map((establishment) => establishment.id === item.id ? { ...establishment, status: "Masqué", visible: false } : establishment) }), "Fiche masquée avec succès.", "Masquage")}
+                        onHide={() => setState(normalizeAdminState(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<AdminState>))}
                         onTrash={() => moveToTrash("fiche", item.name, item, (current) => ({ ...current, establishments: current.establishments.filter((establishment) => establishment.id !== item.id) }))}
                       />
                     </article>
@@ -2377,23 +2517,23 @@ export function AdminDashboard() {
                                 <button onClick={() => updateEstablishment(item.id, { mainPhoto: "" })} className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-500">Supprimer la photo</button>
                               )}
                             </div>
-                            {item.photos.map((photo, index) => (
+                            {normalizePhotoSlots(item.mainPhoto, item.photos, 2).map((photo, index) => (
                               <div key={index} className="grid gap-2">
                                 <ImageUploadField
-                                  label={`Photo galerie ${index + 1}`}
+                                  label={`Photo ${index + 2}`}
                                   value={photo}
                                   folder="establishments"
                                   onChange={(value) => {
-                                    const photos = [...item.photos];
+                                    const photos = normalizePhotoSlots(item.mainPhoto, item.photos, 2);
                                     photos[index] = value;
                                     updateEstablishment(item.id, { photos });
                                   }}
                                 />
                                 <Field
-                                  label={`Texte alternatif ${index + 1}`}
+                                  label={`Texte alternatif photo ${index + 2}`}
                                   value={item.photoAlts?.[index] ?? ""}
                                   onChange={(value) => {
-                                    const photoAlts = [...(item.photoAlts ?? ["", "", "", ""])];
+                                    const photoAlts = [...(item.photoAlts ?? ["", ""]), ""].slice(0, 2);
                                     photoAlts[index] = value;
                                     updateEstablishment(item.id, { photoAlts });
                                   }}
@@ -2401,7 +2541,7 @@ export function AdminDashboard() {
                                 {photo && (
                                   <button
                                     onClick={() => {
-                                      const photos = [...item.photos];
+                                      const photos = normalizePhotoSlots(item.mainPhoto, item.photos, 2);
                                       photos[index] = "";
                                       updateEstablishment(item.id, { photos });
                                     }}
@@ -2981,6 +3121,8 @@ export function AdminDashboard() {
         </div>
       </div>
     </section>
+    <EstablishmentPreviewModal item={previewEstablishment} tags={state.tags} onClose={() => setPreviewEstablishment(null)} />
+    </>
   );
 }
 

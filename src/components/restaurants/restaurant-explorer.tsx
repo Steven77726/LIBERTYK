@@ -155,28 +155,32 @@ function hourLinesToRecord(value?: string) {
 
 function getOpenStatus(restaurant: Restaurant) {
   const today = days[dayIndex()];
+  const yesterday = days[(dayIndex() + 6) % 7];
   const text = restaurant.hours[today] ?? "";
   const normalized = normalize(text);
   if (!hasMeaningfulHours(restaurant)) return { label: "Horaires non renseignés", open: null as boolean | null };
-  if (!text || normalized.includes("ferme")) return { label: "Fermé actuellement", open: false };
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const ranges = text.match(/\d{1,2}[:h]\d{2}\s*[–-]\s*\d{1,2}[:h]\d{2}/g) ?? [];
-  const isOpen = ranges.some((range) => {
+  const isOpenForText = (hoursText: string, previousDay = false) => {
+    if (!hoursText || normalize(hoursText).includes("ferme")) return false;
+    const ranges = hoursText.match(/\d{1,2}[:h]\d{2}\s*[–-]\s*\d{1,2}[:h]\d{2}/g) ?? [];
+    return ranges.some((range) => {
     const [start, end] = range.split(/[–-]/).map((part) => part.trim().replace("h", ":"));
     const [startHour, startMinute] = start.split(":").map(Number);
     const [endHour, endMinute] = end.split(":").map(Number);
-    const startMinutes = startHour * 60 + startMinute;
-    let endMinutes = endHour * 60 + endMinute;
+    const startMinutes = startHour * 60 + startMinute + (previousDay ? -24 * 60 : 0);
+    let endMinutes = endHour * 60 + endMinute + (previousDay ? -24 * 60 : 0);
     let current = nowMinutes;
     if (endMinutes < startMinutes) {
       endMinutes += 24 * 60;
-      if (current < startMinutes) current += 24 * 60;
     }
     return current >= startMinutes && current <= endMinutes;
   });
-  if (!ranges.length) return { label: "Voir les horaires", open: null as boolean | null };
+  };
+  const todayRanges = text.match(/\d{1,2}[:h]\d{2}\s*[–-]\s*\d{1,2}[:h]\d{2}/g) ?? [];
+  const isOpen = isOpenForText(text) || isOpenForText(restaurant.hours[yesterday] ?? "", true);
+  if (!todayRanges.length && normalized && !normalized.includes("ferme")) return { label: "Horaires disponibles", open: null as boolean | null };
   return { label: isOpen ? "Ouvert maintenant" : "Fermé actuellement", open: isOpen };
 }
 
@@ -225,7 +229,7 @@ function adminStateToRestaurants(state: AdminStateRestaurantsPreview | null | un
         specialty,
         cuisine,
         type: mapKosherType(item.kosherType),
-        certification: item.certification || "À compléter",
+        certification: item.certification || "",
         services: {
           dineIn: true,
           takeaway: item.takeaway ?? null,
@@ -414,7 +418,7 @@ function PhotoGallery({ restaurant }: { restaurant: Restaurant }) {
         >
           <button onClick={() => setOpen(false)} className="absolute right-4 top-4 z-10 grid size-11 place-items-center rounded-full bg-white text-ink"><X size={20} /></button>
           <div className="flex h-full items-center justify-center" onMouseDown={(event) => event.stopPropagation()}>
-            <button onClick={() => move(-1)} className="absolute left-4 grid size-11 place-items-center rounded-full bg-white/90 text-ink"><ChevronLeft /></button>
+            {images.length > 1 && <button onClick={() => move(-1)} className="absolute left-4 hidden size-11 place-items-center rounded-full bg-white/90 text-ink sm:grid"><ChevronLeft /></button>}
             <div
               className="max-h-full max-w-5xl"
               onTouchStart={(event) => setTouchStart(event.touches[0]?.clientX ?? null)}
@@ -428,7 +432,7 @@ function PhotoGallery({ restaurant }: { restaurant: Restaurant }) {
               <img src={assetPath(current)} alt="" className="max-h-[82vh] max-w-full rounded-3xl object-contain shadow-2xl" />
               <p className="mt-4 text-center text-sm font-semibold text-white">{index + 1} / {images.length}</p>
             </div>
-            <button onClick={() => move(1)} className="absolute right-4 grid size-11 place-items-center rounded-full bg-white/90 text-ink"><ChevronRight /></button>
+            {images.length > 1 && <button onClick={() => move(1)} className="absolute right-4 hidden size-11 place-items-center rounded-full bg-white/90 text-ink sm:grid"><ChevronRight /></button>}
           </div>
         </div>
       )}
@@ -468,6 +472,8 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
   const visibility = { ...publicDefaultFieldVisibility, ...(restaurant.fieldVisibility ?? {}) };
   const entity = { id: `restaurant-${restaurant.id}`, title: restaurant.name, url: `/food/restaurants#${restaurant.id}`, text: `${restaurant.name} · ${restaurant.fullAddress}` };
   const status = getOpenStatus(restaurant);
+  const hasType = restaurant.type && restaurant.type !== "À compléter";
+  const hasCertification = restaurant.certification && normalize(restaurant.certification) !== "a completer";
   return (
     <article id={restaurant.id} className="group overflow-hidden rounded-[1.75rem] border border-black/[.055] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft">
       <div className="relative aspect-[16/10] overflow-hidden bg-sage">
@@ -477,7 +483,7 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
           <LikeButton entity={entity} />
         </div>
         <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2">
-          <button onClick={hasMeaningfulHours(restaurant) ? onHours : undefined} className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{hasMeaningfulHours(restaurant) ? status.label : "Horaires non renseignés"}</button>
+          <button onClick={hasMeaningfulHours(restaurant) ? onHours : undefined} className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{hasMeaningfulHours(restaurant) ? (status.open === null ? "Horaires disponibles" : status.label) : "Horaires non renseignés"}</button>
           {visibility.reservation !== false && <button onClick={onReserve} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-ink shadow-sm"><CalendarDays size={12} /> Réservation</button>}
         </div>
       </div>
@@ -487,8 +493,8 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
         </div>
         {visibility.reviews !== false && <div className="mt-3"><CustomerRating rating={restaurant.rating} reviewCount={restaurant.reviewCount} /></div>}
         <div className="mt-4 flex flex-wrap gap-1.5 text-[10px]">
-          <button onClick={() => onTag(restaurant.type)} className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.type}</button>
-          {visibility.certification !== false && <button onClick={() => onTag(restaurant.certification)} className="rounded-full bg-cream px-2.5 py-1.5">✡ {restaurant.certification}</button>}
+          {hasType && <button onClick={() => onTag(restaurant.type)} className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.type}</button>}
+          {visibility.certification !== false && hasCertification && <button onClick={() => onTag(restaurant.certification)} className="rounded-full bg-cream px-2.5 py-1.5">✡ {restaurant.certification}</button>}
           {visibility.price !== false && <span className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.price}</span>}
           {(restaurant.tags ?? []).slice(0, 4).map((tag) => (
             <button key={tag} onClick={() => onTag(tag)} className="rounded-full bg-sage px-2.5 py-1.5 text-moss">{tag}</button>
@@ -718,8 +724,8 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
                 {visibility.reviews !== false && <CustomerRating rating={detailRestaurant.rating} reviewCount={detailRestaurant.reviewCount} />}
                 <EntityActions entity={entity} />
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <button onClick={() => applyTagFilter(detailRestaurant.type)} className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</button>
-                  {visibility.certification !== false && <button onClick={() => applyTagFilter(detailRestaurant.certification)} className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</button>}
+                  {detailRestaurant.type !== "À compléter" && <button onClick={() => applyTagFilter(detailRestaurant.type)} className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</button>}
+                  {visibility.certification !== false && detailRestaurant.certification && normalize(detailRestaurant.certification) !== "a completer" && <button onClick={() => applyTagFilter(detailRestaurant.certification)} className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</button>}
                   {visibility.price !== false && <span className="rounded-full bg-white px-3 py-2">{detailRestaurant.price}</span>}
                   {(detailRestaurant.tags ?? []).map((tag) => (
                     <button key={tag} onClick={() => applyTagFilter(tag)} className="rounded-full bg-white px-3 py-2 transition hover:bg-sage hover:text-moss">{tag}</button>
@@ -737,7 +743,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Horaires</p>
                   {hasMeaningfulHours(detailRestaurant) ? (
-                    <button onClick={() => setHoursRestaurant(detailRestaurant)} className="mt-2 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold"><Clock size={16} /> Voir les horaires</button>
+                    <button onClick={() => setHoursRestaurant(detailRestaurant)} className="mt-2 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold"><Clock size={16} /> Horaires disponibles</button>
                   ) : (
                     <p className="mt-2 text-sm text-ink/45">Horaires non renseignés</p>
                   )}

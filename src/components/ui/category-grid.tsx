@@ -15,6 +15,7 @@ type AdminRubricPreview = {
   image: string;
   imageAlt?: string;
   showOnHome?: boolean;
+  format?: "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
   order: number;
   status: "Publié" | "Brouillon" | "Masqué";
 };
@@ -83,6 +84,7 @@ export function CategoryGrid() {
         description: category.description,
         image: category.image,
         imageAlt: category.label,
+        format: "Carré standard" as const,
         icon: category.icon,
         softColor: category.softColor,
       }));
@@ -98,18 +100,27 @@ export function CategoryGrid() {
           description: rubric.description,
           image: rubric.image || fallback?.image || "/images/food/restaurants-khan.jpg",
           imageAlt: rubric.imageAlt ?? rubric.name,
+          format: rubric.format ?? "Carré standard",
           icon: fallback?.icon ?? Store,
           softColor: fallback?.softColor ?? "#e2eae4",
         };
       });
   }, [adminRubrics]);
 
+  const formatClass = (format?: AdminRubricPreview["format"]) => {
+    if (format === "Petit carré") return "min-h-[155px]";
+    if (format === "Grand carré") return "min-h-[275px] sm:col-span-2 lg:col-span-1";
+    if (format === "Rectangle horizontal") return "min-h-[205px] sm:col-span-2";
+    if (format === "Bannière" || format === "Bannière pleine largeur") return "min-h-[235px] sm:col-span-2 lg:col-span-3 xl:col-span-4";
+    return "min-h-[205px]";
+  };
+
   return (
     <section className="page-shell py-8 sm:py-10">
       <div className="mb-5 max-w-3xl"><p className="eyebrow">Tous vos univers</p><h2 className="text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Tout ce qui compte. <span className="text-ink/28">Au même endroit.</span></h2></div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor }) => (
-          <Link key={slug} href={`/${slug}`} className="liberty-premium-card group relative min-h-[205px] overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)]">
+        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format }) => (
+          <Link key={slug} href={`/${slug}`} className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}>
             <img src={assetPath(image)} alt={imageAlt ?? ""} className="liberty-image-grade absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.055]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.20),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.91),rgba(0,0,0,.38)_48%,rgba(0,0,0,.05))]" />
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70" />

@@ -41,7 +41,7 @@ import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
 import { hasAdminSession } from "@/components/admin/admin-access-gate";
 import { uploadLibertyImage } from "@/lib/supabase/storage";
 import { fetchRealAnalyticsEvents, loadAdminStateFromSupabase, saveAdminStateToSupabase, writeAuditLog } from "@/lib/supabase/admin-state";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
 type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
@@ -50,6 +50,18 @@ type KosherType = "Bassari" | "Halavi" | "Parvé" | "À compléter";
 type SponsorshipLevel = "Standard" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
 type RubricFormat = "Petit carré" | "Carré" | "Grand carré" | "Rectangle horizontal" | "Bannière";
 type FieldVisibility = Record<string, boolean>;
+type AdminUserProfile = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  auth_provider: string | null;
+  status: "active" | "suspended" | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+};
 
 type AdminRubric = {
   id: string;
@@ -715,6 +727,7 @@ function useAdminState() {
 
 const menu = [
   { id: "dashboard", label: "Vue d’ensemble", icon: LayoutDashboard },
+  { id: "users", label: "Utilisateurs", icon: UsersRound },
   { id: "rubrics", label: "Rubriques", icon: Store },
   { id: "subrubrics", label: "Sous-rubriques", icon: Tags },
   { id: "establishments", label: "Fiches / Établissements", icon: Building2 },
@@ -992,6 +1005,10 @@ export function AdminDashboard() {
   const [simpleAdminReady, setSimpleAdminReady] = useState(false);
   const [simpleAdminGranted, setSimpleAdminGranted] = useState(false);
   const [savingAction, setSavingAction] = useState("");
+  const [adminUsers, setAdminUsers] = useState<AdminUserProfile[]>([]);
+  const [usersMessage, setUsersMessage] = useState("");
+  const [usersSearch, setUsersSearch] = useState("");
+  const [usersFilter, setUsersFilter] = useState("Tous");
 
   const goToSection = (section: AdminSection) => {
     if (section === active) return;
@@ -1075,6 +1092,37 @@ export function AdminDashboard() {
     });
   }, [auth.configured, hasAdminAccess]);
 
+  const loadUsers = async () => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !hasAdminAccess) {
+      setAdminUsers([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,email,full_name,first_name,last_name,avatar_url,auth_provider,status,created_at,last_sign_in_at")
+      .order("created_at", { ascending: false });
+    if (error) {
+      setUsersMessage(error.message);
+      setAdminUsers([]);
+      return;
+    }
+    setUsersMessage("");
+    setAdminUsers((data as AdminUserProfile[]) ?? []);
+  };
+
+  useEffect(() => {
+    if (active === "users") void loadUsers();
+  }, [active, auth.configured, hasAdminAccess]);
+
+  const updateUserStatus = async (id: string, status: "active" | "suspended") => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const { error } = await supabase.from("profiles").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    setUsersMessage(error?.message ?? (status === "suspended" ? "Utilisateur suspendu." : "Utilisateur réactivé."));
+    if (!error) await loadUsers();
+  };
+
   useEffect(() => {
     if (!state.establishments.find((item) => item.id === selectedEstablishmentId)) {
       setSelectedEstablishmentId(state.establishments[0]?.id ?? "");
@@ -1119,8 +1167,8 @@ export function AdminDashboard() {
     const bannerClicks = state.banners.reduce((sum, item) => sum + (item.clicks ?? 0), 0);
     return {
       visitors: new Set(events.map((event) => event.entityId ?? event.label ?? event.id)).size,
-      registeredUsers: auth.user ? 1 : 0,
-      connectedUsers: auth.user ? 1 : 0,
+      registeredUsers: adminUsers.length,
+      connectedUsers: adminUsers.filter((user) => user.last_sign_in_at && new Date(user.last_sign_in_at).toDateString() === new Date().toDateString()).length,
       averageTime: events.length ? "Collecte active" : "—",
       searches,
       likes,
@@ -1136,7 +1184,29 @@ export function AdminDashboard() {
       bannerImpressions,
       bannerClicks,
     };
-  }, [auth.user, events, state.banners, state.notifications]);
+  }, [adminUsers, events, state.banners, state.notifications]);
+
+  const filteredUsers = useMemo(() => {
+    const query = usersSearch.trim().toLowerCase();
+    return adminUsers.filter((user) => {
+      const corpus = [user.first_name, user.last_name, user.full_name, user.email].join(" ").toLowerCase();
+      if (query && !corpus.includes(query)) return false;
+      if (usersFilter === "Tous") return true;
+      if (usersFilter === "Actif") return user.status !== "suspended";
+      if (usersFilter === "Suspendu") return user.status === "suspended";
+      return (user.auth_provider ?? "email").toLowerCase() === usersFilter.toLowerCase();
+    });
+  }, [adminUsers, usersFilter, usersSearch]);
+
+  const userStats = useMemo(() => {
+    const today = new Date().toDateString();
+    return {
+      total: adminUsers.length,
+      newToday: adminUsers.filter((user) => new Date(user.created_at).toDateString() === today).length,
+      activeToday: adminUsers.filter((user) => user.last_sign_in_at && new Date(user.last_sign_in_at).toDateString() === today).length,
+      latest: adminUsers.filter((user) => user.last_sign_in_at).slice(0, 5),
+    };
+  }, [adminUsers]);
 
   const professionalStats = useMemo(() => {
     const item = selectedEstablishment;
@@ -2619,12 +2689,76 @@ export function AdminDashboard() {
             )}
 
             {active === "users" && (
-              <Panel title="Utilisateurs" subtitle="Base utilisateurs prête pour connexion Supabase/Auth.">
-                <MockTable rows={[
-                  [auth.user?.email ?? "Utilisateur Liberty", "Rôle actuel", auth.role, auth.configured ? "Supabase" : "Local"],
-                  ["Professionnel Winess", "pro@winess.com", "Professionnel", "Actif"],
-                  ["Admin Steven", "admin@liberty.local", "Administrateur", "Actif"],
-                ]} />
+              <Panel title="Utilisateurs" subtitle="Comptes réels Supabase Auth. Aucun mot de passe n’est visible ni stocké ici.">
+                {!auth.configured ? (
+                  <div className="mt-6 rounded-3xl bg-white p-6 shadow-sm">
+                    <p className="font-semibold">Supabase Auth n’est pas configuré.</p>
+                    <div className="mt-4 space-y-2 text-sm leading-6 text-ink/55">
+                      <p>1. Renseigner `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY`.</p>
+                      <p>2. Exécuter `supabase/schema.sql` dans Supabase SQL Editor.</p>
+                      <p>3. Dans Supabase Auth → Providers : activer Email, Google et Apple.</p>
+                      <p>4. Ajouter les URLs de redirection : `/mon-compte` en local et `https://steven77726.github.io/LIBERTYK/mon-compte`.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-6 space-y-5">
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <MetricCard label="Total utilisateurs" value={userStats.total.toLocaleString("fr-FR")} />
+                      <MetricCard label="Nouveaux aujourd’hui" value={userStats.newToday.toLocaleString("fr-FR")} />
+                      <MetricCard label="Actifs aujourd’hui" value={userStats.activeToday.toLocaleString("fr-FR")} />
+                      <MetricCard label="Dernières connexions" value={userStats.latest.length.toLocaleString("fr-FR")} />
+                    </div>
+                    <div className="rounded-3xl bg-white p-5 shadow-sm">
+                      <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto]">
+                        <Field label="Recherche" value={usersSearch} onChange={setUsersSearch} placeholder="Prénom, nom ou email" />
+                        <SelectField label="Filtre" value={usersFilter} onChange={setUsersFilter}>
+                          <option>Tous</option><option>Google</option><option>Apple</option><option>Email</option><option>Actif</option><option>Suspendu</option>
+                        </SelectField>
+                        <button onClick={() => void loadUsers()} className="self-end rounded-2xl bg-ink px-5 py-3 text-sm font-semibold text-white">Actualiser</button>
+                      </div>
+                    </div>
+                    {usersMessage && <p className="rounded-2xl bg-cream p-4 text-sm text-ink/55">{usersMessage}</p>}
+                    <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+                      {filteredUsers.length ? filteredUsers.map((user) => {
+                        const provider = user.auth_provider ?? "email";
+                        const status = user.status === "suspended" ? "Suspendu" : "Actif";
+                        const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.full_name || "Utilisateur Liberty";
+                        return (
+                          <article key={user.id} className="grid gap-4 border-b border-black/[.06] p-5 last:border-b-0 xl:grid-cols-[260px_1fr_150px_130px_240px] xl:items-center">
+                            <div className="flex items-center gap-4">
+                              {user.avatar_url ? <img src={user.avatar_url} alt="" className="size-12 rounded-full object-cover" /> : <span className="grid size-12 place-items-center rounded-full bg-sage text-moss"><UsersRound size={18} /></span>}
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold">{fullName}</p>
+                                <p className="truncate text-xs text-ink/45">{user.email}</p>
+                              </div>
+                            </div>
+                            <div className="grid gap-1 text-xs text-ink/45">
+                              <span>Inscription : {new Date(user.created_at).toLocaleString("fr-FR")}</span>
+                              <span>Dernière connexion : {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString("fr-FR") : "—"}</span>
+                            </div>
+                            <span className="rounded-full bg-cream px-3 py-2 text-center text-xs font-semibold capitalize">{provider}</span>
+                            <span className={`rounded-full px-3 py-2 text-center text-xs font-semibold ${status === "Actif" ? "bg-sage text-moss" : "bg-rose-50 text-rose-600"}`}>{status}</span>
+                            <div className="flex flex-wrap gap-2">
+                              <button onClick={() => setUsersMessage(`${fullName} · ${user.email ?? "email absent"} · ${provider}`)} className="rounded-full bg-cream px-3 py-2 text-xs font-semibold">Voir le profil</button>
+                              {status === "Actif" ? (
+                                <button onClick={() => void updateUserStatus(user.id, "suspended")} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600">Suspendre</button>
+                              ) : (
+                                <button onClick={() => void updateUserStatus(user.id, "active")} className="rounded-full bg-sage px-3 py-2 text-xs font-semibold text-moss">Réactiver</button>
+                              )}
+                              <button onClick={() => setUsersMessage("Suppression physique : nécessite une fonction serveur Supabase avec service role. Aucun mot de passe ni compte Auth n’est supprimé depuis le navigateur pour des raisons de sécurité.")} className="rounded-full bg-cream px-3 py-2 text-xs font-semibold text-ink/45">Supprimer</button>
+                            </div>
+                          </article>
+                        );
+                      }) : (
+                        <div className="p-8 text-center text-sm text-ink/45">Aucun utilisateur réel trouvé.</div>
+                      )}
+                    </div>
+                    <div className="rounded-3xl bg-cream p-5 text-sm leading-6 text-ink/55">
+                      <p className="font-semibold text-ink">Configuration Google / Apple</p>
+                      <p className="mt-2">Dans Supabase Auth → Providers, activez Google et Apple, ajoutez les Client ID/Secret, puis ajoutez les URL de redirection locale et GitHub Pages. Les boutons publics utilisent déjà `signInWithOAuth` réel.</p>
+                    </div>
+                  </div>
+                )}
               </Panel>
             )}
 

@@ -7,7 +7,7 @@ import { brunches } from "@/data/brunches";
 import { restaurants } from "@/data/restaurants";
 import { azamra } from "@/data/shops";
 import { wineActivities } from "@/data/wine-activities";
-import { getFavorites, getLikes } from "@/lib/client-store";
+import { getFavorites, getLikes, removeSavedEntity } from "@/lib/client-store";
 import { assetPath } from "@/lib/assets";
 
 type FavoriteItem = {
@@ -22,7 +22,7 @@ type FavoriteItem = {
 const catalog: FavoriteItem[] = [
   ...restaurants.map((restaurant) => ({
     id: `restaurant-${restaurant.id}`,
-    category: "Food · Restaurants",
+    category: "🍽 Restaurants",
     title: restaurant.name,
     subtitle: `${restaurant.cuisine} · ${restaurant.fullAddress}`,
     href: `/food/restaurants#${restaurant.id}`,
@@ -30,7 +30,7 @@ const catalog: FavoriteItem[] = [
   })),
   ...brunches.map((brunch) => ({
     id: `brunch-${brunch.slug}`,
-    category: "Food · Brunch",
+    category: "🍽 Brunch",
     title: brunch.name,
     subtitle: `${brunch.cuisine}${brunch.address ? ` · ${brunch.address}` : ""}`,
     href: `/food/brunch/${brunch.slug}`,
@@ -38,7 +38,7 @@ const catalog: FavoriteItem[] = [
   })),
   ...wineActivities.map((activity) => ({
     id: `wine-${activity.slug}`,
-    category: "Vin & Spiritueux",
+    category: "🍷 Cavistes",
     title: activity.title,
     subtitle: activity.type,
     href: `/vin-spiritueux/${activity.slug}`,
@@ -46,7 +46,7 @@ const catalog: FavoriteItem[] = [
   })),
   {
     id: "shop-azamra",
-    category: "Shopping · Vêtements",
+    category: "🛍 Boutiques",
     title: azamra.name,
     subtitle: azamra.type,
     href: "/shopping/vetements/azamra",
@@ -70,6 +70,7 @@ export function FavoritesDashboard() {
   }, [savedIds]);
 
   const categories = Object.entries(grouped);
+  const remove = (item: FavoriteItem) => setSavedIds(removeSavedEntity(item.id, item.title));
 
   if (!categories.length) {
     return (
@@ -97,7 +98,8 @@ export function FavoritesDashboard() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((item) => (
-              <Link key={item.id} href={item.href} className="group overflow-hidden rounded-[1.75rem] border border-black/[.055] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
+              <article key={item.id} className="group overflow-hidden rounded-[1.75rem] border border-black/[.055] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
+                <Link href={item.href} className="block">
                 <div className="relative aspect-[16/10] overflow-hidden bg-sage">
                   <img src={assetPath(item.image)} alt="" className="size-full object-cover transition duration-700 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
@@ -108,7 +110,9 @@ export function FavoritesDashboard() {
                   <h3 className="mt-2 text-xl font-semibold tracking-[-.035em]">{item.title}</h3>
                   <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink/45">{item.subtitle}</p>
                 </div>
-              </Link>
+                </Link>
+                <button onClick={() => remove(item)} className="mx-5 mb-5 rounded-full bg-cream px-4 py-2 text-xs font-semibold text-ink/55">Retirer des favoris</button>
+              </article>
             ))}
           </div>
         </section>

@@ -94,6 +94,11 @@ export function getFavorites() {
   return safeRead<string[]>(FAVORITES_KEY, []);
 }
 
+export function mergeSavedEntities(nextFavorites: string[], nextLikes: string[]) {
+  safeWrite(FAVORITES_KEY, [...new Set([...getFavorites(), ...nextFavorites])]);
+  safeWrite(LIKES_KEY, [...new Set([...getLikes(), ...nextLikes])]);
+}
+
 export function toggleFavorite(entityId: string, label?: string) {
   const user = requireUser("Connectez-vous pour enregistrer ce contenu.");
   if (!user) return getFavorites();
@@ -103,6 +108,17 @@ export function toggleFavorite(entityId: string, label?: string) {
   trackEvent(next.includes(entityId) ? "favorite_added" : "favorite_removed", label, entityId);
   void syncFavorite(entityId, label, next.includes(entityId));
   return next;
+}
+
+export function removeSavedEntity(entityId: string, label?: string) {
+  const likes = getLikes().filter((id) => id !== entityId);
+  const favorites = getFavorites().filter((id) => id !== entityId);
+  safeWrite(LIKES_KEY, likes);
+  safeWrite(FAVORITES_KEY, favorites);
+  trackEvent("favorite_removed", label, entityId);
+  void syncFavorite(entityId, label, false);
+  void syncLike(entityId, label, false);
+  return [...new Set([...favorites, ...likes])];
 }
 
 export function getReviews() {

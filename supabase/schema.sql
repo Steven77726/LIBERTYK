@@ -27,6 +27,13 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   full_name text,
+  first_name text,
+  last_name text,
+  avatar_url text,
+  phone text,
+  auth_provider text not null default 'email',
+  status text not null default 'active' check (status in ('active', 'suspended')),
+  last_sign_in_at timestamptz,
   role public.user_role not null default 'user',
   settings jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
@@ -329,8 +336,18 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name, role)
-  values (new.id, new.email, coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)), 'user')
+  insert into public.profiles (id, email, full_name, first_name, last_name, avatar_url, auth_provider, last_sign_in_at, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data ->> 'given_name', split_part(coalesce(new.raw_user_meta_data ->> 'full_name', ''), ' ', 1)),
+    coalesce(new.raw_user_meta_data ->> 'family_name', ''),
+    coalesce(new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture'),
+    coalesce(new.raw_app_meta_data ->> 'provider', 'email'),
+    now(),
+    'user'
+  )
   on conflict (id) do nothing;
   return new;
 end;
@@ -381,6 +398,7 @@ alter table public.reservations enable row level security;
 alter table public.app_settings enable row level security;
 
 create policy "Profiles are readable by owner or admin" on public.profiles for select using (id = auth.uid() or public.is_admin());
+create policy "Profiles are insertable by owner" on public.profiles for insert with check (id = auth.uid());
 create policy "Profiles are updatable by owner or admin" on public.profiles for update using (id = auth.uid() or public.is_admin());
 
 create policy "Published rubrics are public" on public.rubrics for select using (status = 'published' or public.is_admin());

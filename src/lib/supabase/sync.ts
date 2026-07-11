@@ -31,6 +31,20 @@ export async function syncLike(entityId: string, label: string | undefined, enab
   }
 }
 
+export async function fetchUserSavedEntities() {
+  const supabase = getSupabaseBrowserClient();
+  const userId = await getUserId();
+  if (!supabase || !userId) return { favorites: [] as string[], likes: [] as string[] };
+  const [{ data: favorites }, { data: likes }] = await Promise.all([
+    supabase.from("favorites").select("entity_id").eq("user_id", userId),
+    supabase.from("likes").select("entity_id").eq("user_id", userId),
+  ]);
+  return {
+    favorites: (favorites ?? []).map((item) => String(item.entity_id)),
+    likes: (likes ?? []).map((item) => String(item.entity_id)),
+  };
+}
+
 export async function syncReview(entityId: string, text: string, label?: string) {
   const supabase = getSupabaseBrowserClient();
   const userId = await getUserId();

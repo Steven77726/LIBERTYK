@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, BrainCircuit, Search, Sparkles, WandSparkles, X } from "lucide-react";
+import { ArrowUpRight, Search, Sparkles, WandSparkles, X } from "lucide-react";
 import { searchIndex } from "@/data/search-index";
 import { getSearchSuggestions, searchItems } from "@/lib/search-engine";
 import { assetPath } from "@/lib/assets";
@@ -55,13 +55,6 @@ export function AiSearch() {
       <div className={`relative overflow-hidden rounded-[1.65rem] border bg-white/[.96] p-2 shadow-[0_26px_90px_rgba(0,0,0,.42),0_0_0_1px_rgba(255,255,255,.45)_inset] backdrop-blur-2xl transition-all duration-500 ${focused ? "border-[#d5bb7d]/65 shadow-[0_34px_120px_rgba(0,0,0,.48),0_0_0_7px_rgba(213,187,125,.10)]" : "border-white/25"}`}>
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,.7),transparent_30%,transparent_70%,rgba(213,187,125,.16))]" />
         <div className="relative flex items-center gap-2">
-          <span className="ml-1 grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#0d1712,#284636)] text-white shadow-[0_14px_35px_rgba(31,77,59,.28)]">
-            <BrainCircuit size={18} />
-          </span>
-          <div className="hidden min-w-0 border-r border-black/[.07] pr-3 text-left sm:block">
-            <p className="text-[10px] font-semibold uppercase tracking-[.18em] text-moss/60">Liberty IA</p>
-            <p className="text-[10px] text-ink/35">Recherche naturelle</p>
-          </div>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -70,7 +63,7 @@ export function AiSearch() {
               if (event.key === "Enter") submit();
               if (event.key === "Escape") setFocused(false);
             }}
-            aria-label="Recherche Liberty IA en langage naturel"
+            aria-label="Recherche Liberty"
             placeholder={rotatingExamples[exampleIndex]}
             className="min-w-0 flex-1 bg-transparent px-2 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-ink/32 sm:px-4 sm:text-base"
           />
@@ -140,7 +133,7 @@ export function AiSearch() {
 
       <div className="mx-auto mt-2 flex max-w-4xl justify-center">
         <p className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[.07] px-3 py-1.5 text-[10px] text-white/58 shadow-[0_10px_30px_rgba(0,0,0,.12)] backdrop-blur">
-          <Sparkles size={11} /> Exemples : restaurant entrecôte Paris 17 · brunch avocado toast · tequila casher
+          <Sparkles size={11} /> Exemple : Où trouver un avocado toast dans le 17e ouvert dimanche ?
         </p>
       </div>
     </div>

@@ -41,7 +41,7 @@ import { getAnalyticsEvents, getReviews } from "@/lib/client-store";
 import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
 import { hasAdminSession } from "@/components/admin/admin-access-gate";
 import { uploadLibertyImage } from "@/lib/supabase/storage";
-import { fetchRealAnalyticsEvents, loadAdminStateFromSupabase, saveAdminStateToSupabase, writeAuditLog } from "@/lib/supabase/admin-state";
+import { fetchRealAnalyticsEvents, loadAdminStateFromSupabase, saveAdminStateToSupabase, saveSeoAnalysisHistory, writeAuditLog } from "@/lib/supabase/admin-state";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
@@ -65,6 +65,47 @@ type AdminUserProfile = {
 };
 
 type AdminHoursValue = Record<string, { open: boolean; slot1Start: string; slot1End: string; slot2Start: string; slot2End: string }>;
+type SeoPriority = "critical" | "high" | "medium" | "low";
+type SeoSection = "content" | "technical" | "local" | "search";
+type SeoEntityType = "home" | "category" | "subcategory" | "establishment" | "static";
+type SeoSuggestionAction = "metaTitle" | "metaDescription" | "altText" | "customerSearchTerms" | "visibleTags" | "description" | "internalLinks";
+
+type SeoIssue = {
+  id: string;
+  priority: SeoPriority;
+  section: SeoSection;
+  problem: string;
+  explanation: string;
+  correction: string;
+  impact: string;
+};
+
+type SeoSuggestion = {
+  id: string;
+  action: SeoSuggestionAction;
+  label: string;
+  value: string;
+  entityType: SeoEntityType;
+  entityId: string;
+};
+
+type SeoReport = {
+  id: string;
+  entityType: SeoEntityType;
+  entityId: string;
+  title: string;
+  category: string;
+  url: string;
+  status: AdminStatus;
+  score: number;
+  contentScore: number;
+  technicalScore: number;
+  localScore: number;
+  searchScore: number;
+  issues: SeoIssue[];
+  suggestions: SeoSuggestion[];
+  lastAnalyzedAt: string;
+};
 
 type AdminRubric = {
   id: string;
@@ -775,6 +816,7 @@ const menu = [
   { id: "establishments", label: "Fiches / Établissements", icon: Building2 },
   { id: "tags", label: "Tags visibles", icon: Tags },
   { id: "customer-searches", label: "Recherches clients", icon: Search },
+  { id: "seo-assistant", label: "SEO Assistant", icon: BarChart3 },
   { id: "certifications", label: "Certifications", icon: ShieldCheck },
   { id: "page-order", label: "Ordre d’affichage", icon: GripVertical },
   { id: "photos", label: "Photos", icon: Camera },
@@ -801,6 +843,335 @@ function statusBadge(status: AdminStatus) {
     Masqué: "bg-zinc-100 text-zinc-500 border-zinc-200",
   };
   return styles[status];
+}
+
+const SEO_CACHE_KEY = "liberty-admin-seo-analysis-v1";
+
+const seoPriorityLabel: Record<SeoPriority, string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+function seoScoreLabel(score: number) {
+  if (score >= 85) return "Excellent";
+  if (score >= 70) return "Good";
+  if (score >= 45) return "Needs improvement";
+  return "Critical";
+}
+
+function seoScoreColor(score: number) {
+  if (score >= 85) return "bg-emerald-500";
+  if (score >= 70) return "bg-moss";
+  if (score >= 45) return "bg-amber-500";
+  return "bg-rose-500";
+}
+
+function uniqueSeoId(prefix: string, value: string) {
+  return `${prefix}-${slugify(value).slice(0, 80)}`;
+}
+
+function wordCount(value?: string) {
+  return String(value ?? "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasCompleteAdminHours(value?: string) {
+  const hours = parseAdminHours(value ?? "");
+  return Object.values(hours).some((day) => day.open && day.slot1Start && day.slot1End);
+}
+
+function makeSeoIssue(priority: SeoPriority, section: SeoSection, problem: string, explanation: string, correction: string, impact: string): SeoIssue {
+  return { id: uniqueSeoId(`${priority}-${section}`, problem), priority, section, problem, explanation, correction, impact };
+}
+
+function averageScore(values: number[]) {
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length));
+}
+
+function makeSeoReport(input: {
+  entityType: SeoEntityType;
+  entityId: string;
+  title: string;
+  category: string;
+  url: string;
+  status: AdminStatus;
+  description?: string;
+  image?: string;
+  imageAlt?: string;
+  address?: string;
+  city?: string;
+  district?: string;
+  country?: string;
+  phone?: string;
+  website?: string;
+  latitude?: string;
+  longitude?: string;
+  hours?: string;
+  customerSearchTerms?: string[];
+  visibleTags?: string[];
+  keywords?: string[];
+  relatedLabel?: string;
+  localPage?: boolean;
+}) {
+  const issues: SeoIssue[] = [];
+  const suggestions: SeoSuggestion[] = [];
+  const descriptionWords = wordCount(input.description);
+  const titleLength = input.title.trim().length;
+  const hasImage = Boolean(input.image?.trim());
+  const hasAlt = Boolean(input.imageAlt?.trim());
+  const customerTerms = input.customerSearchTerms ?? [];
+  const visibleTags = input.visibleTags ?? [];
+  const keywords = input.keywords ?? [];
+  const localText = `${input.title} ${input.description ?? ""} ${input.address ?? ""} ${input.city ?? ""} ${input.district ?? ""}`.toLowerCase();
+  const hasLocalKeyword = Boolean(input.city || input.district || /\bparis\b|\b750\d{2}\b/.test(localText));
+  let contentScore = 100;
+  let technicalScore = 100;
+  let localScore = input.localPage ? 100 : 100;
+  let searchScore = 100;
+
+  if (!input.title.trim()) {
+    contentScore -= 30;
+    issues.push(makeSeoIssue("critical", "content", "Missing title", "La page n’a pas de titre exploitable.", "Renseigner un nom clair et spécifique.", "Très fort"));
+  } else if (titleLength < 8 || titleLength > 68) {
+    contentScore -= 10;
+    issues.push(makeSeoIssue("medium", "content", "Meta title length can be improved", "Le titre est trop court ou trop long pour un affichage optimal.", "Utiliser un titre entre 30 et 60 caractères.", "Moyen"));
+    suggestions.push({ id: uniqueSeoId("suggest-title", input.entityId), action: "metaTitle", label: "Meta Title proposé", value: `${input.title} | Liberty`, entityType: input.entityType, entityId: input.entityId });
+  }
+
+  if (!input.description?.trim()) {
+    contentScore -= 25;
+    issues.push(makeSeoIssue("critical", "content", "Missing content description", "La page n’a pas de description visible ou SEO.", "Ajouter une description utile et unique.", "Très fort"));
+    suggestions.push({ id: uniqueSeoId("suggest-description", input.entityId), action: "description", label: "Description proposée", value: `${input.title} sur Liberty : informations pratiques, adresse, services et recommandations pour trouver rapidement ce qui correspond à votre recherche.`, entityType: input.entityType, entityId: input.entityId });
+  } else if (descriptionWords < 18) {
+    contentScore -= 16;
+    issues.push(makeSeoIssue("high", "content", "Description too short", "La description contient trop peu de contenu pour être bien comprise.", "Ajouter au moins 2 phrases descriptives avec mots locaux et services.", "Fort"));
+    suggestions.push({ id: uniqueSeoId("suggest-meta-description", input.entityId), action: "metaDescription", label: "Meta Description proposée", value: `${input.title} : ${input.description}`.slice(0, 155), entityType: input.entityType, entityId: input.entityId });
+  }
+
+  if (!hasLocalKeyword && input.localPage) {
+    contentScore -= 10;
+    issues.push(makeSeoIssue("medium", "content", "Missing local keyword", "La fiche ne contient pas assez de repères locaux.", "Ajouter ville, arrondissement ou code postal dans le contenu.", "Moyen"));
+  }
+
+  if (!input.url.startsWith("/") || /\s/.test(input.url)) {
+    technicalScore -= 20;
+    issues.push(makeSeoIssue("high", "technical", "URL structure problem", "L’URL n’est pas propre ou contient des espaces.", "Utiliser un slug court, lisible et sans caractères spéciaux.", "Fort"));
+  }
+  if (!hasImage) {
+    technicalScore -= 18;
+    issues.push(makeSeoIssue("high", "technical", "Missing image", "La page ne possède pas d’image principale.", "Ajouter une image principale optimisée.", "Fort"));
+  }
+  if (hasImage && !hasAlt) {
+    technicalScore -= 14;
+    issues.push(makeSeoIssue("medium", "technical", "Missing alt text", "L’image principale n’a pas de texte alternatif.", "Ajouter un alt text descriptif.", "Moyen"));
+    suggestions.push({ id: uniqueSeoId("suggest-alt", input.entityId), action: "altText", label: "Alt text proposé", value: `${input.title}${input.city ? ` à ${input.city}` : ""}`, entityType: input.entityType, entityId: input.entityId });
+  }
+  if (input.website && !/^https?:\/\//i.test(input.website)) {
+    technicalScore -= 8;
+    issues.push(makeSeoIssue("low", "technical", "External link should include protocol", "Le site web n’indique pas explicitement https://.", "Renseigner l’URL complète du site web.", "Faible"));
+  }
+  if (input.status !== "Publié") {
+    technicalScore -= 10;
+    issues.push(makeSeoIssue("low", "technical", "Page is not published", "La page est en brouillon ou masquée.", "Publier uniquement après validation des champs essentiels.", "Faible"));
+  }
+
+  if (input.localPage) {
+    if (!input.address?.trim()) {
+      localScore -= 22;
+      issues.push(makeSeoIssue("critical", "local", "Missing full address", "La fiche ne peut pas être fiable pour l’itinéraire ou le SEO local.", "Renseigner l’adresse complète.", "Très fort"));
+    }
+    if (!input.city?.trim()) {
+      localScore -= 12;
+      issues.push(makeSeoIssue("high", "local", "Missing city", "La ville est absente.", "Renseigner la ville.", "Fort"));
+    }
+    if (!input.district?.trim()) {
+      localScore -= 10;
+      issues.push(makeSeoIssue("medium", "local", "Missing district", "L’arrondissement ou le quartier n’est pas renseigné.", "Ajouter l’arrondissement ou le quartier.", "Moyen"));
+    }
+    if (!input.latitude?.trim() || !input.longitude?.trim()) {
+      localScore -= 18;
+      issues.push(makeSeoIssue("high", "local", "Missing coordinates", "La géolocalisation et l’itinéraire seront moins précis.", "Ajouter latitude et longitude.", "Fort"));
+    }
+    if (!hasCompleteAdminHours(input.hours)) {
+      localScore -= 14;
+      issues.push(makeSeoIssue("medium", "local", "Opening hours incomplete", "Les horaires ne permettent pas d’indiquer l’ouverture correctement.", "Ajouter au moins un créneau horaire réel.", "Moyen"));
+    }
+    if (!input.phone?.trim()) {
+      localScore -= 10;
+      issues.push(makeSeoIssue("medium", "local", "Missing phone number", "La fiche n’a pas de numéro d’appel.", "Ajouter un téléphone public.", "Moyen"));
+    }
+  }
+
+  if (customerTerms.length === 0) {
+    searchScore -= 28;
+    issues.push(makeSeoIssue("critical", "search", "Missing Customer Search Terms", "Liberty Search n’a pas assez de signaux prioritaires.", "Ajouter les requêtes clients principales.", "Très fort"));
+    suggestions.push({ id: uniqueSeoId("suggest-search", input.entityId), action: "customerSearchTerms", label: "Recherches clients proposées", value: [input.title, input.category, input.relatedLabel, input.city, input.district ? `Paris ${input.district}` : ""].filter(Boolean).join(", "), entityType: input.entityType, entityId: input.entityId });
+  } else if (customerTerms.length < 5 && input.entityType === "establishment") {
+    searchScore -= 16;
+    issues.push(makeSeoIssue("high", "search", "Not enough Customer Search Terms", "La fiche risque de manquer certaines recherches naturelles.", "Ajouter 5 à 15 expressions client.", "Fort"));
+  }
+  if (visibleTags.length === 0 && input.entityType === "establishment") {
+    searchScore -= 10;
+    issues.push(makeSeoIssue("medium", "search", "Missing visible tags", "Les tags aident à filtrer et comprendre la fiche.", "Ajouter au moins 2 tags visibles.", "Moyen"));
+    suggestions.push({ id: uniqueSeoId("suggest-tags", input.entityId), action: "visibleTags", label: "Tags visibles proposés", value: [input.category, input.relatedLabel, input.city].filter(Boolean).join(", "), entityType: input.entityType, entityId: input.entityId });
+  }
+  if (keywords.length < 3 && input.entityType !== "home") {
+    searchScore -= 8;
+    issues.push(makeSeoIssue("low", "search", "Few search keywords", "La page possède peu de synonymes ou variantes.", "Ajouter des synonymes et variantes naturelles.", "Faible"));
+  }
+
+  contentScore = Math.max(0, contentScore);
+  technicalScore = Math.max(0, technicalScore);
+  localScore = Math.max(0, localScore);
+  searchScore = Math.max(0, searchScore);
+  const score = averageScore([contentScore, technicalScore, localScore, searchScore]);
+
+  return {
+    id: `${input.entityType}-${input.entityId}`,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    title: input.title || "Sans titre",
+    category: input.category,
+    url: input.url,
+    status: input.status,
+    score,
+    contentScore,
+    technicalScore,
+    localScore,
+    searchScore,
+    issues,
+    suggestions,
+    lastAnalyzedAt: new Date().toISOString(),
+  } satisfies SeoReport;
+}
+
+function analyzeAdminSeo(state: AdminState): SeoReport[] {
+  const publishedRubrics = state.rubrics.filter((item) => item.status === "Publié");
+  const publishedSubrubrics = state.subrubrics.filter((item) => item.status === "Publié");
+  const rubrics = new Map(state.rubrics.map((item) => [item.id, item]));
+  const subrubrics = new Map(state.subrubrics.map((item) => [item.id, item]));
+  const tags = new Map(state.tags.map((item) => [item.id, item]));
+  const reports: SeoReport[] = [
+    makeSeoReport({
+      entityType: "home",
+      entityId: "home",
+      title: "Liberty",
+      category: "Home page",
+      url: "/",
+      status: "Publié",
+      description: "Le meilleur de l'univers juif et casher, réuni dans une expérience simple, inspirante et exigeante.",
+      image: publishedRubrics.find((item) => item.image)?.image,
+      imageAlt: "Liberty accueil",
+      customerSearchTerms: publishedRubrics.flatMap((item) => item.searchKeywords ?? []).slice(0, 20),
+      visibleTags: publishedRubrics.map((item) => item.name),
+      keywords: publishedRubrics.map((item) => item.name),
+    }),
+  ];
+
+  state.rubrics.forEach((rubric) => {
+    reports.push(makeSeoReport({
+      entityType: "category",
+      entityId: rubric.id,
+      title: rubric.name,
+      category: "Categories",
+      url: `/${rubric.slug ?? rubric.id}`,
+      status: rubric.status,
+      description: rubric.description,
+      image: rubric.image,
+      imageAlt: rubric.imageAlt,
+      customerSearchTerms: rubric.searchKeywords,
+      visibleTags: state.subrubrics.filter((item) => item.rubricId === rubric.id).map((item) => item.name),
+      keywords: [rubric.name, ...(rubric.searchKeywords ?? [])],
+      relatedLabel: rubric.name,
+    }));
+  });
+
+  state.subrubrics.forEach((subrubric) => {
+    const rubric = rubrics.get(subrubric.rubricId);
+    reports.push(makeSeoReport({
+      entityType: "subcategory",
+      entityId: subrubric.id,
+      title: subrubric.name,
+      category: rubric?.name ?? "Subcategories",
+      url: `/${rubric?.slug ?? rubric?.id ?? "rubrique"}/${subrubric.slug ?? subrubric.id}`,
+      status: subrubric.status,
+      description: subrubric.description,
+      image: subrubric.photo,
+      imageAlt: subrubric.imageAlt,
+      customerSearchTerms: subrubric.searchKeywords,
+      visibleTags: [],
+      keywords: [subrubric.name, ...(subrubric.searchKeywords ?? [])],
+      relatedLabel: rubric?.name,
+    }));
+  });
+
+  state.establishments.forEach((establishment) => {
+    const rubric = rubrics.get(establishment.rubricId);
+    const subrubric = subrubrics.get(establishment.subrubricId);
+    const visibleTags = establishment.visibleTagIds
+      .flatMap((id) => {
+        const tag = tags.get(id);
+        return tag && tag.status !== "Masqué" ? [tag] : [];
+      })
+      .map((tag) => tag.label);
+    reports.push(makeSeoReport({
+      entityType: "establishment",
+      entityId: establishment.id,
+      title: establishment.name,
+      category: rubric?.name ?? "Establishments",
+      url: `/${rubric?.slug ?? establishment.rubricId}/${subrubric?.slug ?? ""}#${establishment.slug ?? establishment.id}`.replace(/\/#/g, "#"),
+      status: establishment.status,
+      description: establishment.description,
+      image: establishment.mainPhoto,
+      imageAlt: establishment.photoAlts?.[0],
+      address: establishment.address,
+      city: establishment.city,
+      district: establishment.arrondissement,
+      country: "France",
+      phone: establishment.phone,
+      website: establishment.website,
+      latitude: establishment.latitude,
+      longitude: establishment.longitude,
+      hours: establishment.hours,
+      customerSearchTerms: establishment.customerSearches,
+      visibleTags,
+      keywords: [establishment.name, establishment.certification, establishment.kosherType, establishment.averagePrice, ...(establishment.cuisineTypes ?? []), ...visibleTags].filter(Boolean),
+      relatedLabel: subrubric?.name,
+      localPage: true,
+    }));
+  });
+
+  state.pageSections.forEach((section) => {
+    reports.push(makeSeoReport({
+      entityType: "static",
+      entityId: section.id,
+      title: section.title,
+      category: section.page,
+      url: section.page === "Home Page" ? "/" : `/${slugify(section.page)}`,
+      status: section.status,
+      description: `${section.title} · ${section.type}`,
+      customerSearchTerms: [],
+      visibleTags: [section.type],
+      keywords: [section.page, section.title, section.type],
+    }));
+  });
+
+  return reports.sort((a, b) => a.score - b.score || a.title.localeCompare(b.title, "fr"));
+}
+
+function summarizeSeoReports(reports: SeoReport[]) {
+  const totalPages = reports.length;
+  const criticalPages = reports.filter((report) => report.score < 45 || report.issues.some((issue) => issue.priority === "critical")).length;
+  const needingImprovement = reports.filter((report) => report.score < 70).length;
+  const healthyPages = reports.filter((report) => report.score >= 70 && !report.issues.some((issue) => issue.priority === "critical")).length;
+  const withoutMetaDescription = reports.filter((report) => report.issues.some((issue) => issue.problem.includes("Description") || issue.problem.includes("description") || issue.problem === "Missing content description")).length;
+  const withoutAltText = reports.filter((report) => report.issues.some((issue) => issue.problem === "Missing alt text")).length;
+  const withoutCustomerSearchTerms = reports.filter((report) => report.issues.some((issue) => issue.problem.includes("Customer Search Terms"))).length;
+  const withoutOpeningHours = reports.filter((report) => report.issues.some((issue) => issue.problem === "Opening hours incomplete")).length;
+  const overallScore = reports.length ? averageScore(reports.map((report) => report.score)) : 0;
+  const averageLoadingScore = reports.length ? averageScore(reports.map((report) => Math.max(0, report.technicalScore - (report.issues.some((issue) => issue.problem === "Missing image") ? 12 : 0)))) : 0;
+  return { totalPages, criticalPages, needingImprovement, healthyPages, overallScore, averageLoadingScore, withoutMetaDescription, withoutAltText, withoutCustomerSearchTerms, withoutOpeningHours };
 }
 
 function Field({
@@ -1146,6 +1517,11 @@ export function AdminDashboard() {
   const [usersMessage, setUsersMessage] = useState("");
   const [usersSearch, setUsersSearch] = useState("");
   const [usersFilter, setUsersFilter] = useState("Tous");
+  const [seoReports, setSeoReports] = useState<SeoReport[]>([]);
+  const [seoRunning, setSeoRunning] = useState(false);
+  const [seoSearch, setSeoSearch] = useState("");
+  const [seoFilter, setSeoFilter] = useState("Toutes les pages");
+  const [selectedSeoReportId, setSelectedSeoReportId] = useState("");
 
   const goToSection = (section: AdminSection) => {
     if (section === active) return;
@@ -1267,6 +1643,24 @@ export function AdminDashboard() {
   }, [selectedEstablishmentId, state.establishments]);
 
   const selectedEstablishment = state.establishments.find((item) => item.id === selectedEstablishmentId) ?? state.establishments[0];
+  const liveSeoReports = useMemo(() => analyzeAdminSeo(state), [state]);
+  const displayedSeoReports = seoReports.length ? seoReports : liveSeoReports;
+  const seoSummary = useMemo(() => summarizeSeoReports(displayedSeoReports), [displayedSeoReports]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SEO_CACHE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as SeoReport[];
+      if (Array.isArray(parsed)) setSeoReports(parsed);
+    } catch {
+      setSeoReports([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSeoReportId && displayedSeoReports[0]) setSelectedSeoReportId(displayedSeoReports[0].id);
+  }, [displayedSeoReports, selectedSeoReportId]);
 
   const filteredEstablishments = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -1278,6 +1672,25 @@ export function AdminDashboard() {
         .includes(query),
     );
   }, [search, state.establishments]);
+
+  const filteredSeoReports = useMemo(() => {
+    const query = seoSearch.trim().toLowerCase();
+    return displayedSeoReports.filter((report) => {
+      const corpus = `${report.title} ${report.category} ${report.url}`.toLowerCase();
+      if (query && !corpus.includes(query)) return false;
+      if (seoFilter === "Restaurants") return report.entityType === "establishment" && /restaurant|food/i.test(report.category);
+      if (seoFilter === "Shops") return /shopping|vêtement|boutique/i.test(`${report.category} ${report.title}`);
+      if (seoFilter === "Travel") return /voyage|travel/i.test(`${report.category} ${report.title}`);
+      if (seoFilter === "Events") return /sortie|event|événement|mariage|concert/i.test(`${report.category} ${report.title}`);
+      if (seoFilter === "Categories") return report.entityType === "category" || report.entityType === "subcategory";
+      if (seoFilter === "Only critical pages") return report.score < 45 || report.issues.some((issue) => issue.priority === "critical");
+      if (seoFilter === "Only unpublished pages") return report.status !== "Publié";
+      if (seoFilter === "Only missing metadata") return report.issues.some((issue) => ["Missing content description", "Missing alt text", "Meta title length can be improved"].includes(issue.problem));
+      return true;
+    });
+  }, [displayedSeoReports, seoFilter, seoSearch]);
+
+  const selectedSeoReport = displayedSeoReports.find((report) => report.id === selectedSeoReportId) ?? filteredSeoReports[0] ?? displayedSeoReports[0];
 
   const stats = useMemo(() => {
     return [
@@ -1390,6 +1803,105 @@ export function AdminDashboard() {
 
   const updateCertification = (id: string, patch: Partial<AdminCertification>) =>
     setState((current) => ({ ...current, certifications: current.certifications.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+
+  const runSeoAnalysis = () => {
+    setSeoRunning(true);
+    setAdminMessage("Analyse SEO en cours…");
+    window.setTimeout(() => {
+      const reports = analyzeAdminSeo(state);
+      const summary = summarizeSeoReports(reports);
+      setSeoReports(reports);
+      setSelectedSeoReportId(reports[0]?.id ?? "");
+      window.localStorage.setItem(SEO_CACHE_KEY, JSON.stringify(reports));
+      void saveSeoAnalysisHistory({
+        overallScore: summary.overallScore,
+        totalPages: summary.totalPages,
+        criticalPages: summary.criticalPages,
+        healthyPages: summary.healthyPages,
+        reports: reports.map((report) => ({
+          id: report.id,
+          entityType: report.entityType,
+          entityId: report.entityId,
+          title: report.title,
+          url: report.url,
+          score: report.score,
+          contentScore: report.contentScore,
+          technicalScore: report.technicalScore,
+          localScore: report.localScore,
+          searchScore: report.searchScore,
+          issues: report.issues,
+        })),
+      }).then((result) => {
+        if (!result.ok && isSupabaseConfigured) setAdminMessage(`Analyse SEO terminée. Historique Supabase non enregistré : ${result.error}`);
+      });
+      setSeoRunning(false);
+      setAdminMessage(`Analyse SEO terminée : ${summary.totalPages} pages analysées.`);
+    }, 80);
+  };
+
+  const confirmSeoPublication = (entityType: SeoEntityType, entityId: string) => {
+    const report = analyzeAdminSeo(state).find((item) => item.entityType === entityType && item.entityId === entityId);
+    if (!report) return true;
+    const blockingIssues = report.issues.filter((issue) => issue.priority === "critical" || issue.priority === "high");
+    if (!blockingIssues.length) return true;
+    const warning = [
+      `Validation SEO : ${report.title}`,
+      `Score : ${report.score}/100 (${seoScoreLabel(report.score)})`,
+      "",
+      ...blockingIssues.slice(0, 8).map((issue) => `• ${issue.problem} — ${issue.correction}`),
+      "",
+      "Publier quand même ?",
+    ].join("\n");
+    return window.confirm(warning);
+  };
+
+  const applySeoSuggestion = (suggestion: SeoSuggestion, mode: "accept" | "modify" | "ignore") => {
+    if (mode === "ignore") {
+      setAdminMessage(`Suggestion ignorée : ${suggestion.label}`);
+      return;
+    }
+    const nextValue = mode === "modify"
+      ? window.prompt("Modifier la suggestion avant application :", suggestion.value)
+      : suggestion.value;
+    if (!nextValue) return;
+
+    if (suggestion.entityType === "category") {
+      if (suggestion.action === "description" || suggestion.action === "metaDescription") updateRubric(suggestion.entityId, { description: nextValue });
+      if (suggestion.action === "altText") updateRubric(suggestion.entityId, { imageAlt: nextValue });
+      if (suggestion.action === "customerSearchTerms") updateRubric(suggestion.entityId, { searchKeywords: cleanTextList(nextValue) });
+    } else if (suggestion.entityType === "subcategory") {
+      if (suggestion.action === "description" || suggestion.action === "metaDescription") updateSubrubric(suggestion.entityId, { description: nextValue });
+      if (suggestion.action === "altText") updateSubrubric(suggestion.entityId, { imageAlt: nextValue });
+      if (suggestion.action === "customerSearchTerms") updateSubrubric(suggestion.entityId, { searchKeywords: cleanTextList(nextValue) });
+    } else if (suggestion.entityType === "establishment") {
+      if (suggestion.action === "description" || suggestion.action === "metaDescription") updateEstablishment(suggestion.entityId, { description: nextValue });
+      if (suggestion.action === "altText") updateEstablishment(suggestion.entityId, { photoAlts: [nextValue, "", ""] });
+      if (suggestion.action === "customerSearchTerms") {
+        const current = state.establishments.find((item) => item.id === suggestion.entityId)?.customerSearches ?? [];
+        updateEstablishment(suggestion.entityId, { customerSearches: [...new Set([...current, ...cleanTextList(nextValue)])] });
+      }
+      if (suggestion.action === "visibleTags") {
+        const labels = cleanTextList(nextValue);
+        setState((current) => {
+          const existing = new Map(current.tags.map((tag) => [tag.label.toLowerCase(), tag]));
+          const newTags = labels
+            .filter((label) => !existing.has(label.toLowerCase()))
+            .map((label, index) => ({ id: slugify(label), label, kind: "visible" as const, icon: "", color: "#1f4d3b", order: current.tags.length + index + 1, status: "Publié" as AdminStatus }));
+          const ids = labels.map((label) => existing.get(label.toLowerCase())?.id ?? slugify(label));
+          return {
+            ...current,
+            tags: [...current.tags, ...newTags],
+            establishments: current.establishments.map((item) => item.id === suggestion.entityId ? { ...item, visibleTagIds: [...new Set([...item.visibleTagIds, ...ids])] } : item),
+          };
+        });
+      }
+    } else {
+      setAdminMessage("Cette suggestion concerne une page statique non éditable depuis ce module.");
+      return;
+    }
+    setSeoReports([]);
+    setAdminMessage(`Suggestion appliquée après validation : ${suggestion.label}`);
+  };
 
   const reorderById = (collection: "rubrics" | "subrubrics" | "establishments" | "tags", id: string, direction: -1 | 1) => {
     setState((current) => {
@@ -1615,6 +2127,7 @@ export function AdminDashboard() {
   const publishRubric = (rubric: AdminRubric) => {
     const slug = rubric.slug || slugify(rubric.name);
     if (!requireFields([["nom", rubric.name], ["slug", slug], ["description", rubric.description], ["icône", rubric.icon], ["image principale", rubric.image], ["texte alternatif", rubric.imageAlt], ["ordre d’affichage", rubric.order]])) return;
+    if (!confirmSeoPublication("category", rubric.id)) return;
     commitState((current) => ({
       ...current,
       rubrics: current.rubrics.map((item) => (item.id === rubric.id ? { ...item, slug, status: "Publié", showOnHome: item.showOnHome ?? true, updatedAt: new Date().toISOString() } : item)),
@@ -1633,6 +2146,7 @@ export function AdminDashboard() {
   const publishSubrubric = (subrubric: AdminSubrubric) => {
     const slug = subrubric.slug || slugify(subrubric.name);
     if (!requireFields([["nom", subrubric.name], ["slug", slug], ["description", subrubric.description], ["photo", subrubric.photo], ["ordre", subrubric.order]])) return;
+    if (!confirmSeoPublication("subcategory", subrubric.id)) return;
     commitState((current) => ({
       ...current,
       subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? { ...item, slug, status: "Publié", visible: true } : item)),
@@ -1653,6 +2167,7 @@ export function AdminDashboard() {
     if (savingAction) return;
     const slug = establishment.slug || slugify(establishment.name);
     if (!requireFields([["nom", establishment.name], ["slug", slug], ["description", establishment.description], ["photo principale", establishment.mainPhoto], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
+    if (!confirmSeoPublication("establishment", establishment.id)) return;
     commitState((current) => ({
       ...current,
       establishments: current.establishments.map((item) => (item.id === establishment.id ? { ...item, slug, status: "Publié", visible: true } : item)),
@@ -1911,6 +2426,7 @@ export function AdminDashboard() {
                       { id: "establishments", label: "Fiches", text: "Ajouter une adresse", icon: Building2 },
                       { id: "tags", label: "Tags visibles", text: "Badges affichés", icon: Tags },
                       { id: "customer-searches", label: "Recherches", text: "Mots Liberty IA", icon: Search },
+                      { id: "seo-assistant", label: "SEO", text: "Optimiser avant publication", icon: BarChart3 },
                       { id: "photos", label: "Photos", text: "Images & galeries", icon: Camera },
                       { id: "certifications", label: "Certifications", text: "Cacher & labels", icon: ShieldCheck },
                       { id: "page-order", label: "Ordre", text: "Réorganiser l’affichage", icon: GripVertical },
@@ -1940,6 +2456,26 @@ export function AdminDashboard() {
                       <p className="mt-1 text-xs text-ink/40">{label}</p>
                     </article>
                   ))}
+                </div>
+                <div className="rounded-4xl bg-white p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[.16em] text-moss/55">SEO Assistant</p>
+                      <h3 className="mt-2 text-2xl font-semibold tracking-[-.04em]">Qualité SEO globale : {seoSummary.overallScore}/100</h3>
+                      <p className="mt-1 text-sm text-ink/45">Calculé depuis les pages, rubriques, sous-rubriques et fiches actuellement présentes dans l’Admin.</p>
+                    </div>
+                    <button onClick={() => goToSection("seo-assistant")} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Ouvrir le SEO Assistant</button>
+                  </div>
+                  <div className="mt-5 h-2 overflow-hidden rounded-full bg-cream">
+                    <div className={`h-full rounded-full ${seoScoreColor(seoSummary.overallScore)}`} style={{ width: `${seoSummary.overallScore}%` }} />
+                  </div>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <MetricCard label="Pages critiques" value={seoSummary.criticalPages} />
+                    <MetricCard label="Sans meta description" value={seoSummary.withoutMetaDescription} />
+                    <MetricCard label="Sans alt text" value={seoSummary.withoutAltText} />
+                    <MetricCard label="Sans recherches clients" value={seoSummary.withoutCustomerSearchTerms} />
+                    <MetricCard label="Sans horaires" value={seoSummary.withoutOpeningHours} />
+                  </div>
                 </div>
                 <div className="grid gap-5 xl:grid-cols-[1.4fr_.6fr]">
                   <Panel title="État des contenus" subtitle="Ce tableau affiche uniquement les éléments réellement présents dans l’Admin.">
@@ -2451,6 +2987,136 @@ export function AdminDashboard() {
                       />
                     </article>
                   ))}
+                </div>
+              </Panel>
+            )}
+
+            {active === "seo-assistant" && (
+              <Panel title="SEO Assistant" subtitle="Analyse réelle des pages et fiches présentes dans Liberty. Aucune correction n’est appliquée sans validation.">
+                <div className="mt-6 space-y-5">
+                  <div className="rounded-4xl bg-ink p-5 text-white">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">Analyze Entire Liberty</p>
+                        <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">Score global : {seoSummary.overallScore}/100</h3>
+                        <p className="mt-1 text-sm text-white/50">{seoSummary.totalPages} pages analysables · {seoSummary.healthyPages} pages saines · {seoSummary.criticalPages} critiques</p>
+                      </div>
+                      <button disabled={seoRunning} onClick={runSeoAnalysis} className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50">
+                        {seoRunning ? "Analyse en cours…" : "Analyser tout Liberty"}
+                      </button>
+                    </div>
+                    <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div className={`h-full rounded-full ${seoScoreColor(seoSummary.overallScore)}`} style={{ width: `${seoSummary.overallScore}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <MetricCard label="Total pages" value={seoSummary.totalPages} />
+                    <MetricCard label="Healthy pages" value={seoSummary.healthyPages} />
+                    <MetricCard label="Needs improvement" value={seoSummary.needingImprovement} />
+                    <MetricCard label="Critical pages" value={seoSummary.criticalPages} />
+                    <MetricCard label="Average loading score" value={`${seoSummary.averageLoadingScore}/100`} />
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+                    <label className="rounded-2xl bg-white px-4 py-3 text-sm shadow-sm">
+                      <span className="text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">Recherche</span>
+                      <input value={seoSearch} onChange={(event) => setSeoSearch(event.target.value)} placeholder="Titre, catégorie, URL…" className="mt-1 w-full bg-transparent outline-none" />
+                    </label>
+                    <SelectField label="Filtre" value={seoFilter} onChange={setSeoFilter}>
+                      {["Toutes les pages", "Restaurants", "Shops", "Travel", "Events", "Categories", "Only critical pages", "Only unpublished pages", "Only missing metadata"].map((filter) => <option key={filter}>{filter}</option>)}
+                    </SelectField>
+                  </div>
+
+                  <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
+                    <div className="max-h-[760px] space-y-2 overflow-y-auto rounded-4xl bg-white p-3 shadow-sm">
+                      {filteredSeoReports.map((report) => (
+                        <button
+                          key={report.id}
+                          onClick={() => setSelectedSeoReportId(report.id)}
+                          className={`w-full rounded-3xl p-4 text-left transition ${selectedSeoReport?.id === report.id ? "bg-ink text-white" : "bg-cream hover:bg-sage"}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">{report.title}</p>
+                              <p className={`mt-1 truncate text-[11px] ${selectedSeoReport?.id === report.id ? "text-white/45" : "text-ink/40"}`}>{report.category} · {report.url}</p>
+                            </div>
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${selectedSeoReport?.id === report.id ? "bg-white/10 text-white" : "bg-white text-ink"}`}>{report.score}</span>
+                          </div>
+                          <div className={`mt-3 h-1.5 overflow-hidden rounded-full ${selectedSeoReport?.id === report.id ? "bg-white/10" : "bg-white"}`}>
+                            <div className={`h-full rounded-full ${seoScoreColor(report.score)}`} style={{ width: `${report.score}%` }} />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {selectedSeoReport && (
+                      <div className="space-y-5">
+                        <div className="rounded-4xl bg-white p-5 shadow-sm">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[.16em] text-moss/55">{selectedSeoReport.entityType} · {selectedSeoReport.status}</p>
+                              <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">{selectedSeoReport.title}</h3>
+                              <p className="mt-1 text-sm text-ink/45">{selectedSeoReport.url}</p>
+                            </div>
+                            <div className="rounded-3xl bg-cream p-4 text-center">
+                              <p className="text-4xl font-semibold tracking-[-.05em]">{selectedSeoReport.score}</p>
+                              <p className="text-xs font-semibold text-ink/45">{seoScoreLabel(selectedSeoReport.score)}</p>
+                            </div>
+                          </div>
+                          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <SeoScorePill label="Content" value={selectedSeoReport.contentScore} />
+                            <SeoScorePill label="Technical" value={selectedSeoReport.technicalScore} />
+                            <SeoScorePill label="Local" value={selectedSeoReport.localScore} />
+                            <SeoScorePill label="Liberty Search" value={selectedSeoReport.searchScore} />
+                          </div>
+                        </div>
+
+                        <div className="rounded-4xl bg-white p-5 shadow-sm">
+                          <p className="font-semibold">Issues by priority</p>
+                          <div className="mt-4 grid gap-3">
+                            {(["critical", "high", "medium", "low"] as SeoPriority[]).map((priority) => {
+                              const issues = selectedSeoReport.issues.filter((issue) => issue.priority === priority);
+                              if (!issues.length) return null;
+                              return (
+                                <div key={priority} className="rounded-3xl bg-cream p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">{seoPriorityLabel[priority]}</p>
+                                  <div className="mt-3 space-y-3">
+                                    {issues.map((issue) => (
+                                      <div key={issue.id} className="rounded-2xl bg-white p-4">
+                                        <p className="text-sm font-semibold">{issue.problem}</p>
+                                        <p className="mt-1 text-xs leading-5 text-ink/50">{issue.explanation}</p>
+                                        <p className="mt-2 text-xs font-semibold text-moss">Correction : {issue.correction}</p>
+                                        <p className="mt-1 text-[11px] text-ink/35">Impact estimé : {issue.impact} · Section : {issue.section}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {!selectedSeoReport.issues.length && <p className="rounded-2xl bg-sage p-4 text-sm font-semibold text-moss">Aucun problème détecté sur cette page.</p>}
+                          </div>
+                        </div>
+
+                        <div className="rounded-4xl bg-white p-5 shadow-sm">
+                          <p className="font-semibold">AI Suggestions à valider</p>
+                          <div className="mt-4 space-y-3">
+                            {selectedSeoReport.suggestions.length ? selectedSeoReport.suggestions.map((suggestion) => (
+                              <div key={suggestion.id} className="rounded-3xl bg-cream p-4">
+                                <p className="text-sm font-semibold">{suggestion.label}</p>
+                                <p className="mt-2 rounded-2xl bg-white p-3 text-sm leading-6 text-ink/60">{suggestion.value}</p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  <button onClick={() => applySeoSuggestion(suggestion, "accept")} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white">Accept</button>
+                                  <button onClick={() => applySeoSuggestion(suggestion, "modify")} className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-ink">Modify</button>
+                                  <button onClick={() => applySeoSuggestion(suggestion, "ignore")} className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-ink/45">Ignore</button>
+                                </div>
+                              </div>
+                            )) : <p className="rounded-2xl bg-cream p-4 text-sm text-ink/45">Aucune suggestion nécessaire pour cette page.</p>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Panel>
             )}
@@ -3199,6 +3865,20 @@ function MiniStat({ label, value, dark = false }: { label: string; value: string
     <div className={dark ? "rounded-2xl bg-white/10 p-3" : "rounded-2xl bg-white p-3"}>
       <p className={dark ? "text-lg font-semibold text-white" : "text-lg font-semibold text-ink"}>{value}</p>
       <p className={dark ? "mt-1 text-[11px] text-white/45" : "mt-1 text-[11px] text-ink/40"}>{label}</p>
+    </div>
+  );
+}
+
+function SeoScorePill({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-3xl bg-cream p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[.12em] text-ink/40">{label}</p>
+        <p className="text-sm font-semibold">{value}/100</p>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+        <div className={`h-full rounded-full ${seoScoreColor(value)}`} style={{ width: `${value}%` }} />
+      </div>
     </div>
   );
 }

@@ -45,3 +45,16 @@ export async function fetchRealAnalyticsEvents() {
   if (error) return null;
   return data ?? [];
 }
+
+export async function saveSeoAnalysisHistory(payload: Record<string, unknown>) {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !isSupabaseConfigured) return { ok: false, error: "Supabase non configuré" };
+  const { data } = await supabase.auth.getUser();
+  const { error } = await supabase.from("seo_analysis_history").insert({
+    actor_id: data.user?.id ?? null,
+    payload,
+    overall_score: typeof payload.overallScore === "number" ? payload.overallScore : null,
+    total_pages: typeof payload.totalPages === "number" ? payload.totalPages : null,
+  });
+  return { ok: !error, error: error?.message };
+}

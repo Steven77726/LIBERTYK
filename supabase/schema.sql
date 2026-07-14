@@ -308,6 +308,15 @@ create table if not exists public.searches (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.seo_analysis_history (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.profiles(id) on delete set null,
+  overall_score int,
+  total_pages int,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.reservations (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete set null,
@@ -394,6 +403,7 @@ alter table public.analytics_events enable row level security;
 alter table public.trash_items enable row level security;
 alter table public.audit_log enable row level security;
 alter table public.searches enable row level security;
+alter table public.seo_analysis_history enable row level security;
 alter table public.reservations enable row level security;
 alter table public.app_settings enable row level security;
 
@@ -442,6 +452,7 @@ create policy "Admins read audit log" on public.audit_log for select using (publ
 create policy "Admins write audit log" on public.audit_log for insert with check (public.is_admin());
 create policy "Search insert allowed" on public.searches for insert with check (true);
 create policy "Admins read searches" on public.searches for select using (public.is_admin());
+create policy "Admins manage seo analysis history" on public.seo_analysis_history for all using (public.is_admin()) with check (public.is_admin());
 
 create policy "Users create reservations" on public.reservations for insert with check (auth.uid() is null or user_id = auth.uid());
 create policy "Users read own reservations" on public.reservations for select using (user_id = auth.uid() or public.is_admin() or public.is_professional_for(establishment_id));
@@ -450,6 +461,7 @@ create policy "Admins manage settings" on public.app_settings for all using (pub
 create index if not exists analytics_events_type_created_idx on public.analytics_events(event_type, created_at desc);
 create index if not exists analytics_events_entity_idx on public.analytics_events(entity_id, created_at desc);
 create index if not exists searches_query_created_idx on public.searches(query, created_at desc);
+create index if not exists seo_analysis_history_created_idx on public.seo_analysis_history(created_at desc);
 create index if not exists establishments_status_order_idx on public.establishments(status, display_order);
 create index if not exists establishments_searches_gin_idx on public.establishments using gin(customer_searches);
 

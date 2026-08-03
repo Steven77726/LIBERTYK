@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import { Bookmark, Heart } from "lucide-react";
 import { AccountDashboard } from "@/components/account/account-dashboard";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Mon compte" };
+export const metadata: Metadata = buildPageMetadata({
+  title: "Mon compte",
+  description: "Espace utilisateur privé Liberty.",
+  path: "/mon-compte",
+  noIndex: true,
+});
 
 export default function AccountPage() {
   return (

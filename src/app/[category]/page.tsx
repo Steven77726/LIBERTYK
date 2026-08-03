@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { categories, categoryBySlug } from "@/data/categories";
 import { categoryCards } from "@/data/mock";
 import { GenericSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { JsonLd } from "@/components/seo/json-ld";
+import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
 type Props = { params: Promise<{ category: string }> };
 
@@ -18,7 +20,15 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { category: slug } = await params;
   const category = categoryBySlug[slug];
-  return category ? { title: category.label, description: category.description } : {};
+  return category
+    ? buildPageMetadata({
+        title: `${category.label} — Liberty`,
+        description: category.description,
+        path: `/${category.slug}`,
+        image: category.image,
+        imageAlt: category.label,
+      })
+    : {};
 }
 
 export default async function CategoryPage({ params }: Props) {
@@ -29,6 +39,16 @@ export default async function CategoryPage({ params }: Props) {
 
   return (
     <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Accueil", item: absoluteUrl("/") },
+            { "@type": "ListItem", position: 2, name: category.label, item: absoluteUrl(`/${category.slug}`) },
+          ],
+        }}
+      />
       <section className="page-shell pt-8 sm:pt-12">
         <div className="relative overflow-hidden rounded-4xl px-6 py-16 sm:px-12 lg:px-16 lg:py-24" style={{ background: category.softColor }}>
           <div className="absolute -right-20 -top-32 size-96 rounded-full opacity-15 blur-3xl" style={{ background: category.color }} />

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { Heart, Sparkles } from "lucide-react";
 import { FavoritesDashboard } from "@/components/favorites/favorites-dashboard";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Mes Favoris",
   description: "Retrouvez vos contenus favoris classés par catégories.",
-};
+  path: "/mes-favoris",
+  noIndex: true,
+});
 
 export default function FavoritesPage() {
   return (

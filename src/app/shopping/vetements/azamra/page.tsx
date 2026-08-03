@@ -4,10 +4,30 @@ import { azamra } from "@/data/shops";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { assetPath } from "@/lib/assets";
 import { LikeButton } from "@/components/ui/entity-actions";
+import { JsonLd } from "@/components/seo/json-ld";
+import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  title: "Azamra — Vêtements",
+  description: azamra.description,
+  path: "/shopping/vetements/azamra",
+  image: azamra.image,
+  imageAlt: "Boutique Azamra",
+});
 
 export default function AzamraPage() {
   return (
     <section className="page-shell py-8 sm:py-12">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Store",
+          name: azamra.name,
+          description: azamra.description,
+          image: absoluteUrl(azamra.image),
+          url: absoluteUrl("/shopping/vetements/azamra"),
+        }}
+      />
       <Link href="/shopping/vetements" className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-ink/50"><ArrowLeft size={14} /> Vêtements</Link>
       <div className="overflow-hidden rounded-[2.25rem] bg-white shadow-soft">
         <div className="relative min-h-[520px]"><img src={assetPath(azamra.image)} alt="" className="absolute inset-0 size-full object-cover object-center" /><div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/10" /><div className="absolute left-7 top-7"><RecommendationBadge rating={azamra.rating} reviewCount={azamra.reviewCount} /></div><div className="absolute inset-x-0 bottom-0 p-7 text-white sm:p-12"><Shirt size={22} /><p className="mt-5 text-xs uppercase tracking-[.16em] text-white/50">{azamra.type}</p><h1 className="mt-2 text-5xl font-semibold tracking-[-.055em]">{azamra.name}</h1><div className="mt-4"><CustomerRating rating={azamra.rating} reviewCount={azamra.reviewCount} light /></div></div></div>

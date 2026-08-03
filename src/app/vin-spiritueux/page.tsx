@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import { Grape, Sparkles, Wine } from "lucide-react";
 import { wineActivities } from "@/data/wine-activities";
 import { WineActivityGrid } from "@/components/wine/wine-activity-grid";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Vin & Spiritueux",
-  description: "Découvrez les activités Winess et Pinot Noah.",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Vin & Spiritueux casher",
+  description: "Découvrez Winess, Winess Experience, Winess Signature et Pinot Noah : caviste, dégustations privées, bar mobile et wine tours.",
+  path: "/vin-spiritueux",
+  image: "/images/winess/winess-shop.webp",
+  imageAlt: "Winess caviste à Paris",
+});
 
 export default function WineSpiritsPage() {
   return (

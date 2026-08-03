@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { Droplets, Sparkles, UtensilsCrossed } from "lucide-react";
 import { CardSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Mikvé", description: "Mikvé femme et mikvé vaisselle." };
+export const metadata: Metadata = buildPageMetadata({
+  title: "Mikvé — Femme et vaisselle",
+  description: "Retrouvez les informations utiles autour du mikvé femme et du mikvé vaisselle.",
+  path: "/mikve",
+});
 
 const options = [
   { title: "Mikvé femme", description: "Retrouvez les adresses, horaires et informations pratiques.", icon: Sparkles, image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=85" },

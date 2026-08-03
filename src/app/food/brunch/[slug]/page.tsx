@@ -9,6 +9,8 @@ import { brunchBySlug, brunches } from "@/data/brunches";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { assetPath } from "@/lib/assets";
 import { LikeButton } from "@/components/ui/entity-actions";
+import { JsonLd } from "@/components/seo/json-ld";
+import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -18,7 +20,15 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const brunch = brunchBySlug[(await params).slug];
-  return brunch ? { title: brunch.name, description: brunch.description } : {};
+  return brunch
+    ? buildPageMetadata({
+        title: `${brunch.name} — Brunch casher`,
+        description: brunch.description,
+        path: `/food/brunch/${brunch.slug}`,
+        image: brunch.images[0],
+        imageAlt: brunch.name,
+      })
+    : {};
 }
 
 export default async function BrunchDetailPage({ params }: Props) {
@@ -36,6 +46,29 @@ export default async function BrunchDetailPage({ params }: Props) {
 
   return (
     <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Restaurant",
+          name: brunch.name,
+          description: brunch.description,
+          image: brunch.images.map((image) => absoluteUrl(image)),
+          url: absoluteUrl(`/food/brunch/${brunch.slug}`),
+          telephone: brunch.phone,
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: brunch.address,
+            addressLocality: "Paris",
+            postalCode: brunch.postalCode,
+            addressCountry: "FR",
+          },
+          servesCuisine: brunch.cuisine,
+          priceRange: brunch.price,
+          aggregateRating: brunch.rating && brunch.reviewCount
+            ? { "@type": "AggregateRating", ratingValue: brunch.rating, reviewCount: brunch.reviewCount }
+            : undefined,
+        }}
+      />
       <section className="page-shell pt-6">
         <Link href="/food/brunch" className="mb-5 inline-flex items-center gap-2 text-xs font-semibold text-ink/50 hover:text-ink"><ArrowLeft size={14} /> Retour aux brunchs</Link>
         <div className="grid h-[480px] grid-cols-1 gap-2 overflow-hidden rounded-[2rem] sm:grid-cols-2 lg:grid-cols-[1.5fr_.75fr_.75fr]">

@@ -5,11 +5,15 @@ import {
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
 import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Food",
-  description: "Découvrez les meilleures adresses et cuisines casher.",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Food casher — Restaurants, brunchs et traiteurs",
+  description: "Découvrez les meilleures adresses food casher : restaurants, brunchs, salons de thé, pâtisseries, traiteurs, fast-food et glaciers.",
+  path: "/food",
+  image: "/images/food/restaurants-khan.jpg",
+  imageAlt: "Restaurant casher Khan à Paris",
+});
 
 const addressTypes = [
   { label: "Restaurants", description: "Les tables incontournables", href: "/food/restaurants", icon: UtensilsCrossed, image: "/images/food/restaurants-khan.jpg" },

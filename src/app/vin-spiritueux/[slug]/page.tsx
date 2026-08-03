@@ -6,6 +6,8 @@ import { wineActivities, wineActivityBySlug } from "@/data/wine-activities";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { assetPath } from "@/lib/assets";
 import { LikeButton } from "@/components/ui/entity-actions";
+import { JsonLd } from "@/components/seo/json-ld";
+import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -15,7 +17,15 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const activity = wineActivityBySlug[(await params).slug];
-  return activity ? { title: activity.title, description: activity.description } : {};
+  return activity
+    ? buildPageMetadata({
+        title: `${activity.title} — Vin & Spiritueux`,
+        description: activity.description,
+        path: `/vin-spiritueux/${activity.slug}`,
+        image: activity.image,
+        imageAlt: activity.title,
+      })
+    : {};
 }
 
 export default async function WineActivityPage({ params }: Props) {
@@ -23,6 +33,20 @@ export default async function WineActivityPage({ params }: Props) {
   if (!activity) notFound();
   return (
     <section className="page-shell py-8 sm:py-12">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          name: activity.title,
+          description: activity.description,
+          image: absoluteUrl(activity.image),
+          url: absoluteUrl(`/vin-spiritueux/${activity.slug}`),
+          address: activity.address,
+          aggregateRating: activity.rating && activity.reviewCount
+            ? { "@type": "AggregateRating", ratingValue: activity.rating, reviewCount: activity.reviewCount }
+            : undefined,
+        }}
+      />
       <Link href="/vin-spiritueux" className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-ink/50 hover:text-ink"><ArrowLeft size={14} /> Vin & Spiritueux</Link>
       <div className="overflow-hidden rounded-[2.25rem] bg-white shadow-soft">
         <div className="relative min-h-[430px] sm:min-h-[560px]">

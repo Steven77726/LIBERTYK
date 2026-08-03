@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import { Baby, House, Shirt, Sparkles } from "lucide-react";
 import { CardSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Shopping" };
+export const metadata: Metadata = buildPageMetadata({
+  title: "Shopping — Boutiques et marques",
+  description: "Explorez les boutiques, vêtements, judaïca, maison et belles adresses shopping sélectionnées par Liberty.",
+  path: "/shopping",
+  image: "/images/shopping/azamra.webp",
+  imageAlt: "Boutique Azamra",
+});
 
 const sections = [
   { title: "Vêtements", description: "Mode pour homme, femme et enfant.", href: "/shopping/vetements", icon: Shirt, image: "/images/shopping/azamra.webp" },

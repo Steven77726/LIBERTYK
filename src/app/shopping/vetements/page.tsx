@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import { Shirt } from "lucide-react";
 import { AzamraCard } from "@/components/shops/azamra-card";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Vêtements" };
+export const metadata: Metadata = buildPageMetadata({
+  title: "Vêtements — Shopping Liberty",
+  description: "Découvrez les enseignes de vêtements et boutiques mode de Liberty, dont Azamra.",
+  path: "/shopping/vetements",
+  image: "/images/shopping/azamra.webp",
+  imageAlt: "Boutique Azamra",
+});
 
 export default function ClothesPage() {
   return (

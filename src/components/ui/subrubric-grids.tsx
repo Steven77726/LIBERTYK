@@ -193,7 +193,7 @@ export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubr
           href={href}
           className={`group relative min-h-[255px] overflow-hidden rounded-[1.75rem] bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${index === 0 ? "sm:col-span-2 sm:min-h-[350px]" : ""}`}
         >
-          <img src={assetPath(image)} alt="" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
+          <img src={assetPath(image)} alt={label} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
             <div>
@@ -237,7 +237,7 @@ export function CardSubrubricGrid({
     <div className={`mt-9 grid gap-5 ${columns}`}>
       {cards.map(({ title, description, href, icon: Icon, image }) => (
         <Link key={href} href={href} className="group relative min-h-[390px] overflow-hidden rounded-[2rem] text-white shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
-          <img src={assetPath(image)} alt="" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
+          <img src={assetPath(image)} alt={title} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-6">
             <span className="mb-5 grid size-11 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={19} /></span>

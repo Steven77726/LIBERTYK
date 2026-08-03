@@ -4,6 +4,13 @@ import {
 } from "lucide-react";
 import { CategoryGrid } from "@/components/ui/category-grid";
 import { AiSearch } from "@/components/search/ai-search";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  title: "Liberty — L'univers juif et casher",
+  description: "Explorez restaurants casher, sorties, voyages, shopping, vins, religion, enfants et services utiles dans une seule plateforme premium.",
+  path: "/",
+});
 
 export default function HomePage() {
   return (

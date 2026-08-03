@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Search, Sparkles, WandSparkles, X } from "lucide-react";
-import { searchIndex } from "@/data/search-index";
-import { getSearchSuggestions, searchItems } from "@/lib/search-engine";
+import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
 import { assetPath } from "@/lib/assets";
 import { trackEvent } from "@/lib/client-store";
-import { fetchSupabaseSearchItems } from "@/lib/supabase/content";
 
 const rotatingExamples = [
   "Où trouver un avocado toast dans le 17e ouvert dimanche ?",
@@ -24,10 +22,21 @@ export function AiSearch() {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [exampleIndex, setExampleIndex] = useState(0);
-  const [dynamicIndex, setDynamicIndex] = useState(searchIndex);
-  const results = useMemo(() => searchItems(dynamicIndex, query), [dynamicIndex, query]);
-  const suggestions = useMemo(() => getSearchSuggestions(query), [query]);
-  const open = focused && query.trim().length >= 2;
+  const [results, setResults] = useState<EstablishmentSearchResult[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const requestRef = useRef(0);
+  const lastQueryRef = useRef<string | null>(null);
+  const suggestions = useMemo(() => {
+    if (query.trim().length < 2) return [];
+    return [...new Set(results.flatMap((result) => [
+      ...result.matches.map((match) => match.label),
+      result.subcategory,
+      result.category,
+      result.location?.city,
+    ].filter(Boolean) as string[]))].slice(0, 6);
+  }, [query, results]);
+  const open = focused && (query.trim().length >= 2 || results.length > 0 || loading);
 
   useEffect(() => {
     const timer = window.setInterval(() => setExampleIndex((index) => (index + 1) % rotatingExamples.length), 3200);
@@ -35,18 +44,40 @@ export function AiSearch() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    fetchSupabaseSearchItems().then((items) => {
-      if (mounted && items?.length) setDynamicIndex([...items, ...searchIndex]);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (!focused && query.trim().length < 2) return;
+
+    const searchQuery = query.trim();
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+
+    const timer = window.setTimeout(async () => {
+      if (lastQueryRef.current === searchQuery) return;
+      lastQueryRef.current = searchQuery;
+      setLoading(true);
+
+      try {
+        const nextResults = await searchEstablishments(searchQuery);
+        if (requestRef.current === requestId) {
+          setResults(nextResults);
+          setActiveIndex(0);
+        }
+      } finally {
+        if (requestRef.current === requestId) setLoading(false);
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [focused, query]);
+
+  const openResult = (result: EstablishmentSearchResult | undefined) => {
+    if (!result) return;
+    if (query.trim().length >= 2) trackEvent("ai_search", query.trim(), result.id);
+    setFocused(false);
+    router.push(result.href);
+  };
 
   const submit = () => {
-    if (query.trim().length >= 2) trackEvent("ai_search", query.trim(), results[0]?.id);
-    if (results[0]) router.push(results[0].href);
+    openResult(results[activeIndex] ?? results[0]);
   };
 
   return (
@@ -60,7 +91,18 @@ export function AiSearch() {
             onChange={(event) => setQuery(event.target.value)}
             onFocus={() => setFocused(true)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") submit();
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setActiveIndex((index) => Math.min(index + 1, Math.max(results.length - 1, 0)));
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActiveIndex((index) => Math.max(index - 1, 0));
+              }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                submit();
+              }
               if (event.key === "Escape") setFocused(false);
             }}
             aria-label="Recherche Liberty"
@@ -68,7 +110,7 @@ export function AiSearch() {
             className="min-w-0 flex-1 bg-transparent px-2 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-ink/32 sm:px-4 sm:text-base"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="grid size-8 place-items-center rounded-lg text-ink/35 hover:bg-cream" aria-label="Effacer">
+            <button onClick={() => { setQuery(""); lastQueryRef.current = null; }} className="grid size-8 place-items-center rounded-lg text-ink/35 hover:bg-cream" aria-label="Effacer">
               <X size={14} />
             </button>
           )}
@@ -89,7 +131,7 @@ export function AiSearch() {
           >
             <div className="flex items-center justify-between px-3 py-2">
               <p className="text-[10px] font-semibold uppercase tracking-[.15em] text-ink/35">Suggestions automatiques</p>
-              <p className="text-[10px] text-ink/30">{results.length} résultat{results.length > 1 ? "s" : ""}</p>
+              <p className="text-[10px] text-ink/30">{loading ? "Recherche…" : `${results.length} résultat${results.length > 1 ? "s" : ""}`}</p>
             </div>
 
             {suggestions.length > 0 && (
@@ -104,17 +146,27 @@ export function AiSearch() {
 
             {results.length > 0 ? (
               <div className="grid max-h-[420px] gap-1 overflow-y-auto pt-2">
-                {results.map((result) => (
-                  <button key={result.id} onClick={() => { trackEvent("ai_search", query.trim(), result.id); router.push(result.href); }} className="group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition duration-300 hover:-translate-y-0.5 hover:bg-cream hover:shadow-sm">
+                {results.map((result, index) => (
+                  <button
+                    key={result.id}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={() => openResult(result)}
+                    className={`group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition duration-300 hover:-translate-y-0.5 hover:bg-cream hover:shadow-sm ${activeIndex === index ? "bg-cream" : ""}`}
+                  >
                     <img src={assetPath(result.image)} alt="" className="liberty-image-grade size-12 shrink-0 rounded-2xl object-cover transition duration-500 group-hover:scale-105" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold">{result.title}</p>
+                        <p className="truncate text-sm font-semibold [&_mark]:rounded [&_mark]:bg-[#f6ecd9] [&_mark]:px-0.5 [&_mark]:text-ink" dangerouslySetInnerHTML={{ __html: result.highlight }} />
                         {result.ranking?.sponsored && <span className="rounded-full bg-[#f6ecd9] px-2 py-0.5 text-[9px] font-semibold text-[#9b6b2d]">Sponsorisé pertinent</span>}
                         {result.filters?.openNow === false && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-semibold text-zinc-500">Fermé</span>}
                         {result.filters?.openNow === true && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">Ouvert</span>}
                       </div>
                       <p className={`mt-0.5 truncate text-[11px] ${result.filters?.openNow === false ? "text-ink/25" : "text-ink/42"}`}>{result.category} · {result.subtitle}</p>
+                      {result.matches.length > 0 && (
+                        <p className="mt-1 truncate text-[10px] font-medium text-moss/75">
+                          Correspond : {result.matches.slice(0, 3).map((match) => match.label).join(" · ")}
+                        </p>
+                      )}
                     </div>
                     <ArrowUpRight size={15} className="shrink-0 text-ink/25 transition group-hover:text-ink" />
                   </button>

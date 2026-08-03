@@ -6,6 +6,7 @@ alter table public.subrubrics
   add column if not exists mobile_columns integer not null default 1;
 
 create index if not exists idx_subrubrics_rubric_order on public.subrubrics(rubric_id, display_order);
+create unique index if not exists subrubrics_external_id_key on public.subrubrics(external_id);
 create unique index if not exists subrubrics_external_id_unique on public.subrubrics(external_id) where external_id is not null;
 create unique index if not exists subrubrics_rubric_slug_unique on public.subrubrics(rubric_id, slug) where deleted_at is null;
 

@@ -2,25 +2,20 @@
 
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
-const ADMIN_STATE_KEY = "admin_state";
+const LEGACY_ADMIN_STATE_KEY = "admin_state";
 
 export async function loadAdminStateFromSupabase<T>() {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return null;
-  const { data, error } = await supabase.from("app_settings").select("value").eq("key", ADMIN_STATE_KEY).maybeSingle();
-  if (error) return null;
-  return (data?.value as T | undefined) ?? null;
+  void LEGACY_ADMIN_STATE_KEY;
+  return null as T | null;
 }
 
-export async function saveAdminStateToSupabase<T>(value: T) {
-  const supabase = getSupabaseBrowserClient();
-  if (!supabase) return { ok: false, error: "Supabase non configuré" };
-  const { error } = await supabase.from("app_settings").upsert({
-    key: ADMIN_STATE_KEY,
-    value,
-    updated_at: new Date().toISOString(),
-  });
-  return { ok: !error, error: error?.message };
+export async function saveAdminStateToSupabase<T>(_value: T) {
+  return {
+    ok: true,
+    error: undefined,
+    skipped: true,
+    reason: "admin_state est figé : app_settings n'est plus une source de contenu Liberty.",
+  };
 }
 
 export async function writeAuditLog(action: string, entityType: string, entityId: string, label: string, payload: Record<string, unknown> = {}) {

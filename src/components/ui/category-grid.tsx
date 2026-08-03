@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Store } from "lucide-react";
 import { categories } from "@/data/categories";
 import { assetPath } from "@/lib/assets";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { listPublishedRubrics, type RubricRecord } from "@/lib/supabase/rubrics-repository";
 
 type AdminRubricPreview = {
@@ -20,13 +19,6 @@ type AdminRubricPreview = {
   order: number;
   status: "Publié" | "Brouillon" | "Masqué";
 };
-
-type AdminStatePreview = {
-  rubrics?: AdminRubricPreview[];
-};
-
-const ADMIN_STORAGE_KEY = "liberty-admin-dashboard-v1";
-const ADMIN_STATE_KEY = "admin_state";
 
 export function CategoryGrid() {
   const [adminRubrics, setAdminRubrics] = useState<AdminRubricPreview[] | null>(null);
@@ -52,23 +44,7 @@ export function CategoryGrid() {
           return;
         }
       } catch {
-        // Fallback sécurisé ci-dessous : ancien admin_state puis données TypeScript.
-      }
-      const supabase = getSupabaseBrowserClient();
-      if (supabase) {
-        const { data } = await supabase.from("app_settings").select("value").eq("key", ADMIN_STATE_KEY).maybeSingle();
-        const remoteRubrics = (data?.value as AdminStatePreview | undefined)?.rubrics;
-        if (mounted && remoteRubrics?.length) {
-          setAdminRubrics(remoteRubrics);
-          return;
-        }
-      }
-      try {
-        const raw = window.localStorage.getItem(ADMIN_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw) as AdminStatePreview;
-        if (mounted) setAdminRubrics(parsed.rubrics ?? null);
-      } catch {
+        // Fallback d'urgence lecture seule : données TypeScript locales.
         if (mounted) setAdminRubrics(null);
       }
     }
@@ -98,14 +74,7 @@ export function CategoryGrid() {
           return;
         }
       } catch {
-        // Fallback local conservé.
-      }
-      try {
-        const raw = window.localStorage.getItem(ADMIN_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw) as AdminStatePreview;
-        setAdminRubrics(parsed.rubrics ?? null);
-      } catch {
+        // Fallback d'urgence lecture seule : données TypeScript locales.
         setAdminRubrics(null);
       }
     };

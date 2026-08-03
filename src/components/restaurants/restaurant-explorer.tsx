@@ -13,7 +13,6 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
 import { assetPath } from "@/lib/assets";
 import { EntityActions, LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
-import { loadAdminStateFromSupabase } from "@/lib/supabase/admin-state";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
@@ -72,52 +71,6 @@ const distanceBetween = (lat1: number, lon1: number, lat2: number, lon2: number)
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
-
-type AdminStateRestaurantsPreview = {
-  rubrics?: Array<{ id: string; slug?: string; name: string }>;
-  subrubrics?: Array<{ id: string; rubricId: string; slug?: string; name: string }>;
-  tags?: Array<{ id: string; label: string; status?: string }>;
-  establishments?: Array<{
-    id: string;
-    rubricId: string;
-    subrubricId: string;
-    mainPhoto?: string;
-    photos?: string[];
-    name: string;
-    description?: string;
-    address?: string;
-    city?: string;
-    arrondissement?: string;
-    postalCode?: string;
-    phone?: string;
-    whatsapp?: string;
-    email?: string;
-    website?: string;
-    instagram?: string;
-    hours?: string;
-    terrace?: boolean;
-    delivery?: boolean;
-    takeaway?: boolean;
-    reservation?: boolean;
-    privateHire?: boolean;
-    certification?: string;
-    kosherType?: string;
-    averagePrice?: string;
-    latitude?: string;
-    longitude?: string;
-    status: string;
-    visible?: boolean;
-    cuisineTypes?: string[];
-    customerSearches?: string[];
-    visibleTagIds?: string[];
-    sponsored?: boolean;
-    sponsorshipLevel?: string;
-    fieldVisibility?: Record<string, boolean>;
-    order?: number;
-  }>;
-};
-
-const ADMIN_STORAGE_KEY = "liberty-admin-dashboard-v1";
 
 function parseArrondissement(value?: string) {
   const match = String(value ?? "").match(/\d{1,2}/);
@@ -192,96 +145,6 @@ function getOpenStatus(restaurant: Restaurant) {
   return { label: isOpen ? (closingTime ? `Ouvert · Ferme à ${closingTime}` : "Ouvert maintenant") : "Fermé actuellement", open: isOpen };
 }
 
-function adminStateToRestaurants(state: AdminStateRestaurantsPreview | null | undefined): Restaurant[] {
-  if (!state?.establishments?.length) return [];
-  const rubrics = new Map((state.rubrics ?? []).map((rubric) => [rubric.id, rubric]));
-  const subrubrics = new Map((state.subrubrics ?? []).map((subrubric) => [subrubric.id, subrubric]));
-  const tags = new Map((state.tags ?? []).filter((tag) => tag.status !== "Masqué").map((tag) => [tag.id, tag.label]));
-
-  return state.establishments
-    .filter((item) => {
-      if (item.status !== "Publié" || item.visible === false) return false;
-      const rubric = rubrics.get(item.rubricId);
-      const subrubric = subrubrics.get(item.subrubricId);
-      const rubricKey = normalize(`${item.rubricId} ${rubric?.slug ?? ""} ${rubric?.name ?? ""}`);
-      const subrubricKey = normalize(`${item.subrubricId} ${subrubric?.slug ?? ""} ${subrubric?.name ?? ""}`);
-      return rubricKey.includes("food") && (subrubricKey.includes("restaurant") || item.subrubricId === "food-restaurants");
-    })
-    .map((item, index) => {
-      const arrondissement = parseArrondissement(item.arrondissement);
-      const postalCode = item.postalCode || (arrondissement ? `750${String(arrondissement).padStart(2, "0")}` : "");
-      const cuisine = item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : item.kosherType || "Restaurant casher";
-      const specialty = item.description || "Restaurant casher";
-      const gallery = uniqueList([item.mainPhoto, ...(item.photos ?? [])]);
-      const visibleTags = (item.visibleTagIds ?? []).map((id) => tags.get(id)).filter(Boolean) as string[];
-      const smartTags = uniqueList([
-        ...visibleTags,
-        ...(item.cuisineTypes ?? []),
-        item.kosherType,
-        item.certification,
-        item.terrace ? "Terrasse" : "",
-        item.delivery ? "Livraison" : "",
-        item.takeaway ? "À emporter" : "",
-        item.reservation ? "Réservation" : "",
-        item.sponsored ? "Sponsorisé" : "",
-      ]);
-      return {
-        id: item.id || slugify(`${item.name}-${item.address ?? ""}`),
-        name: item.name,
-        fullAddress: item.address || "",
-        postalCode,
-        arrondissement,
-        phone: item.phone || "",
-        whatsapp: item.whatsapp,
-        email: item.email,
-        specialty,
-        cuisine,
-        type: mapKosherType(item.kosherType),
-        certification: item.certification || "",
-        services: {
-          dineIn: true,
-          takeaway: item.takeaway ?? null,
-          delivery: item.delivery ?? null,
-          clickAndCollect: null,
-          reservation: item.reservation ?? null,
-        },
-        amenities: {
-          familyFriendly: null,
-          accessible: null,
-          parking: null,
-          terrace: item.terrace ?? null,
-          wifi: null,
-          kidsMenu: null,
-          privateHire: item.privateHire ?? null,
-          metroNearby: null,
-        },
-        hours: hourLinesToRecord(item.hours),
-        price: mapPrice(item.averagePrice),
-        rating: null,
-        reviewCount: 0,
-        distanceKm: 0,
-        isOpenNow: null,
-        openLunch: null,
-        openDinner: null,
-        openSunday: null,
-        openLate: null,
-        image: gallery[0] || "/images/food/restaurants-khan.jpg",
-        gallery,
-        website: normalizeExternalUrl(item.website),
-        instagram: normalizeExternalUrl(item.instagram),
-        city: item.city || "Paris",
-        country: "France",
-        tags: smartTags,
-        sponsored: item.sponsored,
-        sponsorshipLevel: item.sponsorshipLevel,
-        fieldVisibility: { ...publicDefaultFieldVisibility, ...(item.fieldVisibility ?? {}) },
-        latitude: Number(item.latitude) || 48.8566,
-        longitude: Number(item.longitude) || 2.3522,
-        importedAt: new Date(Date.now() + index).toISOString(),
-      };
-    });
-}
-
 function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Restaurant[] {
   return records.map((item, index) => {
     const arrondissement = parseArrondissement(item.arrondissement);
@@ -354,32 +217,6 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
   });
 }
 
-function mergeRestaurants(base: Restaurant[], adminRestaurants: Restaurant[]) {
-  const merged = new Map<string, Restaurant>();
-  [...base.map((restaurant) => ({
-    ...restaurant,
-    gallery: restaurant.gallery?.length ? restaurant.gallery : [restaurant.image].filter(Boolean),
-    website: normalizeExternalUrl(restaurant.website),
-    instagram: normalizeExternalUrl(restaurant.instagram),
-    city: restaurant.city ?? "Paris",
-    country: restaurant.country ?? "France",
-    tags: uniqueList([
-      ...(restaurant.tags ?? []),
-      restaurant.cuisine,
-      restaurant.type,
-      restaurant.certification,
-      restaurant.services.delivery ? "Livraison" : "",
-      restaurant.services.takeaway ? "À emporter" : "",
-      restaurant.amenities.terrace ? "Terrasse" : "",
-      restaurant.services.reservation ? "Réservation" : "",
-    ]),
-  })), ...adminRestaurants].forEach((restaurant) => {
-    const key = normalize(`${restaurant.name}-${restaurant.fullAddress}`);
-    const existing = merged.get(key);
-    if (!existing || restaurant.importedAt >= existing.importedAt) merged.set(key, restaurant);
-  });
-  return [...merged.values()];
-}
 const cuisineMatch = (restaurant: Restaurant, filter: string) => {
   const corpus = normalize(`${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
   const aliases: Record<string, string[]> = {
@@ -634,24 +471,13 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   useEffect(() => {
     let mounted = true;
     const loadAdminRestaurants = async () => {
-      let localState: AdminStateRestaurantsPreview | null = null;
-      try {
-        const raw = window.localStorage.getItem(ADMIN_STORAGE_KEY);
-        localState = raw ? JSON.parse(raw) as AdminStateRestaurantsPreview : null;
-      } catch {
-        localState = null;
-      }
-
       const supabaseRestaurants = await listPublishedEstablishments({ rubricSlug: "food", subrubricSlug: "restaurants" }).catch(() => null);
       if (!mounted) return;
       if (supabaseRestaurants?.length) {
         setRestaurantData(establishmentRecordsToRestaurants(supabaseRestaurants));
         return;
       }
-      const remoteState = await loadAdminStateFromSupabase<AdminStateRestaurantsPreview>();
-      if (!mounted) return;
-      const adminRestaurants = adminStateToRestaurants(remoteState ?? localState);
-      setRestaurantData(mergeRestaurants(initialRestaurants, adminRestaurants));
+      setRestaurantData(initialRestaurants);
     };
 
     void loadAdminRestaurants();

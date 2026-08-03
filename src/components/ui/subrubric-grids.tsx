@@ -19,7 +19,6 @@ import type { LucideIcon } from "lucide-react";
 import { categories } from "@/data/categories";
 import { localSubrubrics } from "@/data/subrubrics";
 import { assetPath } from "@/lib/assets";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 
 type SubrubricPreview = {
@@ -37,19 +36,12 @@ type SubrubricPreview = {
   status: "Publié" | "Brouillon" | "Masqué";
 };
 
-type AdminStatePreview = {
-  subrubrics?: SubrubricPreview[];
-};
-
 type StaticSubrubricCard = {
   label: string;
   description: string;
   href: string;
   image: string;
 };
-
-const ADMIN_STORAGE_KEY = "liberty-admin-dashboard-v1";
-const ADMIN_STATE_KEY = "admin_state";
 
 const foodIconBySlug: Record<string, LucideIcon> = {
   restaurants: UtensilsCrossed,
@@ -125,11 +117,6 @@ function dedupe(items: SubrubricPreview[]) {
   return [...map.values()].sort((a, b) => a.order - b.order);
 }
 
-function adminStateSubrubricsFor(state: AdminStatePreview | null | undefined, rubricSlug: string) {
-  const items = state?.subrubrics ?? [];
-  return items.filter((item) => item.rubricId === rubricSlug && item.status === "Publié" && item.visible !== false && item.showPublicly !== false);
-}
-
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {
   const [items, setItems] = useState<SubrubricPreview[] | null>(null);
 
@@ -143,27 +130,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
           return;
         }
       } catch {
-        // Fallback sécurisé ci-dessous : ancien admin_state puis données TypeScript.
-      }
-      const supabase = getSupabaseBrowserClient();
-      if (supabase) {
-        const { data } = await supabase.from("app_settings").select("value").eq("key", ADMIN_STATE_KEY).maybeSingle();
-        const remoteFallback = adminStateSubrubricsFor(data?.value as AdminStatePreview | undefined, rubricSlug);
-        if (mounted && remoteFallback.length) {
-          setItems(dedupe(remoteFallback));
-          return;
-        }
-      }
-      try {
-        const raw = window.localStorage.getItem(ADMIN_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) as AdminStatePreview : null;
-        const localAdmin = adminStateSubrubricsFor(parsed, rubricSlug);
-        if (mounted && localAdmin.length) {
-          setItems(dedupe(localAdmin));
-          return;
-        }
-      } catch {
-        // Dernier fallback TypeScript.
+        // Fallback d'urgence lecture seule : données TypeScript locales.
       }
       if (mounted) setItems(fallback);
     }

@@ -14,6 +14,7 @@ import { ReservationForm } from "@/components/restaurants/reservation-form";
 import { assetPath } from "@/lib/assets";
 import { EntityActions, LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
 import { loadAdminStateFromSupabase } from "@/lib/supabase/admin-state";
+import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -272,6 +273,78 @@ function adminStateToRestaurants(state: AdminStateRestaurantsPreview | null | un
         importedAt: new Date(Date.now() + index).toISOString(),
       };
     });
+}
+
+function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Restaurant[] {
+  return records.map((item, index) => {
+    const arrondissement = parseArrondissement(item.arrondissement);
+    const postalCode = item.postalCode || (arrondissement ? `750${String(arrondissement).padStart(2, "0")}` : "");
+    const gallery = uniqueList([item.mainPhoto, ...(item.photos ?? [])]);
+    return {
+      id: item.slug || item.id || slugify(`${item.name}-${item.address}`),
+      name: item.name,
+      fullAddress: item.address || "",
+      postalCode,
+      arrondissement,
+      phone: item.phone || "",
+      whatsapp: item.whatsapp,
+      email: item.email,
+      specialty: item.customerSearches?.length ? item.customerSearches.slice(0, 4).join(", ") : item.shortDescription || item.description || "Restaurant casher",
+      cuisine: item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : item.kosherType || "Restaurant casher",
+      type: mapKosherType(item.kosherType),
+      certification: item.certification || "",
+      services: {
+        dineIn: true,
+        takeaway: item.takeaway ?? null,
+        delivery: item.delivery ?? null,
+        clickAndCollect: null,
+        reservation: item.reservation ?? null,
+      },
+      amenities: {
+        familyFriendly: null,
+        accessible: null,
+        parking: null,
+        terrace: item.terrace ?? null,
+        wifi: null,
+        kidsMenu: null,
+        privateHire: item.privateHire ?? null,
+        metroNearby: null,
+      },
+      hours: hourLinesToRecord(item.hours),
+      price: mapPrice(item.averagePrice),
+      rating: null,
+      reviewCount: 0,
+      distanceKm: 0,
+      isOpenNow: null,
+      openLunch: null,
+      openDinner: null,
+      openSunday: null,
+      openLate: null,
+      image: gallery[0] || "/images/food/restaurants-khan.jpg",
+      gallery,
+      website: normalizeExternalUrl(item.website),
+      instagram: normalizeExternalUrl(item.instagram),
+      city: item.city || "Paris",
+      country: item.country ?? "France",
+      tags: uniqueList([
+        ...(item.visibleTagIds ?? []),
+        ...(item.cuisineTypes ?? []),
+        item.kosherType,
+        item.certification,
+        item.terrace ? "Terrasse" : "",
+        item.delivery ? "Livraison" : "",
+        item.takeaway ? "À emporter" : "",
+        item.reservation ? "Réservation" : "",
+        item.sponsored ? "Sponsorisé" : "",
+      ]),
+      sponsored: item.sponsored,
+      sponsorshipLevel: item.sponsorshipLevel,
+      fieldVisibility: item.fieldVisibility,
+      latitude: Number(item.latitude) || 48.8566,
+      longitude: Number(item.longitude) || 2.3522,
+      importedAt: item.updatedAt ?? new Date(Date.now() + index).toISOString(),
+    };
+  });
 }
 
 function mergeRestaurants(base: Restaurant[], adminRestaurants: Restaurant[]) {
@@ -562,6 +635,12 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         localState = null;
       }
 
+      const supabaseRestaurants = await listPublishedEstablishments({ rubricSlug: "food", subrubricSlug: "restaurants" }).catch(() => null);
+      if (!mounted) return;
+      if (supabaseRestaurants?.length) {
+        setRestaurantData(establishmentRecordsToRestaurants(supabaseRestaurants));
+        return;
+      }
       const remoteState = await loadAdminStateFromSupabase<AdminStateRestaurantsPreview>();
       if (!mounted) return;
       const adminRestaurants = adminStateToRestaurants(remoteState ?? localState);

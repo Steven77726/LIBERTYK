@@ -38,6 +38,7 @@ import { restaurants } from "@/data/restaurants";
 import { brunches } from "@/data/brunches";
 import { wineActivities } from "@/data/wine-activities";
 import { azamra } from "@/data/shops";
+import { localEstablishments } from "@/data/establishments";
 import { getAnalyticsEvents, getReviews } from "@/lib/client-store";
 import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
 import { hasAdminSession } from "@/components/admin/admin-access-gate";
@@ -66,6 +67,19 @@ import {
   restoreSubrubric as restoreSubrubricInSupabase,
   updateSubrubricOrder,
 } from "@/lib/supabase/subrubrics-repository";
+import {
+  createEstablishment as createEstablishmentInSupabase,
+  duplicateEstablishment as duplicateEstablishmentInSupabase,
+  hideEstablishment as hideEstablishmentInSupabase,
+  importEstablishmentsIfMissing,
+  listAllEstablishmentsForAdmin,
+  moveEstablishmentToTrash as moveEstablishmentToTrashInSupabase,
+  publishEstablishment as publishEstablishmentInSupabase,
+  restoreEstablishment as restoreEstablishmentInSupabase,
+  updateEstablishmentOrder,
+  updateEstablishment as updateEstablishmentInSupabase,
+  type EstablishmentRecord,
+} from "@/lib/supabase/establishments-repository";
 
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
 type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
@@ -206,6 +220,7 @@ type AdminEstablishment = {
   city: string;
   arrondissement: string;
   postalCode?: string;
+  country?: string;
   email?: string;
   phone: string;
   whatsapp: string;
@@ -239,6 +254,8 @@ type AdminEstablishment = {
   customerSearches: string[];
   visibleTagIds: string[];
   fieldVisibility?: FieldVisibility;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type AdminBanner = {
@@ -524,6 +541,7 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
       photos: normalizePhotoSlots(item.mainPhoto, item.photos, 2),
       photoAlts: [...(item.photoAlts ?? []), "", ""].slice(0, 2),
       postalCode: item.postalCode ?? "",
+      country: item.country ?? "France",
       email: item.email ?? "",
       sponsorStartsAt: item.sponsorStartsAt ?? "",
       sponsorEndsAt: item.sponsorEndsAt ?? "",
@@ -1644,6 +1662,7 @@ export function AdminDashboard() {
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [rubricsSupabaseLoaded, setRubricsSupabaseLoaded] = useState(false);
   const [subrubricsSupabaseLoaded, setSubrubricsSupabaseLoaded] = useState(false);
+  const [establishmentsSupabaseLoaded, setEstablishmentsSupabaseLoaded] = useState(false);
   const [rubricsOperation, setRubricsOperation] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
@@ -1765,6 +1784,37 @@ export function AdminDashboard() {
   }, [auth.configured, hasAdminAccess, rubricsSupabaseLoaded, setState, state.subrubrics, subrubricsSupabaseLoaded, supabaseLoaded]);
 
   useEffect(() => {
+    if (!auth.configured || !hasAdminAccess || !supabaseLoaded || !rubricsSupabaseLoaded || !subrubricsSupabaseLoaded || establishmentsSupabaseLoaded) return;
+    let mounted = true;
+    setAdminMessage("Chargement des établissements Supabase…");
+    listAllEstablishmentsForAdmin()
+      .then(async (remoteEstablishments) => {
+        if (!mounted) return;
+        const nextEstablishments = remoteEstablishments.length
+          ? remoteEstablishments
+          : await importEstablishmentsIfMissing(localEstablishments as EstablishmentRecord[]);
+        if (!mounted) return;
+        if (nextEstablishments.length) {
+          skipNextAdminStateSave.current = true;
+          setState((current) => normalizeAdminState({ ...current, establishments: nextEstablishments as AdminEstablishment[] }));
+          window.dispatchEvent(new Event("liberty-admin-published"));
+          setAdminMessage(remoteEstablishments.length ? "Établissements chargés depuis Supabase." : "Établissements existants importés dans Supabase.");
+        } else {
+          setAdminMessage("Aucun établissement Supabase trouvé : fallback local conservé.");
+        }
+        setEstablishmentsSupabaseLoaded(true);
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setAdminMessage(`Erreur de connexion Supabase établissements : ${error.message}`);
+        setEstablishmentsSupabaseLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [auth.configured, establishmentsSupabaseLoaded, hasAdminAccess, rubricsSupabaseLoaded, setState, subrubricsSupabaseLoaded, supabaseLoaded]);
+
+  useEffect(() => {
     setReviews(getReviews());
     setEvents(getAnalyticsEvents());
   }, []);
@@ -1784,7 +1834,7 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded) return;
-    if (active === "rubrics" || active === "subrubrics") return;
+    if (active === "rubrics" || active === "subrubrics" || active === "establishments") return;
     if (skipNextAdminStateSave.current) {
       skipNextAdminStateSave.current = false;
       return;
@@ -2013,11 +2063,13 @@ export function AdminDashboard() {
     setState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
   };
 
-  const updateEstablishment = (id: string, patch: Partial<AdminEstablishment>) =>
+  const updateEstablishment = (id: string, patch: Partial<AdminEstablishment>) => {
+    skipNextAdminStateSave.current = true;
     setState((current) => ({
       ...current,
       establishments: current.establishments.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     }));
+  };
 
   const updateBanner = (id: string, patch: Partial<AdminBanner>) =>
     setState((current) => ({ ...current, banners: current.banners.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
@@ -2212,7 +2264,8 @@ export function AdminDashboard() {
     });
   };
 
-  const addEstablishment = () =>
+  const addEstablishment = () => {
+    skipNextAdminStateSave.current = true;
     setState((current) => {
       const firstSubrubric = current.subrubrics[0];
       const id = newId("fiche");
@@ -2222,15 +2275,22 @@ export function AdminDashboard() {
         subrubricId: firstSubrubric?.id ?? "food-restaurants",
         mainPhoto: "",
         photos: ["", ""],
+        photoAlts: ["", ""],
         name: "Nouvel établissement",
+        slug: "nouvel-etablissement",
+        shortDescription: "Description courte à compléter",
         description: "Description à compléter",
         address: "",
         city: "Paris",
         arrondissement: "",
+        postalCode: "",
+        country: "France",
+        email: "",
         phone: "",
         whatsapp: "",
         instagram: "",
         website: "",
+        reservationTarget: "",
         hours: "",
         terrace: false,
         delivery: false,
@@ -2255,6 +2315,7 @@ export function AdminDashboard() {
       setSelectedEstablishmentId(id);
       return { ...current, establishments: [establishment, ...current.establishments] };
     });
+  };
 
   const addBanner = () =>
     setState((current) => ({
@@ -2350,6 +2411,28 @@ export function AdminDashboard() {
     const missing = fields.filter(([, value]) => String(value ?? "").trim().length === 0).map(([label]) => label);
     if (missing.length) {
       setAdminMessage(`Champ obligatoire manquant : ${missing.join(", ")}`);
+      return false;
+    }
+    return true;
+  };
+
+  const validateUniqueEstablishmentSlug = (establishment: AdminEstablishment, slug: string) => {
+    const duplicate = state.establishments.find((item) => item.id !== establishment.id && (item.slug || slugify(item.name)) === slug);
+    if (duplicate) {
+      setAdminMessage(`Slug déjà utilisé par : ${duplicate.name}`);
+      return false;
+    }
+    return true;
+  };
+
+  const validateCoordinates = (establishment: AdminEstablishment) => {
+    const latitude = establishment.latitude.trim();
+    const longitude = establishment.longitude.trim();
+    if (!latitude && !longitude) return true;
+    const lat = Number(latitude.replace(",", "."));
+    const lng = Number(longitude.replace(",", "."));
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+      setAdminMessage("Coordonnées GPS invalides : latitude entre -90 et 90, longitude entre -180 et 180.");
       return false;
     }
     return true;
@@ -2678,25 +2761,163 @@ export function AdminDashboard() {
     }
   };
 
-  const saveEstablishmentDraft = (establishment: AdminEstablishment) => {
-    if (savingAction) return;
-    commitState((current) => ({
+  const applyEstablishmentLocally = (establishment: AdminEstablishment, message: string) => {
+    skipNextAdminStateSave.current = true;
+    setState((current) => normalizeAdminState({
       ...current,
-      establishments: current.establishments.map((item) => (item.id === establishment.id ? { ...item, status: "Brouillon" } : item)),
-    }), "Fiche enregistrée en brouillon.", "Sauvegarde");
-    audit("brouillon", "fiche", establishment.id, establishment.name);
+      establishments: current.establishments.some((item) => item.id === establishment.id)
+        ? current.establishments.map((item) => (item.id === establishment.id ? establishment : item))
+        : [establishment, ...current.establishments],
+    }));
+    window.dispatchEvent(new Event("liberty-admin-published"));
+    setAdminMessage(message);
   };
 
-  const publishEstablishment = (establishment: AdminEstablishment) => {
-    if (savingAction) return;
+  const saveEstablishmentDraft = async (establishment: AdminEstablishment) => {
+    if (savingAction || rubricsOperation) return;
     const slug = establishment.slug || slugify(establishment.name);
-    if (!requireFields([["nom", establishment.name], ["slug", slug], ["description", establishment.description], ["photo principale", establishment.mainPhoto], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
+    if (!requireFields([["nom", establishment.name], ["slug", slug], ["description courte", establishment.shortDescription], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
+    if (!validateUniqueEstablishmentSlug(establishment, slug) || !validateCoordinates(establishment)) return;
+    setRubricsOperation(`establishment-draft-${establishment.id}`);
+    setSavingAction("Sauvegarde fiche");
+    const draft = { ...establishment, slug, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await createEstablishmentInSupabase(draft as EstablishmentRecord);
+        applyEstablishmentLocally(saved as AdminEstablishment, "Fiche enregistrée en brouillon.");
+      } else {
+        commitState((current) => ({
+          ...current,
+          establishments: current.establishments.map((item) => (item.id === establishment.id ? draft : item)),
+        }), "Fiche enregistrée en brouillon.", "Sauvegarde");
+      }
+      audit("brouillon", "fiche", establishment.id, establishment.name);
+    } catch (error) {
+      setAdminMessage(`Échec de sauvegarde fiche : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const publishEstablishment = async (establishment: AdminEstablishment) => {
+    if (savingAction || rubricsOperation) return;
+    const slug = establishment.slug || slugify(establishment.name);
+    if (!requireFields([["nom", establishment.name], ["slug", slug], ["description courte", establishment.shortDescription], ["description", establishment.description], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
+    if (!validateUniqueEstablishmentSlug(establishment, slug) || !validateCoordinates(establishment)) return;
     if (!confirmSeoPublication("establishment", establishment.id)) return;
-    commitState((current) => ({
-      ...current,
-      establishments: current.establishments.map((item) => (item.id === establishment.id ? { ...item, slug, status: "Publié", visible: true } : item)),
-    }), "Fiche publiée avec succès.", "Publication");
-    audit("publication", "fiche", establishment.id, establishment.name);
+    setRubricsOperation(`establishment-publish-${establishment.id}`);
+    setSavingAction("Publication en cours…");
+    const published = { ...establishment, slug, status: "Publié" as AdminStatus, visible: true, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await publishEstablishmentInSupabase(published as EstablishmentRecord);
+        applyEstablishmentLocally(saved as AdminEstablishment, "Fiche publiée avec succès.");
+      } else {
+        commitState((current) => ({
+          ...current,
+          establishments: current.establishments.map((item) => (item.id === establishment.id ? published : item)),
+        }), "Fiche publiée avec succès.", "Publication");
+      }
+      audit("publication", "fiche", establishment.id, establishment.name);
+    } catch (error) {
+      setAdminMessage(`Échec de publication fiche : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const duplicateEstablishment = async (establishment: AdminEstablishment) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`establishment-duplicate-${establishment.id}`);
+    setSavingAction("Duplication fiche");
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const copy = await duplicateEstablishmentInSupabase(establishment as EstablishmentRecord);
+        skipNextAdminStateSave.current = true;
+        setState((current) => normalizeAdminState({ ...current, establishments: [copy as AdminEstablishment, ...current.establishments] }));
+        setSelectedEstablishmentId(copy.id);
+      } else {
+        const copy = { ...establishment, id: newId("fiche"), name: `${establishment.name} copie`, slug: `${establishment.slug ?? slugify(establishment.name)}-copie`, status: "Brouillon" as AdminStatus, visible: false };
+        skipNextAdminStateSave.current = true;
+        setState((current) => normalizeAdminState({ ...current, establishments: [copy, ...current.establishments] }));
+        setSelectedEstablishmentId(copy.id);
+      }
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Fiche dupliquée en brouillon.");
+      audit("duplication", "fiche", establishment.id, establishment.name);
+    } catch (error) {
+      setAdminMessage(`Échec de duplication fiche : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const hideEstablishment = async (establishment: AdminEstablishment) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`establishment-hide-${establishment.id}`);
+    setSavingAction("Masquage fiche");
+    const hidden = { ...establishment, status: "Masqué" as AdminStatus, visible: false, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await hideEstablishmentInSupabase(hidden as EstablishmentRecord);
+        applyEstablishmentLocally(saved as AdminEstablishment, "Fiche masquée.");
+      } else {
+        commitState((current) => ({ ...current, establishments: current.establishments.map((item) => item.id === establishment.id ? hidden : item) }), "Fiche masquée avec succès.", "Masquage");
+      }
+      audit("masquage", "fiche", establishment.id, establishment.name);
+    } catch (error) {
+      setAdminMessage(`Échec de masquage fiche : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const trashEstablishment = async (establishment: AdminEstablishment) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`establishment-trash-${establishment.id}`);
+    setSavingAction("Corbeille fiche");
+    try {
+      if (auth.configured && hasAdminAccess) await moveEstablishmentToTrashInSupabase(establishment as EstablishmentRecord);
+      skipNextAdminStateSave.current = true;
+      moveToTrash("fiche", establishment.name, establishment, (current) => ({ ...current, establishments: current.establishments.filter((item) => item.id !== establishment.id) }));
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Fiche envoyée dans la corbeille.");
+    } catch (error) {
+      setAdminMessage(`Échec de suppression fiche : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const reorderEstablishment = async (id: string, direction: -1 | 1) => {
+    if (savingAction || rubricsOperation) return;
+    const sorted = [...state.establishments].sort((a, b) => a.order - b.order);
+    const index = sorted.findIndex((item) => item.id === id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= sorted.length) return;
+    const reordered = [...sorted];
+    const [item] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, item);
+    const nextEstablishments = reordered.map((establishment, orderIndex) => ({ ...establishment, order: orderIndex + 1 }));
+    setRubricsOperation(`establishment-order-${id}`);
+    setSavingAction("Ordre fiches");
+    try {
+      if (auth.configured && hasAdminAccess) await updateEstablishmentOrder(nextEstablishments as EstablishmentRecord[]);
+      skipNextAdminStateSave.current = true;
+      setState((current) => normalizeAdminState({ ...current, establishments: nextEstablishments }));
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Ordre des fiches enregistré.");
+    } catch (error) {
+      setAdminMessage(`Échec de réorganisation fiches : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
   };
 
   const saveTagDraft = (tag: AdminTag) => {
@@ -2757,12 +2978,15 @@ export function AdminDashboard() {
       if (trashItem.entityType === "sous-rubrique" && auth.configured && hasAdminAccess) {
         restoredPayload = await restoreSubrubricInSupabase(trashItem.payload as AdminSubrubric);
       }
-      if (trashItem.entityType === "rubrique" || trashItem.entityType === "sous-rubrique") skipNextAdminStateSave.current = true;
+      if (trashItem.entityType === "fiche" && auth.configured && hasAdminAccess) {
+        restoredPayload = await restoreEstablishmentInSupabase(trashItem.payload as EstablishmentRecord);
+      }
+      if (trashItem.entityType === "rubrique" || trashItem.entityType === "sous-rubrique" || trashItem.entityType === "fiche") skipNextAdminStateSave.current = true;
       setState((current) => {
         const next = { ...current, trash: current.trash.filter((item) => item.id !== trashItem.id) };
         if (trashItem.entityType === "rubrique") next.rubrics = [restoredPayload as AdminRubric, ...next.rubrics];
         if (trashItem.entityType === "sous-rubrique") next.subrubrics = [restoredPayload as AdminSubrubric, ...next.subrubrics];
-        if (trashItem.entityType === "fiche") next.establishments = [trashItem.payload as AdminEstablishment, ...next.establishments];
+        if (trashItem.entityType === "fiche") next.establishments = [restoredPayload as AdminEstablishment, ...next.establishments];
         if (trashItem.entityType === "bannière") next.banners = [trashItem.payload as AdminBanner, ...next.banners];
         if (trashItem.entityType === "tag") next.tags = [trashItem.payload as AdminTag, ...next.tags];
         if (trashItem.entityType === "certification") next.certifications = [trashItem.payload as AdminCertification, ...next.certifications];
@@ -3225,6 +3449,11 @@ export function AdminDashboard() {
             {active === "establishments" && selectedEstablishment && (
               <div className="mt-8 grid gap-5 xl:grid-cols-[330px_1fr]">
                 <Panel title="Établissements" subtitle={`${filteredEstablishments.length} fiches disponibles`} actionLabel="Ajouter" onAction={addEstablishment}>
+                  {(rubricsOperation || (!establishmentsSupabaseLoaded && auth.configured)) && (
+                    <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
+                      {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des établissements Supabase…"}
+                    </p>
+                  )}
                   <div className="mt-5 max-h-[720px] space-y-2 overflow-y-auto pr-1">
                     {filteredEstablishments.map((item) => (
                       <button
@@ -3242,8 +3471,8 @@ export function AdminDashboard() {
                           </span>
                         </span>
                         <span className="flex shrink-0 flex-col gap-1">
-                          <span onClick={(event) => { event.stopPropagation(); reorderById("establishments", item.id, -1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↑</span>
-                          <span onClick={(event) => { event.stopPropagation(); reorderById("establishments", item.id, 1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↓</span>
+                          <span onClick={(event) => { event.stopPropagation(); void reorderEstablishment(item.id, -1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↑</span>
+                          <span onClick={(event) => { event.stopPropagation(); void reorderEstablishment(item.id, 1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↓</span>
                         </span>
                       </button>
                     ))}
@@ -3253,7 +3482,7 @@ export function AdminDashboard() {
                 <Panel title={selectedEstablishment.name} subtitle="Fiche éditable complète, prête à être branchée sur Supabase.">
                   <div className="mt-6 grid gap-6">
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => { const copy = { ...selectedEstablishment, id: newId("fiche"), name: `${selectedEstablishment.name} copie`, slug: `${selectedEstablishment.slug ?? slugify(selectedEstablishment.name)}-copie`, status: "Brouillon" as AdminStatus }; setState((current) => ({ ...current, establishments: [copy, ...current.establishments] })); setSelectedEstablishmentId(copy.id); audit("duplication", "fiche", selectedEstablishment.id, selectedEstablishment.name); }} className="rounded-full bg-sage px-4 py-2 text-xs font-semibold text-moss">Dupliquer</button>
+                      <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateEstablishment(selectedEstablishment)} className="rounded-full bg-sage px-4 py-2 text-xs font-semibold text-moss disabled:cursor-not-allowed disabled:opacity-45">Dupliquer</button>
                       <span className={`rounded-full border px-3 py-2 text-xs font-semibold ${statusBadge(selectedEstablishment.status)}`}>{selectedEstablishment.status}</span>
                     </div>
                     {(() => {
@@ -3350,11 +3579,13 @@ export function AdminDashboard() {
                       <Field label="Ville" value={selectedEstablishment.city} onChange={(value) => updateEstablishment(selectedEstablishment.id, { city: value })} />
                       <Field label="Arrondissement" value={selectedEstablishment.arrondissement} onChange={(value) => updateEstablishment(selectedEstablishment.id, { arrondissement: value })} />
                       <Field label="Code postal" value={selectedEstablishment.postalCode ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { postalCode: value })} />
+                      <Field label="Pays" value={selectedEstablishment.country ?? "France"} onChange={(value) => updateEstablishment(selectedEstablishment.id, { country: value })} />
                       <Field label="Email" value={selectedEstablishment.email ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { email: value })} />
                       <Field label="Téléphone" value={selectedEstablishment.phone} onChange={(value) => updateEstablishment(selectedEstablishment.id, { phone: value })} />
                       <Field label="WhatsApp" value={selectedEstablishment.whatsapp} onChange={(value) => updateEstablishment(selectedEstablishment.id, { whatsapp: value })} />
                       <Field label="Instagram" value={selectedEstablishment.instagram} onChange={(value) => updateEstablishment(selectedEstablishment.id, { instagram: value })} />
                       <Field label="Site Internet" value={selectedEstablishment.website} onChange={(value) => updateEstablishment(selectedEstablishment.id, { website: value })} />
+                      <Field label="URL réservation" value={selectedEstablishment.reservationTarget ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { reservationTarget: value })} />
                       <SelectField label="Certification cacher" value={selectedEstablishment.certification} onChange={(value) => updateEstablishment(selectedEstablishment.id, { certification: value })}>
                         <option value="">À compléter</option>
                         {state.certifications.filter((item) => item.status !== "Masqué").sort((a, b) => a.order - b.order).map((certification) => <option key={certification.id}>{certification.label}</option>)}
@@ -3504,13 +3735,13 @@ export function AdminDashboard() {
                     </div>
 
                     <FormActionBar
-                      disabled={Boolean(savingAction)}
-                      publishing={savingAction === "Publication"}
-                      onDraft={() => saveEstablishmentDraft(selectedEstablishment)}
+                      disabled={Boolean(savingAction || rubricsOperation)}
+                      publishing={rubricsOperation === `establishment-publish-${selectedEstablishment.id}`}
+                      onDraft={() => void saveEstablishmentDraft(selectedEstablishment)}
                       onPreview={() => setPreviewEstablishment(selectedEstablishment)}
-                      onPublish={() => publishEstablishment(selectedEstablishment)}
-                      onHide={() => setState(normalizeAdminState(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<AdminState>))}
-                      onTrash={() => moveToTrash("fiche", selectedEstablishment.name, selectedEstablishment, (current) => ({ ...current, establishments: current.establishments.filter((item) => item.id !== selectedEstablishment.id) }))}
+                      onPublish={() => void publishEstablishment(selectedEstablishment)}
+                      onHide={() => void hideEstablishment(selectedEstablishment)}
+                      onTrash={() => void trashEstablishment(selectedEstablishment)}
                     />
                   </div>
                 </Panel>
@@ -3555,13 +3786,13 @@ export function AdminDashboard() {
                         <p className="mt-2 text-xs leading-5 text-ink/45">Exemples : entrecôte, bassari 17e, brunch terrasse, avocado toast, tequila casher. Ces termes ne sont pas affichés publiquement.</p>
                       </div>
                       <FormActionBar
-                        disabled={Boolean(savingAction)}
-                        publishing={savingAction === "Publication"}
-                        onDraft={() => saveEstablishmentDraft(item)}
+                        disabled={Boolean(savingAction || rubricsOperation)}
+                        publishing={rubricsOperation === `establishment-publish-${item.id}`}
+                        onDraft={() => void saveEstablishmentDraft(item)}
                         onPreview={() => setPreviewEstablishment(item)}
-                        onPublish={() => publishEstablishment(item)}
-                        onHide={() => setState(normalizeAdminState(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as Partial<AdminState>))}
-                        onTrash={() => moveToTrash("fiche", item.name, item, (current) => ({ ...current, establishments: current.establishments.filter((establishment) => establishment.id !== item.id) }))}
+                        onPublish={() => void publishEstablishment(item)}
+                        onHide={() => void hideEstablishment(item)}
+                        onTrash={() => void trashEstablishment(item)}
                       />
                     </article>
                   ))}
@@ -3752,7 +3983,7 @@ export function AdminDashboard() {
                                 <p className="text-xs text-ink/40">{item.status}</p>
                               </div>
                             </div>
-                            <button onClick={() => publishEstablishment(item)} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white">Valider les photos</button>
+                            <button onClick={() => void publishEstablishment(item)} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white">Valider les photos</button>
                           </div>
                           <div className="grid gap-3 lg:grid-cols-2">
                             <div className="grid gap-2">
@@ -3972,7 +4203,7 @@ export function AdminDashboard() {
                 <div className="mt-6 grid gap-4 xl:grid-cols-4">
                   <OrderColumn title="Rubriques Home" items={state.rubrics.filter((item) => item.showOnHome).sort((a, b) => a.order - b.order).map((item) => ({ id: item.id, label: item.name, order: item.order }))} onUp={(id) => reorderById("rubrics", id, -1)} onDown={(id) => reorderById("rubrics", id, 1)} onDropItem={(sourceId, targetId) => moveBeforeById("rubrics", sourceId, targetId)} />
                   <OrderColumn title="Sous-rubriques" items={state.subrubrics.sort((a, b) => a.order - b.order).slice(0, 12).map((item) => ({ id: item.id, label: item.name, order: item.order }))} onUp={(id) => reorderById("subrubrics", id, -1)} onDown={(id) => reorderById("subrubrics", id, 1)} onDropItem={(sourceId, targetId) => moveBeforeById("subrubrics", sourceId, targetId)} />
-                  <OrderColumn title="Fiches" items={state.establishments.sort((a, b) => a.order - b.order).slice(0, 12).map((item) => ({ id: item.id, label: item.name, order: item.order }))} onUp={(id) => reorderById("establishments", id, -1)} onDown={(id) => reorderById("establishments", id, 1)} onDropItem={(sourceId, targetId) => moveBeforeById("establishments", sourceId, targetId)} />
+                  <OrderColumn title="Fiches" items={state.establishments.sort((a, b) => a.order - b.order).slice(0, 12).map((item) => ({ id: item.id, label: item.name, order: item.order }))} onUp={(id) => void reorderEstablishment(id, -1)} onDown={(id) => void reorderEstablishment(id, 1)} onDropItem={(sourceId, targetId) => moveBeforeById("establishments", sourceId, targetId)} />
                   <OrderColumn title="Tags visibles" items={state.tags.sort((a, b) => a.order - b.order).map((item) => ({ id: item.id, label: item.label, order: item.order }))} onUp={(id) => reorderById("tags", id, -1)} onDown={(id) => reorderById("tags", id, 1)} onDropItem={(sourceId, targetId) => moveBeforeById("tags", sourceId, targetId)} />
                 </div>
                 <div className="mt-6 overflow-hidden rounded-3xl bg-white">

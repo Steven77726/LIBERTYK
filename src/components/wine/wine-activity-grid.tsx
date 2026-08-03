@@ -1,19 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, ExternalLink, MapPin, Wine } from "lucide-react";
 import type { WineActivity } from "@/data/wine-activities";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { assetPath } from "@/lib/assets";
 import { EntityActions } from "@/components/ui/entity-actions";
+import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+
+const recordsToWineActivities = (records: EstablishmentRecord[]): WineActivity[] => records.map((item) => ({
+  slug: item.slug ?? item.id,
+  title: item.name,
+  type: item.shortDescription?.split("·")[0]?.trim() || "Vin & Spiritueux",
+  address: item.address || undefined,
+  image: item.mainPhoto || "/images/winess/winess-shop.webp",
+  tags: [...new Set([...(item.visibleTagIds ?? []), ...(item.customerSearches ?? [])].filter(Boolean))].slice(0, 6),
+  description: item.description,
+  action: item.website ? "Visiter le site" : item.reservation ? "Découvrir" : "Découvrir",
+  website: item.website || undefined,
+}));
 
 export function WineActivityGrid({ activities }: { activities: WineActivity[] }) {
+  const [activityData, setActivityData] = useState(activities);
   const [selected, setSelected] = useState<WineActivity | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const records = await listPublishedEstablishments({ rubricSlug: "vin-spiritueux" }).catch(() => null);
+      if (!mounted) return;
+      setActivityData(records?.length ? recordsToWineActivities(records) : activities);
+    };
+    void load();
+    const refresh = () => void load();
+    window.addEventListener("liberty-admin-published", refresh);
+    return () => {
+      mounted = false;
+      window.removeEventListener("liberty-admin-published", refresh);
+    };
+  }, [activities]);
   return (
     <>
       <div className="grid gap-5 md:grid-cols-2">
-        {activities.map((activity) => (
+        {activityData.map((activity) => (
           <article key={activity.slug} className="group overflow-hidden rounded-[2rem] border border-black/[.055] bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-soft">
             <button onClick={() => setSelected(activity)} className="block w-full text-left">
               <div className="relative aspect-[16/10] overflow-hidden bg-ink"><img src={assetPath(activity.image)} alt="" className="size-full object-cover transition duration-700 group-hover:scale-105" style={{ objectPosition: activity.imagePosition }} /><div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/5" /><div className="absolute right-5 top-5"><RecommendationBadge rating={activity.rating} reviewCount={activity.reviewCount} /></div><span className="absolute bottom-5 left-5 rounded-full border border-white/20 bg-black/25 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-white backdrop-blur">{activity.type}</span></div>

@@ -4,12 +4,13 @@ import {
   ArrowRight, CalendarDays, Car, ChevronDown, Coffee, Filter, List,
   Map, MapPin, Package, Phone, Search, ShoppingBag, Store, X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Brunch } from "@/types/brunch";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { assetPath } from "@/lib/assets";
 import { EntityActions, LikeButton } from "@/components/ui/entity-actions";
+import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 
 const groups = [
   { title: "Localisation", values: ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"] },
@@ -22,6 +23,64 @@ const groups = [
 ];
 
 const fold = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const parseArrondissement = (value?: string) => Number(String(value ?? "").match(/\d{1,2}/)?.[0] ?? "") || undefined;
+const hourLinesToRecord = (value?: string) => {
+  const fallback = { lundi: "", mardi: "", mercredi: "", jeudi: "", vendredi: "", samedi: "", dimanche: "" };
+  if (!value?.trim()) return fallback;
+  return value.split("\n").reduce<Record<string, string>>((acc, line) => {
+    const [day, ...rest] = line.split(":");
+    if (day?.trim()) acc[day.trim().toLowerCase()] = rest.join(":").trim();
+    return acc;
+  }, { ...fallback });
+};
+const mapKosherType = (value?: string): Brunch["kosherType"] => {
+  const normalized = fold(value ?? "");
+  if (normalized.includes("bassari") || normalized.includes("viande")) return "Viande";
+  if (normalized.includes("halavi") || normalized.includes("lait")) return "Lait";
+  return "Parvé";
+};
+const mapPrice = (value?: string): Brunch["price"] | undefined => value === "€" || value === "€€" || value === "€€€" ? value : undefined;
+const recordsToBrunches = (records: EstablishmentRecord[]): Brunch[] => records.map((item, index) => ({
+  slug: item.slug ?? item.id,
+  name: item.name,
+  address: item.address || undefined,
+  postalCode: item.postalCode,
+  arrondissement: parseArrondissement(item.arrondissement),
+  phone: item.phone || undefined,
+  specialty: item.shortDescription || item.description || "Brunch",
+  cuisine: item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : "Brunch",
+  kosherType: mapKosherType(item.kosherType),
+  certification: item.certification || undefined,
+  services: {
+    dineIn: true,
+    takeaway: item.takeaway,
+    delivery: item.delivery,
+    clickCollect: false,
+    reservation: item.reservation,
+  },
+  hours: hourLinesToRecord(item.hours),
+  price: mapPrice(item.averagePrice),
+  amenities: {
+    family: undefined,
+    accessible: undefined,
+    parking: undefined,
+    terrace: item.terrace,
+    wifi: undefined,
+    kidsMenu: undefined,
+    privateHire: item.privateHire,
+  },
+  tags: [...new Set([...(item.customerSearches ?? []), ...(item.cuisineTypes ?? []), ...(item.visibleTagIds ?? [])].filter(Boolean))],
+  source: item.website || undefined,
+  rawData: {},
+  images: [item.mainPhoto, ...(item.photos ?? [])].filter(Boolean),
+  description: item.description,
+  rating: undefined,
+  reviewCount: 0,
+  distanceKm: 0,
+  latitude: Number(item.latitude) || 48.8566,
+  longitude: Number(item.longitude) || 2.3522,
+  importedAt: item.updatedAt ?? new Date(Date.now() + index).toISOString(),
+}));
 const serviceMap = (brunch: Brunch): Record<string, boolean | undefined> => ({
   "Sur place": brunch.services.dineIn, "À emporter": brunch.services.takeaway, Livraison: brunch.services.delivery,
   "Click & Collect": brunch.services.clickCollect, Réservation: brunch.services.reservation,
@@ -63,6 +122,7 @@ function BrunchCard({ brunch, onOpen }: { brunch: Brunch; onOpen: () => void }) 
 }
 
 export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] }) {
+  const [brunchData, setBrunchData] = useState(initialBrunches);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<string[]>([]);
   const [sort, setSort] = useState("Les plus proches");
@@ -72,12 +132,28 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
   const [detailBrunch, setDetailBrunch] = useState<Brunch | null>(null);
   const toggleFilter = (value: string) => setFilters((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
 
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const supabaseBrunches = await listPublishedEstablishments({ rubricSlug: "food", subrubricSlug: "brunch" }).catch(() => null);
+      if (!mounted) return;
+      setBrunchData(supabaseBrunches?.length ? recordsToBrunches(supabaseBrunches) : initialBrunches);
+    };
+    void load();
+    const refresh = () => void load();
+    window.addEventListener("liberty-admin-published", refresh);
+    return () => {
+      mounted = false;
+      window.removeEventListener("liberty-admin-published", refresh);
+    };
+  }, [initialBrunches]);
+
   const results = useMemo(() => {
     const q = fold(query);
     const typeTags = groups[1].values;
     const kosher = groups[2].values;
     const services = [...groups[3].values, ...groups[6].values];
-    let list = initialBrunches.filter((brunch) => {
+    let list = brunchData.filter((brunch) => {
       if (q && !fold(`${brunch.name} ${brunch.address ?? ""} ${brunch.arrondissement ?? ""} ${brunch.cuisine} ${brunch.specialty}`).includes(q)) return false;
       const chosenTypes = filters.filter((item) => typeTags.includes(item));
       if (chosenTypes.length && !chosenTypes.some((item) => fold(`${brunch.specialty} ${brunch.tags.join(" ")}`).includes(fold(item)))) return false;
@@ -100,7 +176,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
       if (sort === "Les nouveautés") return b.importedAt.localeCompare(a.importedAt);
       return a.distanceKm - b.distanceKm;
     });
-  }, [initialBrunches, query, filters, sort]);
+  }, [brunchData, query, filters, sort]);
 
   return (
     <>

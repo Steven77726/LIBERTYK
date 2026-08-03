@@ -35,6 +35,7 @@ export type Brunch = {
   rating?: number;
   reviewCount: number;
   distanceKm: number;
+  fieldVisibility?: Record<string, boolean>;
   latitude: number;
   longitude: number;
   importedAt: string;

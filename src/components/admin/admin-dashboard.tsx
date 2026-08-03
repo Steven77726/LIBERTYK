@@ -1627,6 +1627,7 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded) return;
+    if (active === "rubrics") return;
     if (skipNextAdminStateSave.current) {
       skipNextAdminStateSave.current = false;
       return;
@@ -1637,7 +1638,7 @@ export function AdminDashboard() {
       });
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [auth.configured, hasAdminAccess, state, supabaseLoaded]);
+  }, [active, auth.configured, hasAdminAccess, state, supabaseLoaded]);
 
   const signInAdminWithEmail = async () => {
     if (adminLoginLoading) return;
@@ -1845,8 +1846,10 @@ export function AdminDashboard() {
     };
   }, [events, selectedEstablishment]);
 
-  const updateRubric = (id: string, patch: Partial<AdminRubric>) =>
+  const updateRubric = (id: string, patch: Partial<AdminRubric>) => {
+    skipNextAdminStateSave.current = true;
     setState((current) => ({ ...current, rubrics: current.rubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+  };
 
   const updateSubrubric = (id: string, patch: Partial<AdminSubrubric>) =>
     setState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));

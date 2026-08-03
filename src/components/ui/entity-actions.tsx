@@ -4,13 +4,12 @@ import { Copy, Heart, Instagram, MessageCircle, Send, Share2, Star } from "lucid
 import { useEffect, useMemo, useState } from "react";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import {
-  getLikes,
   getReviewForEntity,
   publishReview,
-  toggleLike,
   trackEvent,
   type LibertyReview,
 } from "@/lib/client-store";
+import { favoritesChangedEvent, isFavorite, toggleFavorite } from "@/lib/favorites/favorites-service";
 
 type EntityActionTarget = {
   id: string;
@@ -26,19 +25,47 @@ function getAbsoluteUrl(path?: string) {
 }
 
 export function LikeButton({ entity, className = "" }: { entity: EntityActionTarget; className?: string }) {
-  const [likes, setLikes] = useState<string[]>([]);
+  const [favorite, setFavorite] = useState(false);
+  const [pending, setPending] = useState(false);
 
-  useEffect(() => setLikes(getLikes()), []);
+  useEffect(() => {
+    let mounted = true;
+    const refresh = () => isFavorite(entity.id).then((next) => {
+      if (mounted) setFavorite(next);
+    });
+    refresh();
+    window.addEventListener(favoritesChangedEvent, refresh);
+    return () => {
+      mounted = false;
+      window.removeEventListener(favoritesChangedEvent, refresh);
+    };
+  }, [entity.id]);
 
-  const liked = likes.includes(entity.id);
+  const toggle = async () => {
+    if (pending) return;
+    const previous = favorite;
+    setPending(true);
+    setFavorite(!previous);
+    try {
+      const next = await toggleFavorite(entity.id);
+      setFavorite(next);
+      trackEvent(next ? "favorite_added" : "favorite_removed", entity.title, entity.id);
+    } catch {
+      setFavorite(previous);
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
     <button
-      onClick={() => setLikes(toggleLike(entity.id, entity.title))}
-      className={className || `grid size-10 place-items-center rounded-full transition ${liked ? "bg-[#a54b4b] text-white" : "bg-white/90 text-ink hover:bg-cream"}`}
-      aria-label={liked ? "Retirer le like" : "Aimer"}
-      title={liked ? "Aimé" : "Aimer"}
+      onClick={toggle}
+      disabled={pending}
+      className={className || `grid size-10 place-items-center rounded-full transition ${favorite ? "bg-[#a54b4b] text-white" : "bg-white/90 text-ink hover:bg-cream"}`}
+      aria-label={favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+      title={favorite ? "Favori" : "Ajouter aux favoris"}
     >
-      <Heart size={17} fill={liked ? "currentColor" : "none"} />
+      <Heart size={17} fill={favorite ? "currentColor" : "none"} />
     </button>
   );
 }

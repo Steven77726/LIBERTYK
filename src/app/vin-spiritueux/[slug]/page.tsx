@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { wineActivities, wineActivityBySlug } from "@/data/wine-activities";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { assetPath } from "@/lib/assets";
+import { LikeButton } from "@/components/ui/entity-actions";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -38,7 +39,7 @@ export default async function WineActivityPage({ params }: Props) {
         </div>
         <div className="grid gap-10 p-7 sm:p-12 lg:grid-cols-[1fr_300px]">
           <div><h2 className="text-2xl font-semibold tracking-tight">L’expérience</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-ink/55">{activity.description}</p><div className="mt-6 flex flex-wrap gap-2">{activity.tags.map((tag) => <span key={tag} className="rounded-full bg-cream px-3 py-2 text-xs">{tag}</span>)}</div></div>
-          <div className="rounded-2xl bg-cream p-5"><Grape size={20} className="text-[#773b45]" /><p className="mt-4 text-sm font-semibold">Envie d’en savoir plus ?</p>{activity.website ? <a href={activity.website} target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white">{activity.action} <ExternalLink size={13} /></a> : <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white">{activity.action} <ArrowRight size={13} /></button>}</div>
+          <div className="rounded-2xl bg-cream p-5"><Grape size={20} className="text-[#773b45]" /><p className="mt-4 text-sm font-semibold">Envie d’en savoir plus ?</p><LikeButton entity={{ id: `wine-${activity.slug}`, title: activity.title, url: `/vin-spiritueux/${activity.slug}`, text: `${activity.title} · ${activity.type}` }} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-xs font-semibold text-ink" />{activity.website ? <a href={activity.website} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white">{activity.action} <ExternalLink size={13} /></a> : <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white">{activity.action} <ArrowRight size={13} /></button>}</div>
         </div>
       </div>
     </section>

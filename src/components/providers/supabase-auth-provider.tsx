@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getAuthRedirectUrl, getSupabaseBrowserClient, isAppleAuthEnabled, isGoogleAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/client";
 import { mergeSavedEntities } from "@/lib/client-store";
+import { mergeLocalFavorites } from "@/lib/favorites/favorites-service";
 import { fetchUserSavedEntities } from "@/lib/supabase/sync";
 
 type LibertyRole = "admin" | "professional" | "user";
@@ -134,8 +135,9 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     }
     setProfile((data as LibertyProfile | null) ?? null);
     setRole((data?.role as LibertyRole | undefined) ?? "user");
+    await mergeLocalFavorites();
     const saved = await fetchUserSavedEntities();
-    mergeSavedEntities(saved.favorites, saved.likes);
+    mergeSavedEntities([], saved.likes);
     setLoading(false);
   };
 

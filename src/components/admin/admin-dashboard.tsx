@@ -80,12 +80,20 @@ import {
   updateEstablishment as updateEstablishmentInSupabase,
   type EstablishmentRecord,
 } from "@/lib/supabase/establishments-repository";
+import {
+  hideVisibleTag,
+  importVisibleTagsIfMissing,
+  listAllVisibleTagsForAdmin,
+  moveVisibleTagToTrash,
+  upsertVisibleTag,
+  type VisibleTagRecord,
+} from "@/lib/supabase/visible-tags-repository";
 
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
 type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
 type BannerPosition = "Home" | "Rubrique" | "Sous-rubrique" | "Fiche";
 type KosherType = "Bassari" | "Halavi" | "Parvé" | "À compléter";
-type SponsorshipLevel = "Standard" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
+type SponsorshipLevel = "Standard" | "Featured" | "Premium" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
 type RubricFormat = "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
 type FieldVisibility = Record<string, boolean>;
 type AdminUserProfile = {
@@ -372,6 +380,9 @@ const defaultFieldVisibility: FieldVisibility = {
   instagram: true,
   website: true,
   reservation: true,
+  address: true,
+  opening_hours: true,
+  tags: true,
   terrace: true,
   delivery: true,
   takeaway: true,
@@ -389,6 +400,9 @@ const visibilityLabels: Array<{ key: string; label: string }> = [
   { key: "instagram", label: "Instagram" },
   { key: "website", label: "Site internet" },
   { key: "reservation", label: "Réservation" },
+  { key: "address", label: "Adresse" },
+  { key: "opening_hours", label: "Horaires" },
+  { key: "tags", label: "Tags" },
   { key: "terrace", label: "Terrasse" },
   { key: "delivery", label: "Livraison" },
   { key: "takeaway", label: "À emporter" },
@@ -538,8 +552,8 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
       ...item,
       slug: item.slug ?? slugify(item.name),
       shortDescription: item.shortDescription ?? item.description.slice(0, 120),
-      photos: normalizePhotoSlots(item.mainPhoto, item.photos, 2),
-      photoAlts: [...(item.photoAlts ?? []), "", ""].slice(0, 2),
+      photos: normalizePhotoSlots(item.mainPhoto, item.photos, 4),
+      photoAlts: [...(item.photoAlts ?? []), "", ""].slice(0, 4),
       postalCode: item.postalCode ?? "",
       country: item.country ?? "France",
       email: item.email ?? "",
@@ -617,7 +631,7 @@ function createSeedState(): AdminState {
     rubricId: "food",
     subrubricId: restaurantSubrubric,
     mainPhoto: restaurant.image,
-        photos: ["", ""],
+        photos: ["", "", "", ""],
     name: restaurant.name,
     description: `${restaurant.specialty || "Restaurant casher"} — ${restaurant.cuisine || "Cuisine à compléter"}.`,
     address: restaurant.fullAddress,
@@ -666,7 +680,7 @@ function createSeedState(): AdminState {
     rubricId: "food",
     subrubricId: brunchSubrubric,
     mainPhoto: brunch.images[0] ?? "",
-        photos: normalizePhotoSlots(brunch.images[0] ?? "", [brunch.images[1], brunch.images[2]], 2),
+        photos: normalizePhotoSlots(brunch.images[0] ?? "", [brunch.images[1], brunch.images[2], brunch.images[3], brunch.images[4]], 4),
     name: brunch.name,
     description: brunch.description ?? "",
     address: brunch.address ?? "",
@@ -703,7 +717,7 @@ function createSeedState(): AdminState {
     rubricId: wineRubric,
     subrubricId: `${wineRubric}-selections`,
     mainPhoto: activity.image,
-        photos: ["", ""],
+        photos: ["", "", "", ""],
     name: activity.title,
     description: activity.description,
     address: activity.address ?? "",
@@ -740,7 +754,7 @@ function createSeedState(): AdminState {
     rubricId: shoppingRubric,
     subrubricId: `${shoppingRubric}-mode`,
     mainPhoto: azamra.image,
-        photos: ["", ""],
+        photos: ["", "", "", ""],
     name: azamra.name,
     description: azamra.description,
     address: "",
@@ -1442,7 +1456,7 @@ function EstablishmentPreviewModal({
   onClose: () => void;
 }) {
   if (!item) return null;
-  const images = [item.mainPhoto, ...normalizePhotoSlots(item.mainPhoto, item.photos, 2)].filter(Boolean);
+  const images = [item.mainPhoto, ...normalizePhotoSlots(item.mainPhoto, item.photos, 4)].filter(Boolean);
   const visibleTags = item.visibleTagIds
     .map((id) => tags.find((tag) => tag.id === id && tag.status !== "Masqué")?.label)
     .filter(Boolean) as string[];
@@ -1663,6 +1677,7 @@ export function AdminDashboard() {
   const [rubricsSupabaseLoaded, setRubricsSupabaseLoaded] = useState(false);
   const [subrubricsSupabaseLoaded, setSubrubricsSupabaseLoaded] = useState(false);
   const [establishmentsSupabaseLoaded, setEstablishmentsSupabaseLoaded] = useState(false);
+  const [tagsSupabaseLoaded, setTagsSupabaseLoaded] = useState(false);
   const [rubricsOperation, setRubricsOperation] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
@@ -1815,6 +1830,32 @@ export function AdminDashboard() {
   }, [auth.configured, establishmentsSupabaseLoaded, hasAdminAccess, rubricsSupabaseLoaded, setState, subrubricsSupabaseLoaded, supabaseLoaded]);
 
   useEffect(() => {
+    if (!auth.configured || !hasAdminAccess || !supabaseLoaded || tagsSupabaseLoaded) return;
+    let mounted = true;
+    setAdminMessage("Chargement des tags visibles Supabase…");
+    listAllVisibleTagsForAdmin()
+      .then(async (remoteTags) => {
+        if (!mounted) return;
+        const nextTags = remoteTags.length ? remoteTags : await importVisibleTagsIfMissing(state.tags as VisibleTagRecord[]);
+        if (!mounted) return;
+        if (nextTags.length) {
+          skipNextAdminStateSave.current = true;
+          setState((current) => normalizeAdminState({ ...current, tags: nextTags as AdminTag[] }));
+          setAdminMessage(remoteTags.length ? "Tags visibles chargés depuis Supabase." : "Tags visibles importés dans Supabase.");
+        }
+        setTagsSupabaseLoaded(true);
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setAdminMessage(`Erreur de connexion Supabase tags : ${error.message}`);
+        setTagsSupabaseLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [auth.configured, hasAdminAccess, setState, state.tags, supabaseLoaded, tagsSupabaseLoaded]);
+
+  useEffect(() => {
     setReviews(getReviews());
     setEvents(getAnalyticsEvents());
   }, []);
@@ -1834,7 +1875,7 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded) return;
-    if (active === "rubrics" || active === "subrubrics" || active === "establishments") return;
+    if (active === "rubrics" || active === "subrubrics" || active === "establishments" || active === "tags") return;
     if (skipNextAdminStateSave.current) {
       skipNextAdminStateSave.current = false;
       return;
@@ -2080,8 +2121,10 @@ export function AdminDashboard() {
       notifications: current.notifications.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     }));
 
-  const updateTag = (id: string, patch: Partial<AdminTag>) =>
+  const updateTag = (id: string, patch: Partial<AdminTag>) => {
+    skipNextAdminStateSave.current = true;
     setState((current) => ({ ...current, tags: current.tags.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+  };
 
   const updateCertification = (id: string, patch: Partial<AdminCertification>) =>
     setState((current) => ({ ...current, certifications: current.certifications.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
@@ -2274,8 +2317,8 @@ export function AdminDashboard() {
         rubricId: firstSubrubric?.rubricId ?? "food",
         subrubricId: firstSubrubric?.id ?? "food-restaurants",
         mainPhoto: "",
-        photos: ["", ""],
-        photoAlts: ["", ""],
+        photos: ["", "", "", ""],
+        photoAlts: ["", "", "", ""],
         name: "Nouvel établissement",
         slug: "nouvel-etablissement",
         shortDescription: "Description courte à compléter",
@@ -2920,21 +2963,65 @@ export function AdminDashboard() {
     }
   };
 
-  const saveTagDraft = (tag: AdminTag) => {
-    commitState((current) => ({
-      ...current,
-      tags: current.tags.map((item) => (item.id === tag.id ? { ...item, status: "Brouillon" } : item)),
-    }), "Tag enregistré en brouillon.", "Sauvegarde");
-    audit("brouillon", "tag", tag.id, tag.label);
+  const saveTagDraft = async (tag: AdminTag) => {
+    setSavingAction("Enregistrement du tag…");
+    const draft = { ...tag, status: "Brouillon" as AdminStatus };
+    try {
+      const saved = auth.configured && hasAdminAccess ? await upsertVisibleTag(draft as VisibleTagRecord, "Brouillon") : draft;
+      skipNextAdminStateSave.current = true;
+      setState((current) => normalizeAdminState({ ...current, tags: current.tags.map((item) => (item.id === tag.id ? saved as AdminTag : item)) }));
+      setAdminMessage("Tag enregistré en brouillon.");
+      audit("brouillon", "tag", tag.id, tag.label);
+    } catch (error) {
+      setAdminMessage(`Échec enregistrement tag : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
   };
 
-  const publishTag = (tag: AdminTag) => {
+  const publishTag = async (tag: AdminTag) => {
     if (!requireFields([["nom", tag.label], ["ordre", tag.order]])) return;
-    commitState((current) => ({
-      ...current,
-      tags: current.tags.map((item) => (item.id === tag.id ? { ...item, status: "Publié" } : item)),
-    }), "Tag publié avec succès.", "Publication");
-    audit("publication", "tag", tag.id, tag.label);
+    setSavingAction("Publication du tag…");
+    const published = { ...tag, status: "Publié" as AdminStatus };
+    try {
+      const saved = auth.configured && hasAdminAccess ? await upsertVisibleTag(published as VisibleTagRecord, "Publié") : published;
+      skipNextAdminStateSave.current = true;
+      setState((current) => normalizeAdminState({ ...current, tags: current.tags.map((item) => (item.id === tag.id ? saved as AdminTag : item)) }));
+      setAdminMessage("Tag publié avec succès.");
+      audit("publication", "tag", tag.id, tag.label);
+    } catch (error) {
+      setAdminMessage(`Échec publication tag : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
+  };
+
+  const hideTag = async (tag: AdminTag) => {
+    setSavingAction("Masquage du tag…");
+    try {
+      const hidden = auth.configured && hasAdminAccess ? await hideVisibleTag(tag as VisibleTagRecord) : { ...tag, status: "Masqué" as AdminStatus };
+      skipNextAdminStateSave.current = true;
+      setState((current) => normalizeAdminState({ ...current, tags: current.tags.map((item) => (item.id === tag.id ? hidden as AdminTag : item)) }));
+      setAdminMessage("Tag masqué avec succès.");
+      audit("masquage", "tag", tag.id, tag.label);
+    } catch (error) {
+      setAdminMessage(`Échec masquage tag : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
+  };
+
+  const trashTag = async (tag: AdminTag) => {
+    setSavingAction("Suppression du tag…");
+    try {
+      if (auth.configured && hasAdminAccess) await moveVisibleTagToTrash(tag as VisibleTagRecord);
+      skipNextAdminStateSave.current = true;
+      moveToTrash("tag", tag.label, tag, (current) => ({ ...current, tags: current.tags.filter((item) => item.id !== tag.id) }));
+    } catch (error) {
+      setAdminMessage(`Échec suppression tag : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
   };
 
   const saveCertificationDraft = (certification: AdminCertification) => {
@@ -3522,14 +3609,33 @@ export function AdminDashboard() {
                             <button onClick={() => updateEstablishment(selectedEstablishment.id, { mainPhoto: "" })} className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-500">Supprimer la photo</button>
                           )}
                         </div>
-                      {normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 2).map((photo, index) => (
-                          <div key={index} className="grid gap-2">
+                      {normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4).map((photo, index) => (
+                          <div
+                            key={index}
+                            draggable
+                            onDragStart={(event) => event.dataTransfer.setData("text/plain", String(index))}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const sourceIndex = Number(event.dataTransfer.getData("text/plain"));
+                              if (!Number.isInteger(sourceIndex) || sourceIndex === index) return;
+                              const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
+                              const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), "", "", "", ""].slice(0, 4);
+                              const [movedPhoto] = photos.splice(sourceIndex, 1);
+                              const [movedAlt] = photoAlts.splice(sourceIndex, 1);
+                              photos.splice(index, 0, movedPhoto ?? "");
+                              photoAlts.splice(index, 0, movedAlt ?? "");
+                              updateEstablishment(selectedEstablishment.id, { photos: photos.slice(0, 4), photoAlts: photoAlts.slice(0, 4) });
+                            }}
+                            className="grid cursor-grab gap-2 rounded-2xl border border-transparent p-2 transition hover:border-moss/20 active:cursor-grabbing"
+                          >
+                            <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-ink/30">Glisser pour réordonner</p>
                             <ImageUploadField
                               label={`Photo ${index + 2}`}
                               folder="establishments"
                               value={photo}
                               onChange={(value) => {
-                                const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 2);
+                                const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
                                 photos[index] = value;
                                 updateEstablishment(selectedEstablishment.id, { photos });
                               }}
@@ -3538,15 +3644,42 @@ export function AdminDashboard() {
                               label={`Alt photo ${index + 2}`}
                               value={selectedEstablishment.photoAlts?.[index] ?? ""}
                               onChange={(value) => {
-                                const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", ""]), ""].slice(0, 2);
+                                const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), ""].slice(0, 4);
                                 photoAlts[index] = value;
                                 updateEstablishment(selectedEstablishment.id, { photoAlts });
                               }}
                             />
                             {photo && (
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => {
+                                    if (index === 0) return;
+                                    const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
+                                    const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), "", "", "", ""].slice(0, 4);
+                                    [photos[index - 1], photos[index]] = [photos[index], photos[index - 1]];
+                                    [photoAlts[index - 1], photoAlts[index]] = [photoAlts[index], photoAlts[index - 1]];
+                                    updateEstablishment(selectedEstablishment.id, { photos, photoAlts });
+                                  }}
+                                  className="w-fit rounded-full bg-cream px-3 py-1 text-xs font-semibold text-ink/55"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (index === 3) return;
+                                    const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
+                                    const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), "", "", "", ""].slice(0, 4);
+                                    [photos[index + 1], photos[index]] = [photos[index], photos[index + 1]];
+                                    [photoAlts[index + 1], photoAlts[index]] = [photoAlts[index], photoAlts[index + 1]];
+                                    updateEstablishment(selectedEstablishment.id, { photos, photoAlts });
+                                  }}
+                                  className="w-fit rounded-full bg-cream px-3 py-1 text-xs font-semibold text-ink/55"
+                                >
+                                  ↓
+                                </button>
                               <button
                                 onClick={() => {
-                                  const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 2);
+                                  const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
                                   photos[index] = "";
                                   updateEstablishment(selectedEstablishment.id, { photos });
                                 }}
@@ -3554,6 +3687,7 @@ export function AdminDashboard() {
                               >
                                 Supprimer
                               </button>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -3607,7 +3741,7 @@ export function AdminDashboard() {
                       <Toggle label="Réservation" checked={selectedEstablishment.reservation} onChange={(value) => updateEstablishment(selectedEstablishment.id, { reservation: value })} />
                       <Toggle label="Privatisation" checked={selectedEstablishment.privateHire} onChange={(value) => updateEstablishment(selectedEstablishment.id, { privateHire: value })} />
                       <Toggle label="Visible sur le site" checked={selectedEstablishment.visible ?? true} onChange={(value) => updateEstablishment(selectedEstablishment.id, { visible: value })} />
-                      <Toggle label="Sponsorisé actif" checked={selectedEstablishment.sponsored} onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsored: value, sponsorshipLevel: value ? "Sponsorisé" : "Standard" })} />
+                      <Toggle label="Sponsorisé actif" checked={selectedEstablishment.sponsored} onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsored: value, sponsorshipLevel: value ? "Featured" : "Standard" })} />
                     </div>
 
                     <div className="rounded-3xl bg-white p-5 shadow-sm">
@@ -3635,7 +3769,7 @@ export function AdminDashboard() {
                         <option>Publié</option><option>Brouillon</option><option>Masqué</option>
                       </SelectField>
                       <SelectField label="Mise en avant" value={selectedEstablishment.sponsorshipLevel ?? (selectedEstablishment.sponsored ? "Sponsorisé" : "Standard")} onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsorshipLevel: value as SponsorshipLevel, sponsored: value !== "Standard" })}>
-                        <option>Standard</option><option>Sponsorisé</option><option>Partenaire officiel</option><option>Coup de cœur Liberty</option>
+                        <option>Standard</option><option>Featured</option><option>Premium</option>
                       </SelectField>
                       <Field label="Priorité sponsorisée" value={selectedEstablishment.sponsorPriority} type="number" onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsorPriority: Number(value) })} />
                       <Field label="Durée sponsorisée" value={selectedEstablishment.sponsorDuration} onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsorDuration: value })} />
@@ -3648,7 +3782,7 @@ export function AdminDashboard() {
                           <p className="mt-1 text-xs text-white/45">Le badge devient visible côté fiche dès que le niveau est Sponsorisé, Partenaire officiel ou Coup de cœur Liberty.</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {["Standard", "Sponsorisé", "Partenaire officiel", "Coup de cœur Liberty"].map((level) => (
+                          {["Standard", "Featured", "Premium"].map((level) => (
                             <button
                               key={level}
                               onClick={() => updateEstablishment(selectedEstablishment.id, { sponsorshipLevel: level as SponsorshipLevel, sponsored: level !== "Standard" })}
@@ -3726,9 +3860,9 @@ export function AdminDashboard() {
                       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {state.tags.map((tag) => (
                           <div key={tag.id} className="grid grid-cols-[1fr_80px_40px] gap-2">
-                            <input value={tag.label} onChange={(event) => setState((current) => ({ ...current, tags: current.tags.map((item) => item.id === tag.id ? { ...item, label: event.target.value } : item) }))} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
-                            <input value={tag.order} type="number" onChange={(event) => setState((current) => ({ ...current, tags: current.tags.map((item) => item.id === tag.id ? { ...item, order: Number(event.target.value) } : item) }))} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
-                            <button onClick={() => setState((current) => ({ ...current, tags: current.tags.filter((item) => item.id !== tag.id) }))} className="grid place-items-center rounded-xl bg-rose-50 text-rose-500"><Trash2 size={14} /></button>
+                            <input value={tag.label} onChange={(event) => updateTag(tag.id, { label: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
+                            <input value={tag.order} type="number" onChange={(event) => updateTag(tag.id, { order: Number(event.target.value) })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
+                            <button onClick={() => void trashTag(tag)} className="grid place-items-center rounded-xl bg-rose-50 text-rose-500"><Trash2 size={14} /></button>
                           </div>
                         ))}
                       </div>
@@ -3992,14 +4126,14 @@ export function AdminDashboard() {
                                 <button onClick={() => updateEstablishment(item.id, { mainPhoto: "" })} className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-500">Supprimer la photo</button>
                               )}
                             </div>
-                            {normalizePhotoSlots(item.mainPhoto, item.photos, 2).map((photo, index) => (
+                            {normalizePhotoSlots(item.mainPhoto, item.photos, 4).map((photo, index) => (
                               <div key={index} className="grid gap-2">
                                 <ImageUploadField
                                   label={`Photo ${index + 2}`}
                                   value={photo}
                                   folder="establishments"
                                   onChange={(value) => {
-                                    const photos = normalizePhotoSlots(item.mainPhoto, item.photos, 2);
+                                    const photos = normalizePhotoSlots(item.mainPhoto, item.photos, 4);
                                     photos[index] = value;
                                     updateEstablishment(item.id, { photos });
                                   }}
@@ -4008,7 +4142,7 @@ export function AdminDashboard() {
                                   label={`Texte alternatif photo ${index + 2}`}
                                   value={item.photoAlts?.[index] ?? ""}
                                   onChange={(value) => {
-                                    const photoAlts = [...(item.photoAlts ?? ["", ""]), ""].slice(0, 2);
+                                    const photoAlts = [...(item.photoAlts ?? ["", "", "", ""]), ""].slice(0, 4);
                                     photoAlts[index] = value;
                                     updateEstablishment(item.id, { photoAlts });
                                   }}
@@ -4016,7 +4150,7 @@ export function AdminDashboard() {
                                 {photo && (
                                   <button
                                     onClick={() => {
-                                      const photos = normalizePhotoSlots(item.mainPhoto, item.photos, 2);
+                                      const photos = normalizePhotoSlots(item.mainPhoto, item.photos, 4);
                                       photos[index] = "";
                                       updateEstablishment(item.id, { photos });
                                     }}
@@ -4052,11 +4186,11 @@ export function AdminDashboard() {
                         <article key={tag.id} className="rounded-2xl border border-black/[.06] bg-cream p-4">
                           <FormActionBar
                             disabled={Boolean(savingAction)}
-                            onDraft={() => saveTagDraft(tag)}
+                            onDraft={() => void saveTagDraft(tag)}
                             onPreview={() => setAdminMessage(`Prévisualisation tag : ${tag.icon ? `${tag.icon} ` : ""}${tag.label}`)}
-                            onPublish={() => publishTag(tag)}
-                            onHide={() => commitState((current) => ({ ...current, tags: current.tags.map((item) => item.id === tag.id ? { ...item, status: "Masqué" } : item) }), "Tag masqué avec succès.", "Masquage")}
-                            onTrash={() => moveToTrash("tag", tag.label, tag, (current) => ({ ...current, tags: current.tags.filter((item) => item.id !== tag.id) }))}
+                            onPublish={() => void publishTag(tag)}
+                            onHide={() => void hideTag(tag)}
+                            onTrash={() => void trashTag(tag)}
                           />
                           <div className="grid gap-3 lg:grid-cols-[1fr_120px_100px_100px_130px]">
                             <Field label="Nom" value={tag.label} onChange={(value) => updateTag(tag.id, { label: value })} />
@@ -4076,7 +4210,7 @@ export function AdminDashboard() {
                             <div className="flex items-end gap-2">
                               <button onClick={() => reorderById("tags", tag.id, -1)} className="rounded-full bg-white px-3 py-2 text-xs font-semibold">Monter</button>
                               <button onClick={() => reorderById("tags", tag.id, 1)} className="rounded-full bg-white px-3 py-2 text-xs font-semibold">Descendre</button>
-                              <button onClick={() => moveToTrash("tag", tag.label, tag, (current) => ({ ...current, tags: current.tags.filter((item) => item.id !== tag.id) }))} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Corbeille</button>
+                              <button onClick={() => void trashTag(tag)} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Corbeille</button>
                             </div>
                           </div>
                         </article>

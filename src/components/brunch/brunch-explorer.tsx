@@ -69,7 +69,7 @@ const recordsToBrunches = (records: EstablishmentRecord[]): Brunch[] => records.
     kidsMenu: undefined,
     privateHire: item.privateHire,
   },
-  tags: [...new Set([...(item.customerSearches ?? []), ...(item.cuisineTypes ?? []), ...(item.visibleTagIds ?? [])].filter(Boolean))],
+  tags: [...new Set([...(item.cuisineTypes ?? []), ...(item.visibleTagIds ?? [])].filter(Boolean))],
   source: item.website || undefined,
   rawData: {},
   images: [item.mainPhoto, ...(item.photos ?? [])].filter(Boolean),

@@ -43,6 +43,7 @@ type EstablishmentRow = {
   average_price: string | null;
   customer_searches: string[] | null;
   visible_tags: string[] | null;
+  field_visibility: Record<string, boolean> | null;
   display_order: number | null;
   sponsorship: SponsorshipDb;
   sponsor_priority: number | null;
@@ -74,11 +75,17 @@ type LookupRow = {
   slug: string;
 };
 
+type VisibleTagLookupRow = {
+  id: string;
+  external_id: string | null;
+  label: string;
+};
+
 const selectColumns = `
   id,external_id,rubric_id,subrubric_id,slug,name,short_description,description,address,city,postal_code,
   arrondissement,district,country,latitude,longitude,phone,whatsapp,email,instagram,website,reservation_url,
   reservation_target,hours,amenities,services,certification,kosher_type,average_price,customer_searches,
-  visible_tags,display_order,sponsorship,sponsor_priority,sponsor_starts_at,sponsor_ends_at,sponsor_placement,
+  visible_tags,field_visibility,display_order,sponsorship,sponsor_priority,sponsor_starts_at,sponsor_ends_at,sponsor_placement,
   sponsor_notes,reservation_enabled,status,is_visible,owner_id,created_at,updated_at,
   rubrics(id,external_id,slug),
   subrubrics(id,external_id,slug)
@@ -99,6 +106,8 @@ const statusFromDb: Record<StatusDb, LocalEstablishmentStatus> = {
 
 const sponsorshipToDb: Record<LocalSponsorshipLevel, SponsorshipDb> = {
   Standard: "standard",
+  Featured: "sponsored",
+  Premium: "partner",
   Sponsorisé: "sponsored",
   "Partenaire officiel": "partner",
   "Coup de cœur Liberty": "liberty_favorite",
@@ -106,9 +115,9 @@ const sponsorshipToDb: Record<LocalSponsorshipLevel, SponsorshipDb> = {
 
 const sponsorshipFromDb: Record<SponsorshipDb, LocalSponsorshipLevel> = {
   standard: "Standard",
-  sponsored: "Sponsorisé",
-  partner: "Partenaire officiel",
-  liberty_favorite: "Coup de cœur Liberty",
+  sponsored: "Featured",
+  partner: "Premium",
+  liberty_favorite: "Premium",
 };
 
 function normalizeSlug(value: string) {
@@ -139,6 +148,30 @@ function getClientOrThrow() {
 function parseJsonHours(value: Record<string, unknown> | null) {
   if (!value || !Object.keys(value).length) return "";
   return Object.entries(value).map(([day, hours]) => `${day}: ${String(hours ?? "")}`).join("\n");
+}
+
+const defaultFieldVisibility: Record<string, boolean> = {
+  phone: true,
+  whatsapp: true,
+  email: true,
+  website: true,
+  reservation: true,
+  instagram: true,
+  address: true,
+  opening_hours: true,
+  tags: true,
+  gallery: true,
+  price: true,
+  map: true,
+  reviews: true,
+  certification: true,
+  delivery: true,
+  takeaway: true,
+  terrace: true,
+};
+
+function normalizeFieldVisibility(value?: Record<string, boolean> | null) {
+  return { ...defaultFieldVisibility, ...(value ?? {}) };
 }
 
 function serializeHours(value: string) {
@@ -206,7 +239,44 @@ async function getPhotos(entityIds: string[]) {
   return map;
 }
 
-function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = []): EstablishmentRecord {
+async function getVisibleTagMap() {
+  const supabase = getSupabaseBrowserClient();
+  const defaults = new Map<string, string>([
+    ["terrasse", "Terrasse"],
+    ["ouvert", "Ouvert"],
+    ["reservation", "Réservation"],
+    ["livraison", "Livraison"],
+    ["a-emporter", "À emporter"],
+    ["bassari", "Bassari"],
+    ["halavi", "Halavi"],
+    ["parve", "Parvé"],
+    ["beth-din-de-paris", "Beth Din de Paris"],
+    ["badatz", "Badatz"],
+    ["loubavitch", "Loubavitch"],
+    ["rottenberg", "Rottenberg"],
+    ["sponsorise", "Sponsorisé"],
+  ]);
+  if (!supabase) return defaults;
+  const { data, error } = await supabase
+    .from("visible_tags")
+    .select("id,external_id,label")
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .returns<VisibleTagLookupRow[]>();
+  if (error) return defaults;
+  (data ?? []).forEach((tag) => {
+    defaults.set(tag.id, tag.label);
+    if (tag.external_id) defaults.set(tag.external_id, tag.label);
+    defaults.set(tag.label, tag.label);
+  });
+  return defaults;
+}
+
+function resolveVisibleTags(values: string[] | null | undefined, tagMap: Map<string, string>) {
+  return [...new Set((values ?? []).map((value) => tagMap.get(value) ?? value).filter(Boolean))];
+}
+
+function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = [], tagMap?: Map<string, string>): EstablishmentRecord {
   const photoUrls = photos.sort((a, b) => a.display_order - b.display_order).map((photo) => photo.url);
   const sponsorshipLevel = sponsorshipFromDb[row.sponsorship] ?? "Standard";
   const amenities = row.amenities ?? {};
@@ -216,8 +286,8 @@ function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = []): Est
     rubricId: row.rubrics?.external_id || row.rubrics?.slug || row.rubric_id || "",
     subrubricId: row.subrubrics?.external_id || row.subrubrics?.slug || row.subrubric_id || "",
     mainPhoto: photoUrls[0] ?? "",
-    photos: [photoUrls[1] ?? "", photoUrls[2] ?? ""],
-    photoAlts: [photos[1]?.alt ?? "", photos[2]?.alt ?? ""],
+    photos: photoUrls.slice(1),
+    photoAlts: photos.slice(1).map((photo) => photo.alt ?? ""),
     name: row.name,
     slug: row.slug,
     shortDescription: row.short_description ?? "",
@@ -258,7 +328,8 @@ function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = []): Est
     cuisineTypes: [],
     order: row.display_order ?? 0,
     customerSearches: row.customer_searches ?? [],
-    visibleTagIds: row.visible_tags ?? [],
+    visibleTagIds: tagMap ? resolveVisibleTags(row.visible_tags, tagMap) : row.visible_tags ?? [],
+    fieldVisibility: normalizeFieldVisibility(row.field_visibility),
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -309,6 +380,7 @@ async function establishmentToPayload(establishment: EstablishmentRecord, status
     average_price: establishment.averagePrice ?? "",
     customer_searches: establishment.customerSearches ?? [],
     visible_tags: establishment.visibleTagIds ?? [],
+    field_visibility: normalizeFieldVisibility(establishment.fieldVisibility),
     display_order: Number(establishment.order) || 0,
     sponsorship: sponsorshipToDb[establishment.sponsorshipLevel ?? "Standard"] ?? "standard",
     sponsor_priority: Number(establishment.sponsorPriority) || 0,
@@ -327,23 +399,23 @@ async function establishmentToPayload(establishment: EstablishmentRecord, status
 
 async function upsertPhotos(establishmentId: string, establishment: EstablishmentRecord) {
   const supabase = getClientOrThrow();
-  const urls = [establishment.mainPhoto, ...(establishment.photos ?? [])].map((url) => url?.trim()).filter(Boolean);
-  if (!urls.length) return;
-  const { data: existing } = await supabase
+  const urls = [establishment.mainPhoto, ...(establishment.photos ?? [])]
+    .map((url) => url?.trim())
+    .filter((url, index, list): url is string => Boolean(url) && list.indexOf(url) === index);
+  const { error: deleteError } = await supabase
     .from("photos")
-    .select("url")
+    .delete()
     .eq("entity_type", "establishment")
-    .eq("entity_id", establishmentId)
-    .returns<Array<{ url: string }>>();
-  const existingUrls = new Set((existing ?? []).map((photo) => photo.url));
-  const payload = urls.slice(0, 3).filter((url) => !existingUrls.has(url)).map((url, index) => ({
+    .eq("entity_id", establishmentId);
+  if (deleteError) throw new Error(readableError(deleteError));
+  if (!urls.length) return;
+  const payload = urls.map((url, index) => ({
     entity_type: "establishment",
     entity_id: establishmentId,
     url,
     alt: index === 0 ? establishment.name : establishment.photoAlts?.[index - 1] || establishment.name,
     display_order: index + 1,
   }));
-  if (!payload.length) return;
   const { error } = await supabase.from("photos").insert(payload);
   if (error) throw new Error(readableError(error));
 }
@@ -382,7 +454,8 @@ export async function listPublishedEstablishments(filters?: { rubricSlug?: strin
     return true;
   });
   const photos = await getPhotos(rows.map((row) => row.id));
-  return rows.map((row) => rowToEstablishment(row, photos.get(row.id)));
+  const tagMap = await getVisibleTagMap();
+  return rows.map((row) => rowToEstablishment(row, photos.get(row.id), tagMap));
 }
 
 export async function listAllEstablishmentsForAdmin() {

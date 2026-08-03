@@ -5,7 +5,7 @@ import { wineActivities } from "@/data/wine-activities";
 
 export type LocalEstablishmentStatus = "Publié" | "Brouillon" | "Masqué";
 export type LocalKosherType = "Bassari" | "Halavi" | "Parvé" | "À compléter";
-export type LocalSponsorshipLevel = "Standard" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
+export type LocalSponsorshipLevel = "Standard" | "Featured" | "Premium" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
 
 export type LocalEstablishment = {
   id: string;
@@ -86,8 +86,8 @@ const restaurantEstablishments: LocalEstablishment[] = restaurants.map((restaura
   rubricId: "food",
   subrubricId: "food-restaurants",
   mainPhoto: restaurant.image,
-  photos: ["", ""],
-  photoAlts: ["", ""],
+  photos: ["", "", "", ""],
+  photoAlts: ["", "", "", ""],
   name: restaurant.name,
   slug: restaurant.id,
   shortDescription: `${restaurant.specialty || "Restaurant casher"} · ${restaurant.cuisine || "Cuisine à compléter"}`,
@@ -147,8 +147,8 @@ const brunchEstablishments: LocalEstablishment[] = brunches.map((brunch, index) 
   rubricId: "food",
   subrubricId: "food-brunch",
   mainPhoto: brunch.images[0] ?? "",
-  photos: normalizePhotoSlots(brunch.images[0], [brunch.images[1], brunch.images[2]], 2),
-  photoAlts: ["", ""],
+  photos: normalizePhotoSlots(brunch.images[0], [brunch.images[1], brunch.images[2], brunch.images[3], brunch.images[4]], 4),
+  photoAlts: ["", "", "", ""],
   name: brunch.name,
   slug: brunch.slug,
   shortDescription: `${brunch.specialty || "Brunch casher"} · ${brunch.cuisine || "Brunch"}`,
@@ -196,8 +196,8 @@ const wineEstablishments: LocalEstablishment[] = wineActivities.map((activity, i
   rubricId: "vin-spiritueux",
   subrubricId: "vin-spiritueux-selections",
   mainPhoto: activity.image,
-  photos: ["", ""],
-  photoAlts: ["", ""],
+  photos: ["", "", "", ""],
+  photoAlts: ["", "", "", ""],
   name: activity.title,
   slug: activity.slug,
   shortDescription: `${activity.type} · Vin & Spiritueux`,
@@ -245,8 +245,8 @@ const shoppingEstablishments: LocalEstablishment[] = [{
   rubricId: "shopping",
   subrubricId: "shopping-mode",
   mainPhoto: azamra.image,
-  photos: ["", ""],
-  photoAlts: ["", ""],
+  photos: ["", "", "", ""],
+  photoAlts: ["", "", "", ""],
   name: azamra.name,
   slug: azamra.slug,
   shortDescription: `${azamra.type} · Shopping`,

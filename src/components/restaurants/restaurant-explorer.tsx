@@ -31,6 +31,10 @@ const publicDefaultFieldVisibility: Record<string, boolean> = {
   website: true,
   email: true,
   reservation: true,
+  address: true,
+  opening_hours: true,
+  tags: true,
+  gallery: true,
   takeaway: true,
   delivery: true,
   price: true,
@@ -163,6 +167,7 @@ function getOpenStatus(restaurant: Restaurant) {
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  let closingTime = "";
   const isOpenForText = (hoursText: string, previousDay = false) => {
     if (!hoursText || normalize(hoursText).includes("ferme")) return false;
     const ranges = hoursText.match(/\d{1,2}[:h]\d{2}\s*[–-]\s*\d{1,2}[:h]\d{2}/g) ?? [];
@@ -176,13 +181,15 @@ function getOpenStatus(restaurant: Restaurant) {
     if (endMinutes < startMinutes) {
       endMinutes += 24 * 60;
     }
-    return current >= startMinutes && current <= endMinutes;
+    const inRange = current >= startMinutes && current <= endMinutes;
+    if (inRange) closingTime = end;
+    return inRange;
   });
   };
   const todayRanges = text.match(/\d{1,2}[:h]\d{2}\s*[–-]\s*\d{1,2}[:h]\d{2}/g) ?? [];
   const isOpen = isOpenForText(text) || isOpenForText(restaurant.hours[yesterday] ?? "", true);
   if (!todayRanges.length && normalized && !normalized.includes("ferme")) return { label: "Horaires disponibles", open: null as boolean | null };
-  return { label: isOpen ? "Ouvert maintenant" : "Fermé actuellement", open: isOpen };
+  return { label: isOpen ? (closingTime ? `Ouvert · Ferme à ${closingTime}` : "Ouvert maintenant") : "Fermé actuellement", open: isOpen };
 }
 
 function adminStateToRestaurants(state: AdminStateRestaurantsPreview | null | undefined): Restaurant[] {
@@ -204,7 +211,7 @@ function adminStateToRestaurants(state: AdminStateRestaurantsPreview | null | un
       const arrondissement = parseArrondissement(item.arrondissement);
       const postalCode = item.postalCode || (arrondissement ? `750${String(arrondissement).padStart(2, "0")}` : "");
       const cuisine = item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : item.kosherType || "Restaurant casher";
-      const specialty = item.customerSearches?.length ? item.customerSearches.slice(0, 4).join(", ") : item.description || "Restaurant casher";
+      const specialty = item.description || "Restaurant casher";
       const gallery = uniqueList([item.mainPhoto, ...(item.photos ?? [])]);
       const visibleTags = (item.visibleTagIds ?? []).map((id) => tags.get(id)).filter(Boolean) as string[];
       const smartTags = uniqueList([
@@ -289,7 +296,7 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
       phone: item.phone || "",
       whatsapp: item.whatsapp,
       email: item.email,
-      specialty: item.customerSearches?.length ? item.customerSearches.slice(0, 4).join(", ") : item.shortDescription || item.description || "Restaurant casher",
+      specialty: item.shortDescription || item.description || "Restaurant casher",
       cuisine: item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : item.kosherType || "Restaurant casher",
       type: mapKosherType(item.kosherType),
       certification: item.certification || "",
@@ -556,7 +563,7 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
           <LikeButton entity={entity} />
         </div>
         <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2">
-          <button onClick={hasMeaningfulHours(restaurant) ? onHours : undefined} className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{hasMeaningfulHours(restaurant) ? (status.open === null ? "Horaires disponibles" : status.label) : "Horaires non renseignés"}</button>
+        {visibility.opening_hours !== false && <button onClick={hasMeaningfulHours(restaurant) ? onHours : undefined} className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{hasMeaningfulHours(restaurant) ? (status.open === null ? "Horaires disponibles" : status.label) : "Horaires masqués"}</button>}
           {visibility.reservation !== false && <button onClick={onReserve} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-ink shadow-sm"><CalendarDays size={12} /> Réservation</button>}
         </div>
       </div>
@@ -569,11 +576,11 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
           {hasType && <button onClick={() => onTag(restaurant.type)} className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.type}</button>}
           {visibility.certification !== false && hasCertification && <button onClick={() => onTag(restaurant.certification)} className="rounded-full bg-cream px-2.5 py-1.5">✡ {restaurant.certification}</button>}
           {visibility.price !== false && <span className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.price}</span>}
-          {(restaurant.tags ?? []).slice(0, 4).map((tag) => (
+          {visibility.tags !== false && (restaurant.tags ?? []).slice(0, 4).map((tag) => (
             <button key={tag} onClick={() => onTag(tag)} className="rounded-full bg-sage px-2.5 py-1.5 text-moss">{tag}</button>
           ))}
         </div>
-        {hasMeaningfulAddress(restaurant) && <button onClick={onOpen} className="mt-4 flex items-start gap-2 text-left text-xs leading-5 text-ink/52"><MapPin size={14} className="mt-0.5 shrink-0" /><span>{restaurant.fullAddress}, {restaurant.postalCode}<br />{restaurant.city ?? "Paris"} {restaurant.arrondissement ? <><sup>{restaurant.arrondissement}e</sup> · </> : null}{restaurant.distanceKm} km</span></button>}
+        {visibility.address !== false && hasMeaningfulAddress(restaurant) && <button onClick={onOpen} className="mt-4 flex items-start gap-2 text-left text-xs leading-5 text-ink/52"><MapPin size={14} className="mt-0.5 shrink-0" /><span>{restaurant.fullAddress}, {restaurant.postalCode}<br />{restaurant.city ?? "Paris"} {restaurant.arrondissement ? <><sup>{restaurant.arrondissement}e</sup> · </> : null}{restaurant.distanceKm} km</span></button>}
         <div className="mt-4 flex gap-2 border-t border-black/[.06] pt-4">
           {[
             { value: restaurant.services.dineIn, label: "Sur place", icon: Store },
@@ -795,7 +802,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
           return (
             <div>
               <div className="space-y-5 p-6">
-                <PhotoGallery restaurant={detailRestaurant} />
+                {visibility.gallery !== false && <PhotoGallery restaurant={detailRestaurant} />}
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[.14em] text-moss/55">{detailRestaurant.cuisine}</p>
                   <h2 className="mt-1 text-3xl font-semibold tracking-[-.04em]">{detailRestaurant.name}</h2>
@@ -806,11 +813,11 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
                   {detailRestaurant.type !== "À compléter" && <button onClick={() => applyTagFilter(detailRestaurant.type)} className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</button>}
                   {visibility.certification !== false && detailRestaurant.certification && normalize(detailRestaurant.certification) !== "a completer" && <button onClick={() => applyTagFilter(detailRestaurant.certification)} className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</button>}
                   {visibility.price !== false && <span className="rounded-full bg-white px-3 py-2">{detailRestaurant.price}</span>}
-                  {(detailRestaurant.tags ?? []).map((tag) => (
+                  {visibility.tags !== false && (detailRestaurant.tags ?? []).map((tag) => (
                     <button key={tag} onClick={() => applyTagFilter(tag)} className="rounded-full bg-white px-3 py-2 transition hover:bg-sage hover:text-moss">{tag}</button>
                   ))}
                 </div>
-                {hasMeaningfulAddress(detailRestaurant) && (
+                {visibility.address !== false && hasMeaningfulAddress(detailRestaurant) && (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p>
                     <div className="mt-2">
@@ -819,14 +826,14 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
                     <div className="mt-3"><ItineraryMenu restaurant={detailRestaurant} /></div>
                   </div>
                 )}
-                <div>
+                {visibility.opening_hours !== false && <div>
                   <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Horaires</p>
                   {hasMeaningfulHours(detailRestaurant) ? (
                     <button onClick={() => setHoursRestaurant(detailRestaurant)} className="mt-2 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold"><Clock size={16} /> Horaires disponibles</button>
                   ) : (
                     <p className="mt-2 text-sm text-ink/45">Horaires non renseignés</p>
                   )}
-                </div>
+                </div>}
                 <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Spécialité</p><p className="mt-2 text-sm leading-6 text-ink/60">{detailRestaurant.specialty}</p></div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {visibility.phone !== false && detailRestaurant.phone && <a href={`tel:${detailRestaurant.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><Phone size={15} /> Téléphone</a>}

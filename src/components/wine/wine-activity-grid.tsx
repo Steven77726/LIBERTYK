@@ -15,7 +15,7 @@ const recordsToWineActivities = (records: EstablishmentRecord[]): WineActivity[]
   type: item.shortDescription?.split("·")[0]?.trim() || "Vin & Spiritueux",
   address: item.address || undefined,
   image: item.mainPhoto || "/images/winess/winess-shop.webp",
-  tags: [...new Set([...(item.visibleTagIds ?? []), ...(item.customerSearches ?? [])].filter(Boolean))].slice(0, 6),
+  tags: [...new Set([...(item.visibleTagIds ?? [])].filter(Boolean))].slice(0, 6),
   description: item.description,
   action: item.website ? "Visiter le site" : item.reservation ? "Découvrir" : "Découvrir",
   website: item.website || undefined,

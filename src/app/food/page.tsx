@@ -4,7 +4,7 @@ import {
   ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
-import { assetPath } from "@/lib/assets";
+import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
 
 export const metadata: Metadata = {
   title: "Food",
@@ -12,16 +12,16 @@ export const metadata: Metadata = {
 };
 
 const addressTypes = [
-  { label: "Restaurants", description: "Les tables incontournables", icon: UtensilsCrossed, image: "/images/food/restaurants-khan.jpg" },
-  { label: "Brunch", description: "Pour prendre le temps", icon: Coffee, image: "/images/food/brunch-marceau.jpg" },
-  { label: "Salons de thé", description: "Douceurs et conversations", icon: Coffee, image: "/images/food/salon-de-the.webp" },
-  { label: "Pâtisseries", description: "Créations gourmandes", icon: CakeSlice, image: "/images/food/patisserie.webp" },
-  { label: "Traiteurs", description: "Pour recevoir sans compromis", icon: ChefHat, image: "/images/food/traiteur.jpg" },
-  { label: "Traiteur Shabbat", description: "Vos repas de Shabbat, prêts avec soin", icon: ChefHat, image: "/images/food/traiteur.jpg" },
-  { label: "Fast-food", description: "Rapide et généreux", icon: Sandwich, image: "/images/food/fast-food.jpg" },
-  { label: "Street Food", description: "Saveurs sur le pouce", icon: Soup, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" },
-  { label: "Boulangeries", description: "Le goût du savoir-faire", icon: Croissant, image: "/images/food/boulangerie.jpg" },
-  { label: "Glaciers", description: "Fraîcheur et plaisir", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
+  { label: "Restaurants", description: "Les tables incontournables", href: "/food/restaurants", icon: UtensilsCrossed, image: "/images/food/restaurants-khan.jpg" },
+  { label: "Brunch", description: "Pour prendre le temps", href: "/food/brunch", icon: Coffee, image: "/images/food/brunch-marceau.jpg" },
+  { label: "Salons de thé", description: "Douceurs et conversations", href: "/food?type=salons-de-the", icon: Coffee, image: "/images/food/salon-de-the.webp" },
+  { label: "Pâtisseries", description: "Créations gourmandes", href: "/food?type=patisseries", icon: CakeSlice, image: "/images/food/patisserie.webp" },
+  { label: "Traiteurs", description: "Pour recevoir sans compromis", href: "/food?type=traiteurs", icon: ChefHat, image: "/images/food/traiteur.jpg" },
+  { label: "Traiteur Shabbat", description: "Vos repas de Shabbat, prêts avec soin", href: "/food?type=traiteur-chabbat", icon: ChefHat, image: "/images/food/traiteur.jpg" },
+  { label: "Fast-food", description: "Rapide et généreux", href: "/food?type=fast-food", icon: Sandwich, image: "/images/food/fast-food.jpg" },
+  { label: "Street Food", description: "Saveurs sur le pouce", href: "/food?type=street-food", icon: Soup, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" },
+  { label: "Boulangeries", description: "Le goût du savoir-faire", href: "/food?type=boulangeries", icon: Croissant, image: "/images/food/boulangerie.jpg" },
+  { label: "Glaciers", description: "Fraîcheur et plaisir", href: "/food?type=glaciers", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
 ];
 
 const cuisines = [
@@ -66,26 +66,7 @@ export default function FoodPage() {
               <p className="eyebrow">Choisir une adresse</p>
               <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Où souhaitez-vous aller ?</h2>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {addressTypes.map(({ label, description, icon: Icon, image }, index) => (
-                <Link
-                  key={label}
-                  href={label === "Restaurants" ? "/food/restaurants" : label === "Brunch" ? "/food/brunch" : `/food?type=${slugify(label)}`}
-                  className={`group relative min-h-[255px] overflow-hidden rounded-[1.75rem] bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${index === 0 ? "sm:col-span-2 sm:min-h-[350px]" : ""}`}
-                >
-                  <img src={assetPath(image)} alt="" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
-                    <div>
-                      <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={18} /></span>
-                      <h3 className="text-xl font-semibold tracking-tight">{label}</h3>
-                      <p className="mt-1 text-xs text-white/55">{description}</p>
-                    </div>
-                    <span className="grid size-10 shrink-0 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowRight size={17} /></span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <FoodSubrubricGrid fallbackCards={addressTypes.map(({ icon: _icon, ...item }) => item)} />
           </div>
 
           <div className="lg:sticky lg:top-28">

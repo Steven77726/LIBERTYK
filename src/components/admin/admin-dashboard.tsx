@@ -33,6 +33,7 @@ import {
   X,
 } from "lucide-react";
 import { categories } from "@/data/categories";
+import { localSubrubrics } from "@/data/subrubrics";
 import { restaurants } from "@/data/restaurants";
 import { brunches } from "@/data/brunches";
 import { wineActivities } from "@/data/wine-activities";
@@ -54,6 +55,17 @@ import {
   restoreRubric as restoreRubricInSupabase,
   updateRubricOrder,
 } from "@/lib/supabase/rubrics-repository";
+import {
+  createSubrubric as createSubrubricInSupabase,
+  duplicateSubrubric as duplicateSubrubricInSupabase,
+  hideSubrubric as hideSubrubricInSupabase,
+  importSubrubricsIfMissing,
+  listAllSubrubricsForAdmin,
+  moveSubrubricToTrash as moveSubrubricToTrashInSupabase,
+  publishSubrubric as publishSubrubricInSupabase,
+  restoreSubrubric as restoreSubrubricInSupabase,
+  updateSubrubricOrder,
+} from "@/lib/supabase/subrubrics-repository";
 
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
 type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
@@ -148,10 +160,17 @@ type AdminSubrubric = {
   icon?: string;
   imageAlt?: string;
   visible?: boolean;
+  showPublicly?: boolean;
+  format?: RubricFormat;
   gridColumns?: 1 | 2 | 3 | 4;
+  columnsDesktop?: 2 | 3 | 4;
+  columnsTablet?: 1 | 2 | 3;
+  columnsMobile?: 1 | 2;
   searchKeywords?: string[];
   order: number;
   status: AdminStatus;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type AdminTag = {
@@ -482,7 +501,20 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
     ...seed,
     ...state,
     rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), showOnHome: item.showOnHome ?? true, format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
-    subrubrics: (state.subrubrics ?? seed.subrubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), visible: item.visible ?? true, gridColumns: item.gridColumns ?? 3, searchKeywords: item.searchKeywords ?? [] })),
+    subrubrics: (state.subrubrics ?? seed.subrubrics).map((item) => ({
+      ...item,
+      slug: item.slug ?? slugify(item.name),
+      visible: item.visible ?? item.showPublicly ?? true,
+      showPublicly: item.showPublicly ?? item.visible ?? true,
+      format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard",
+      gridColumns: item.gridColumns ?? item.columnsDesktop ?? 3,
+      columnsDesktop: (item.columnsDesktop ?? (item.gridColumns === 1 ? 3 : item.gridColumns) ?? 3) as 2 | 3 | 4,
+      columnsTablet: item.columnsTablet ?? 2,
+      columnsMobile: item.columnsMobile ?? 1,
+      searchKeywords: item.searchKeywords ?? [],
+      createdAt: item.createdAt ?? today,
+      updatedAt: item.updatedAt ?? today,
+    })),
     tags: (state.tags ?? seed.tags).map((item) => ({ ...item, kind: item.kind ?? "visible", color: item.color ?? "#1f4d3b", rubricIds: item.rubricIds ?? [], status: item.status ?? "Publié" })),
     certifications: state.certifications ?? seed.certifications,
     establishments: (state.establishments ?? seed.establishments).map((item) => ({
@@ -536,48 +568,26 @@ function createSeedState(): AdminState {
     status: "Publié",
   }));
 
-  const categorySubrubrics = categories.flatMap((category) =>
-    category.featured.map((item, index) => ({
-      id: `${category.slug}-${slugify(item)}`,
-      rubricId: category.slug,
-      name: item,
-      description: `${item} sélectionnés dans Liberty.`,
-      photo: category.image,
-      imageAlt: item,
-      visible: true,
-      gridColumns: 3 as const,
-      order: index + 1,
-      status: "Publié" as AdminStatus,
-    })),
-  );
-
-  const foodExtra = [
-    "Restaurants",
-    "Brunch",
-    "Salons de thé",
-    "Pâtisseries",
-    "Traiteurs",
-    "Traiteur Chabbat",
-    "Fast-food",
-    "Street Food",
-    "Boulangeries",
-    "Glaciers",
-  ].map((name, index) => ({
-    id: `food-${slugify(name)}`,
-    rubricId: "food",
-    name,
-    description: `${name} casher, sélection premium Liberty.`,
-    photo: "/images/food/restaurants-khan.jpg",
-    imageAlt: name,
-    visible: true,
-    gridColumns: 3 as const,
-    order: index + 1,
+  const subrubrics: AdminSubrubric[] = localSubrubrics.map((item) => ({
+    id: item.id,
+    rubricId: item.rubricId,
+    slug: item.slug,
+    name: item.name,
+    description: item.description,
+    icon: item.icon,
+    photo: item.image,
+    imageAlt: item.imageAlt,
+    visible: item.showPublicly,
+    showPublicly: item.showPublicly,
+    format: item.format,
+    gridColumns: item.columnsDesktop,
+    columnsDesktop: item.columnsDesktop,
+    columnsTablet: item.columnsTablet,
+    columnsMobile: item.columnsMobile,
+    searchKeywords: item.searchKeywords,
+    order: item.order,
     status: "Publié" as AdminStatus,
   }));
-
-  const subrubricMap = new Map<string, AdminSubrubric>();
-  [...categorySubrubrics, ...foodExtra].forEach((item) => subrubricMap.set(item.id, item));
-  const subrubrics = [...subrubricMap.values()];
 
   const restaurantSubrubric = "food-restaurants";
   const brunchSubrubric = "food-brunch";
@@ -1549,6 +1559,59 @@ function RubricPreviewModal({
   );
 }
 
+function SubrubricPreviewModal({
+  item,
+  parentName,
+  onClose,
+}: {
+  item: AdminSubrubric | null;
+  parentName?: string;
+  onClose: () => void;
+}) {
+  if (!item) return null;
+  const slug = item.slug || slugify(item.name);
+  const columns = `${item.columnsDesktop ?? item.gridColumns ?? 3}/${item.columnsTablet ?? 2}/${item.columnsMobile ?? 1}`;
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-ink/45 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="mx-auto flex max-h-[92vh] max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-cream shadow-2xl">
+        <div className="flex items-center justify-between border-b border-black/[.06] bg-white px-5 py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[.16em] text-moss/60">Prévisualisation non publiée</p>
+            <h3 className="mt-1 text-xl font-semibold tracking-[-.035em]">{item.name || "Nouvelle sous-rubrique"}</h3>
+          </div>
+          <button onClick={onClose} className="grid size-10 place-items-center rounded-full bg-cream text-ink/55 transition hover:bg-ink hover:text-white"><X size={18} /></button>
+        </div>
+        <div className="overflow-y-auto p-5">
+          <div className="grid gap-5 md:grid-cols-[220px_1fr]">
+            <PreviewImage src={item.photo} alt={item.imageAlt || item.name || "Sous-rubrique"} />
+            <div className="space-y-4">
+              <div className="rounded-3xl bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(item.status)}`}>{item.status}</span>
+                  <span className="rounded-full bg-sage px-3 py-1 text-xs font-semibold text-moss">{item.visible === false ? "Masquée public" : "Visible public"}</span>
+                </div>
+                <p className="mt-4 text-xs font-semibold uppercase tracking-[.14em] text-ink/35">{parentName ?? "Rubrique parente"}</p>
+                <p className="mt-2 text-3xl font-semibold tracking-[-.055em]">{item.icon ? `${item.icon} ` : ""}{item.name || "Nom à compléter"}</p>
+                <p className="mt-3 text-sm leading-7 text-ink/60">{item.description || "Description à compléter avant publication."}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm"><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Slug</p><p className="mt-2 font-semibold">{slug || "À compléter"}</p></div>
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm"><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Ordre</p><p className="mt-2 font-semibold">{item.order || "À compléter"}</p></div>
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm"><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Format</p><p className="mt-2 font-semibold">{item.format ?? "Carré standard"}</p></div>
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm"><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Colonnes</p><p className="mt-2 font-semibold">Desktop / Tablette / Mobile · {columns}</p></div>
+              </div>
+              <p className="rounded-2xl bg-white p-4 text-xs leading-6 text-ink/45 shadow-sm">
+                Cette prévisualisation utilise uniquement les valeurs actuellement affichées dans le formulaire. Aucune publication ni écriture Supabase n’est effectuée.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ctr(clicks: number, impressions: number) {
   if (!impressions) return "0%";
   return `${((clicks / impressions) * 100).toFixed(1)}%`;
@@ -1580,6 +1643,7 @@ export function AdminDashboard() {
   const [events, setEvents] = useState<ReturnType<typeof getAnalyticsEvents>>([]);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
   const [rubricsSupabaseLoaded, setRubricsSupabaseLoaded] = useState(false);
+  const [subrubricsSupabaseLoaded, setSubrubricsSupabaseLoaded] = useState(false);
   const [rubricsOperation, setRubricsOperation] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
@@ -1590,6 +1654,7 @@ export function AdminDashboard() {
   const [simpleAdminGranted, setSimpleAdminGranted] = useState(false);
   const [savingAction, setSavingAction] = useState("");
   const [previewRubric, setPreviewRubric] = useState<AdminRubric | null>(null);
+  const [previewSubrubric, setPreviewSubrubric] = useState<AdminSubrubric | null>(null);
   const [previewEstablishment, setPreviewEstablishment] = useState<AdminEstablishment | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUserProfile[]>([]);
   const [usersMessage, setUsersMessage] = useState("");
@@ -1671,6 +1736,35 @@ export function AdminDashboard() {
   }, [auth.configured, hasAdminAccess, rubricsSupabaseLoaded, setState, state.rubrics, supabaseLoaded]);
 
   useEffect(() => {
+    if (!auth.configured || !hasAdminAccess || !supabaseLoaded || !rubricsSupabaseLoaded || subrubricsSupabaseLoaded) return;
+    let mounted = true;
+    setAdminMessage("Chargement des sous-rubriques Supabase…");
+    listAllSubrubricsForAdmin()
+      .then(async (remoteSubrubrics) => {
+        if (!mounted) return;
+        const nextSubrubrics = remoteSubrubrics.length ? remoteSubrubrics : await importSubrubricsIfMissing(state.subrubrics);
+        if (!mounted) return;
+        if (nextSubrubrics.length) {
+          skipNextAdminStateSave.current = true;
+          setState((current) => normalizeAdminState({ ...current, subrubrics: nextSubrubrics }));
+          window.dispatchEvent(new Event("liberty-admin-published"));
+          setAdminMessage(remoteSubrubrics.length ? "Sous-rubriques chargées depuis Supabase." : "Sous-rubriques existantes importées dans Supabase.");
+        } else {
+          setAdminMessage("Aucune sous-rubrique Supabase trouvée : fallback local conservé.");
+        }
+        setSubrubricsSupabaseLoaded(true);
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setAdminMessage(`Erreur de connexion Supabase sous-rubriques : ${error.message}`);
+        setSubrubricsSupabaseLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [auth.configured, hasAdminAccess, rubricsSupabaseLoaded, setState, state.subrubrics, subrubricsSupabaseLoaded, supabaseLoaded]);
+
+  useEffect(() => {
     setReviews(getReviews());
     setEvents(getAnalyticsEvents());
   }, []);
@@ -1690,7 +1784,7 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded) return;
-    if (active === "rubrics") return;
+    if (active === "rubrics" || active === "subrubrics") return;
     if (skipNextAdminStateSave.current) {
       skipNextAdminStateSave.current = false;
       return;
@@ -1914,8 +2008,10 @@ export function AdminDashboard() {
     setState((current) => ({ ...current, rubrics: current.rubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
   };
 
-  const updateSubrubric = (id: string, patch: Partial<AdminSubrubric>) =>
+  const updateSubrubric = (id: string, patch: Partial<AdminSubrubric>) => {
+    skipNextAdminStateSave.current = true;
     setState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+  };
 
   const updateEstablishment = (id: string, patch: Partial<AdminEstablishment>) =>
     setState((current) => ({
@@ -2083,7 +2179,8 @@ export function AdminDashboard() {
     });
   };
 
-  const addSubrubric = () =>
+  const addSubrubric = () => {
+    skipNextAdminStateSave.current = true;
     setState((current) => {
       const rubricId = current.rubrics[0]?.id ?? "food";
       return {
@@ -2094,14 +2191,26 @@ export function AdminDashboard() {
             id: newId("sous-rubrique"),
             rubricId,
             name: "Nouvelle sous-rubrique",
+            slug: "nouvelle-sous-rubrique",
             description: "Description à compléter",
+            icon: "✨",
             photo: "",
+            imageAlt: "Nouvelle sous-rubrique",
+            visible: true,
+            showPublicly: true,
+            format: "Carré standard",
+            gridColumns: 3,
+            columnsDesktop: 3,
+            columnsTablet: 2,
+            columnsMobile: 1,
+            searchKeywords: [],
             order: current.subrubrics.length + 1,
             status: "Brouillon",
           },
         ],
       };
     });
+  };
 
   const addEstablishment = () =>
     setState((current) => {
@@ -2257,6 +2366,11 @@ export function AdminDashboard() {
     setAdminMessage("Prévisualisation rubrique ouverte sans publication.");
   };
 
+  const previewSubrubricDraft = (subrubric: AdminSubrubric) => {
+    setPreviewSubrubric({ ...subrubric, slug: subrubric.slug || slugify(subrubric.name) });
+    setAdminMessage("Prévisualisation sous-rubrique ouverte sans publication.");
+  };
+
   const applyRubricLocally = (rubric: AdminRubric, successMessage: string) => {
     skipNextAdminStateSave.current = true;
     setState((current) => normalizeAdminState({
@@ -2264,6 +2378,18 @@ export function AdminDashboard() {
       rubrics: current.rubrics.some((item) => item.id === rubric.id)
         ? current.rubrics.map((item) => (item.id === rubric.id ? rubric : item))
         : [rubric, ...current.rubrics],
+    }));
+    window.dispatchEvent(new Event("liberty-admin-published"));
+    setAdminMessage(successMessage);
+  };
+
+  const applySubrubricLocally = (subrubric: AdminSubrubric, successMessage: string) => {
+    skipNextAdminStateSave.current = true;
+    setState((current) => normalizeAdminState({
+      ...current,
+      subrubrics: current.subrubrics.some((item) => item.id === subrubric.id)
+        ? current.subrubrics.map((item) => (item.id === subrubric.id ? subrubric : item))
+        : [subrubric, ...current.subrubrics],
     }));
     window.dispatchEvent(new Event("liberty-admin-published"));
     setAdminMessage(successMessage);
@@ -2409,23 +2535,147 @@ export function AdminDashboard() {
     }
   };
 
-  const saveSubrubricDraft = (subrubric: AdminSubrubric) => {
-    commitState((current) => ({
-      ...current,
-      subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? { ...item, status: "Brouillon" } : item)),
-    }), "Sous-rubrique enregistrée en brouillon.", "Sauvegarde");
-    audit("brouillon", "sous-rubrique", subrubric.id, subrubric.name);
+  const saveSubrubricDraft = async (subrubric: AdminSubrubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`subdraft-${subrubric.id}`);
+    setSavingAction("Sauvegarde sous-rubrique");
+    const draft = { ...subrubric, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await createSubrubricInSupabase(draft);
+        applySubrubricLocally(saved, "Sous-rubrique enregistrée en brouillon.");
+      } else {
+        commitState((current) => ({
+          ...current,
+          subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? draft : item)),
+        }), "Sous-rubrique enregistrée en brouillon.", "Sauvegarde");
+      }
+      audit("brouillon", "sous-rubrique", subrubric.id, subrubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de sauvegarde sous-rubrique : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
   };
 
-  const publishSubrubric = (subrubric: AdminSubrubric) => {
+  const publishSubrubric = async (subrubric: AdminSubrubric) => {
+    if (savingAction || rubricsOperation) return;
     const slug = subrubric.slug || slugify(subrubric.name);
-    if (!requireFields([["nom", subrubric.name], ["slug", slug], ["description", subrubric.description], ["photo", subrubric.photo], ["ordre", subrubric.order]])) return;
+    if (!requireFields([["rubrique parente", subrubric.rubricId], ["nom", subrubric.name], ["slug", slug], ["description", subrubric.description], ["photo", subrubric.photo], ["texte alternatif", subrubric.imageAlt], ["ordre", subrubric.order]])) return;
     if (!confirmSeoPublication("subcategory", subrubric.id)) return;
-    commitState((current) => ({
-      ...current,
-      subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? { ...item, slug, status: "Publié", visible: true } : item)),
-    }), "Sous-rubrique publiée avec succès.", "Publication");
-    audit("publication", "sous-rubrique", subrubric.id, subrubric.name);
+    setRubricsOperation(`subpublish-${subrubric.id}`);
+    setSavingAction("Publication sous-rubrique");
+    const next = { ...subrubric, slug, status: "Publié" as AdminStatus, visible: true, showPublicly: true, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await publishSubrubricInSupabase(next);
+        applySubrubricLocally(saved, "Sous-rubrique publiée avec succès.");
+      } else {
+        commitState((current) => ({
+          ...current,
+          subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? next : item)),
+        }), "Sous-rubrique publiée avec succès.", "Publication");
+      }
+      audit("publication", "sous-rubrique", subrubric.id, subrubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de publication sous-rubrique : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const duplicateSubrubric = async (subrubric: AdminSubrubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`subduplicate-${subrubric.id}`);
+    setSavingAction("Duplication sous-rubrique");
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const copy = await duplicateSubrubricInSupabase(subrubric);
+        skipNextAdminStateSave.current = true;
+        setState((current) => normalizeAdminState({ ...current, subrubrics: [copy, ...current.subrubrics] }));
+      } else {
+        const copy = { ...subrubric, id: newId("sous-rubrique"), name: `${subrubric.name} copie`, slug: `${subrubric.slug ?? slugify(subrubric.name)}-copie`, status: "Brouillon" as AdminStatus, order: state.subrubrics.length + 1 };
+        setState((current) => normalizeAdminState({ ...current, subrubrics: [copy, ...current.subrubrics] }));
+      }
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Sous-rubrique dupliquée en brouillon.");
+      audit("duplication", "sous-rubrique", subrubric.id, subrubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de duplication sous-rubrique : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const hideSubrubric = async (subrubric: AdminSubrubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`subhide-${subrubric.id}`);
+    setSavingAction("Masquage sous-rubrique");
+    const hidden = { ...subrubric, status: "Masqué" as AdminStatus, visible: false, showPublicly: false, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await hideSubrubricInSupabase(hidden);
+        applySubrubricLocally(saved, "Sous-rubrique masquée.");
+      } else {
+        commitState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => item.id === subrubric.id ? hidden : item) }), "Sous-rubrique masquée avec succès.", "Masquage");
+      }
+      audit("masquage", "sous-rubrique", subrubric.id, subrubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de masquage sous-rubrique : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const trashSubrubric = async (subrubric: AdminSubrubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`subtrash-${subrubric.id}`);
+    setSavingAction("Corbeille sous-rubrique");
+    try {
+      if (auth.configured && hasAdminAccess) await moveSubrubricToTrashInSupabase(subrubric);
+      skipNextAdminStateSave.current = true;
+      moveToTrash("sous-rubrique", subrubric.name, subrubric, (current) => ({ ...current, subrubrics: current.subrubrics.filter((item) => item.id !== subrubric.id) }));
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Sous-rubrique envoyée dans la corbeille.");
+    } catch (error) {
+      setAdminMessage(`Échec de suppression sous-rubrique : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const reorderSubrubric = async (id: string, direction: -1 | 1) => {
+    if (savingAction || rubricsOperation) return;
+    const current = state.subrubrics.find((item) => item.id === id);
+    if (!current) return;
+    const sorted = [...state.subrubrics].filter((item) => item.rubricId === current.rubricId).sort((a, b) => a.order - b.order);
+    const index = sorted.findIndex((item) => item.id === id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= sorted.length) return;
+    const reordered = [...sorted];
+    const [item] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, item);
+    const nextGroup = reordered.map((subrubric, orderIndex) => ({ ...subrubric, order: orderIndex + 1 }));
+    const nextSubrubrics = state.subrubrics.map((subrubric) => nextGroup.find((item) => item.id === subrubric.id) ?? subrubric);
+    setRubricsOperation(`suborder-${id}`);
+    setSavingAction("Ordre sous-rubriques");
+    try {
+      if (auth.configured && hasAdminAccess) await updateSubrubricOrder(nextGroup);
+      skipNextAdminStateSave.current = true;
+      setState((currentState) => normalizeAdminState({ ...currentState, subrubrics: nextSubrubrics }));
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Ordre des sous-rubriques enregistré.");
+    } catch (error) {
+      setAdminMessage(`Échec de réorganisation sous-rubriques : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
   };
 
   const saveEstablishmentDraft = (establishment: AdminEstablishment) => {
@@ -2504,11 +2754,14 @@ export function AdminDashboard() {
       if (trashItem.entityType === "rubrique" && auth.configured && hasAdminAccess) {
         restoredPayload = await restoreRubricInSupabase(trashItem.payload as AdminRubric);
       }
-      if (trashItem.entityType === "rubrique") skipNextAdminStateSave.current = true;
+      if (trashItem.entityType === "sous-rubrique" && auth.configured && hasAdminAccess) {
+        restoredPayload = await restoreSubrubricInSupabase(trashItem.payload as AdminSubrubric);
+      }
+      if (trashItem.entityType === "rubrique" || trashItem.entityType === "sous-rubrique") skipNextAdminStateSave.current = true;
       setState((current) => {
         const next = { ...current, trash: current.trash.filter((item) => item.id !== trashItem.id) };
         if (trashItem.entityType === "rubrique") next.rubrics = [restoredPayload as AdminRubric, ...next.rubrics];
-        if (trashItem.entityType === "sous-rubrique") next.subrubrics = [trashItem.payload as AdminSubrubric, ...next.subrubrics];
+        if (trashItem.entityType === "sous-rubrique") next.subrubrics = [restoredPayload as AdminSubrubric, ...next.subrubrics];
         if (trashItem.entityType === "fiche") next.establishments = [trashItem.payload as AdminEstablishment, ...next.establishments];
         if (trashItem.entityType === "bannière") next.banners = [trashItem.payload as AdminBanner, ...next.banners];
         if (trashItem.entityType === "tag") next.tags = [trashItem.payload as AdminTag, ...next.tags];
@@ -2895,8 +3148,16 @@ export function AdminDashboard() {
 
             {active === "subrubrics" && (
               <Panel title="Sous-rubriques" subtitle="Créer autant de sous-rubriques que nécessaire pour chaque rubrique." actionLabel="Ajouter une sous-rubrique" onAction={addSubrubric}>
+                {(rubricsOperation || (!subrubricsSupabaseLoaded && auth.configured)) && (
+                  <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
+                    {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des sous-rubriques Supabase…"}
+                  </p>
+                )}
                 <div className="mt-6 overflow-hidden rounded-3xl border border-black/5 bg-white">
-                  {state.subrubrics.sort((a, b) => a.order - b.order).map((subrubric) => (
+                  {[...state.subrubrics].sort((a, b) => {
+                    const parent = a.rubricId.localeCompare(b.rubricId);
+                    return parent || a.order - b.order;
+                  }).map((subrubric) => (
                     <div key={subrubric.id} className="grid gap-3 border-b border-black/5 p-4 last:border-b-0 lg:grid-cols-[36px_1fr_1fr_90px_140px_148px] lg:items-center">
                       <GripVertical size={16} className="text-ink/25" />
                       <Field label="Nom" value={subrubric.name} onChange={(value) => updateSubrubric(subrubric.id, { name: value })} />
@@ -2908,38 +3169,50 @@ export function AdminDashboard() {
                         <option>Publié</option><option>Brouillon</option><option>Masqué</option>
                       </SelectField>
                       <div className="flex gap-2">
-                        <button onClick={() => reorderById("subrubrics", subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55">↑</button>
-                        <button onClick={() => reorderById("subrubrics", subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55">↓</button>
-                        <button onClick={() => { const copy = { ...subrubric, id: newId("sous-rubrique"), name: `${subrubric.name} copie`, slug: `${subrubric.slug ?? slugify(subrubric.name)}-copie`, status: "Brouillon" as AdminStatus, order: state.subrubrics.length + 1 }; setState((current) => ({ ...current, subrubrics: [copy, ...current.subrubrics] })); audit("duplication", "sous-rubrique", subrubric.id, subrubric.name); }} className="grid size-8 place-items-center rounded-full bg-sage text-moss"><Plus size={13} /></button>
+                        <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
+                        <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
+                        <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateSubrubric(subrubric)} className="grid size-8 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45"><Plus size={13} /></button>
                         <button
-                          onClick={() => moveToTrash("sous-rubrique", subrubric.name, subrubric, (current) => ({ ...current, subrubrics: current.subrubrics.filter((item) => item.id !== subrubric.id) }))}
-                          className="grid size-8 place-items-center rounded-full bg-rose-50 text-rose-500"
+                          disabled={Boolean(savingAction || rubricsOperation)}
+                          onClick={() => void trashSubrubric(subrubric)}
+                          className="grid size-8 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           <Trash2 size={13} />
                         </button>
                       </div>
                       <div className="lg:col-span-6">
                         <FormActionBar
-                          disabled={Boolean(savingAction)}
-                          onDraft={() => saveSubrubricDraft(subrubric)}
-                          onPreview={() => {
-                            const rubric = state.rubrics.find((item) => item.id === subrubric.rubricId);
-                            previewPublicUrl(`/${rubric?.slug ?? subrubric.rubricId}/${subrubric.slug ?? slugify(subrubric.name)}`);
-                          }}
-                          onPublish={() => publishSubrubric(subrubric)}
-                          onHide={() => commitState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => item.id === subrubric.id ? { ...item, status: "Masqué", visible: false } : item) }), "Sous-rubrique masquée avec succès.", "Masquage")}
-                          onTrash={() => moveToTrash("sous-rubrique", subrubric.name, subrubric, (current) => ({ ...current, subrubrics: current.subrubrics.filter((item) => item.id !== subrubric.id) }))}
+                          disabled={Boolean(savingAction || rubricsOperation)}
+                          publishing={rubricsOperation === `subpublish-${subrubric.id}`}
+                          onDraft={() => void saveSubrubricDraft(subrubric)}
+                          onPreview={() => previewSubrubricDraft(subrubric)}
+                          onPublish={() => void publishSubrubric(subrubric)}
+                          onHide={() => void hideSubrubric(subrubric)}
+                          onTrash={() => void trashSubrubric(subrubric)}
                         />
-                        <div className="grid gap-3 lg:grid-cols-2">
+                        <div className="grid gap-3 lg:grid-cols-3">
                           <Field label="Slug" value={subrubric.slug ?? slugify(subrubric.name)} onChange={(value) => updateSubrubric(subrubric.id, { slug: value })} />
                           <Field label="Description" value={subrubric.description} onChange={(value) => updateSubrubric(subrubric.id, { description: value })} />
                           <ImageUploadField label="Photo" value={subrubric.photo} folder="subrubrics" onChange={(value) => updateSubrubric(subrubric.id, { photo: value })} />
                           <Field label="Texte alternatif" value={subrubric.imageAlt ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { imageAlt: value })} />
                           <Field label="Icône" value={subrubric.icon ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { icon: value })} />
-                          <SelectField label="Colonnes de grille" value={String(subrubric.gridColumns ?? 3)} onChange={(value) => updateSubrubric(subrubric.id, { gridColumns: Number(value) as 1 | 2 | 3 | 4 })}>
-                            <option value="1">1 colonne</option><option value="2">2 colonnes</option><option value="3">3 colonnes</option><option value="4">4 colonnes</option>
+                          <SelectField label="Format de carte" value={subrubric.format ?? "Carré standard"} onChange={(value) => updateSubrubric(subrubric.id, { format: value as RubricFormat })}>
+                            <option>Petit carré</option>
+                            <option>Carré standard</option>
+                            <option>Grand carré</option>
+                            <option>Rectangle horizontal</option>
+                            <option>Bannière pleine largeur</option>
                           </SelectField>
-                          <Toggle label="Affichage sur le site" checked={subrubric.visible ?? true} onChange={(value) => updateSubrubric(subrubric.id, { visible: value })} />
+                          <SelectField label="Colonnes desktop" value={String(subrubric.columnsDesktop ?? subrubric.gridColumns ?? 3)} onChange={(value) => updateSubrubric(subrubric.id, { columnsDesktop: Number(value) as 2 | 3 | 4, gridColumns: Number(value) as 1 | 2 | 3 | 4 })}>
+                            <option value="2">2 colonnes</option><option value="3">3 colonnes</option><option value="4">4 colonnes</option>
+                          </SelectField>
+                          <SelectField label="Colonnes tablette" value={String(subrubric.columnsTablet ?? 2)} onChange={(value) => updateSubrubric(subrubric.id, { columnsTablet: Number(value) as 1 | 2 | 3 })}>
+                            <option value="1">1 colonne</option><option value="2">2 colonnes</option><option value="3">3 colonnes</option>
+                          </SelectField>
+                          <SelectField label="Colonnes mobile" value={String(subrubric.columnsMobile ?? 1)} onChange={(value) => updateSubrubric(subrubric.id, { columnsMobile: Number(value) as 1 | 2 })}>
+                            <option value="1">1 colonne</option><option value="2">2 colonnes</option>
+                          </SelectField>
+                          <Toggle label="Affichage public" checked={subrubric.visible ?? subrubric.showPublicly ?? true} onChange={(value) => updateSubrubric(subrubric.id, { visible: value, showPublicly: value })} />
                           <Field label="Mots-clés" value={(subrubric.searchKeywords ?? []).join(", ")} onChange={(value) => updateSubrubric(subrubric.id, { searchKeywords: cleanTextList(value) })} />
                         </div>
                       </div>
@@ -4093,6 +4366,7 @@ export function AdminDashboard() {
       </div>
     </section>
     <RubricPreviewModal item={previewRubric} onClose={() => setPreviewRubric(null)} />
+    <SubrubricPreviewModal item={previewSubrubric} parentName={state.rubrics.find((rubric) => rubric.id === previewSubrubric?.rubricId)?.name} onClose={() => setPreviewSubrubric(null)} />
     <EstablishmentPreviewModal item={previewEstablishment} tags={state.tags} onClose={() => setPreviewEstablishment(null)} />
     </>
   );

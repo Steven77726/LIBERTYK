@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ChevronRight, Compass, MapPin, Search } from "lucide-react";
+import { ArrowRight, Compass, MapPin, Search } from "lucide-react";
 import { notFound } from "next/navigation";
 import { categories, categoryBySlug } from "@/data/categories";
 import { categoryCards } from "@/data/mock";
+import { GenericSubrubricGrid } from "@/components/ui/subrubric-grids";
 
 type Props = { params: Promise<{ category: string }> };
 
@@ -38,7 +39,7 @@ export default async function CategoryPage({ params }: Props) {
 
       <section className="page-shell py-20">
         <p className="eyebrow">Explorer</p><h2 className="section-title">Que recherchez-vous ?</h2>
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">{category.featured.map((item, index) => <div key={item} className="group flex items-center justify-between rounded-3xl border border-black/5 bg-white p-6 transition hover:-translate-y-1 hover:shadow-soft"><div><span className="text-xs text-ink/35">0{index + 1}</span><h3 className="mt-5 text-lg font-semibold">{item}</h3></div><span className="grid size-10 place-items-center rounded-full bg-cream transition group-hover:bg-ink group-hover:text-white"><ChevronRight size={17} /></span></div>)}</div>
+        <GenericSubrubricGrid rubricSlug={category.slug} />
       </section>
 
       <section className="page-shell py-8">

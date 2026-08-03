@@ -1487,6 +1487,68 @@ function EstablishmentPreviewModal({
   );
 }
 
+function RubricPreviewModal({
+  item,
+  onClose,
+}: {
+  item: AdminRubric | null;
+  onClose: () => void;
+}) {
+  if (!item) return null;
+  const slug = item.slug || slugify(item.name);
+  const columns = `${item.columnsDesktop ?? 3}/${item.columnsTablet ?? 2}/${item.columnsMobile ?? 1}`;
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-ink/45 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="mx-auto flex max-h-[92vh] max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-cream shadow-2xl">
+        <div className="flex items-center justify-between border-b border-black/[.06] bg-white px-5 py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[.16em] text-moss/60">Prévisualisation non publiée</p>
+            <h3 className="mt-1 text-xl font-semibold tracking-[-.035em]">{item.name || "Nouvelle rubrique"}</h3>
+          </div>
+          <button onClick={onClose} className="grid size-10 place-items-center rounded-full bg-cream text-ink/55 transition hover:bg-ink hover:text-white"><X size={18} /></button>
+        </div>
+        <div className="overflow-y-auto p-5">
+          <div className="grid gap-5 md:grid-cols-[220px_1fr]">
+            <PreviewImage src={item.image} alt={item.imageAlt || item.name || "Rubrique"} />
+            <div className="space-y-4">
+              <div className="rounded-3xl bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(item.status)}`}>{item.status}</span>
+                  <span className="rounded-full bg-sage px-3 py-1 text-xs font-semibold text-moss">{item.showOnHome === false ? "Masquée Home" : "Visible Home"}</span>
+                </div>
+                <p className="mt-4 text-3xl font-semibold tracking-[-.055em]">{item.icon ? `${item.icon} ` : ""}{item.name || "Nom à compléter"}</p>
+                <p className="mt-3 text-sm leading-7 text-ink/60">{item.description || "Description à compléter avant publication."}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Slug</p>
+                  <p className="mt-2 font-semibold">{slug || "À compléter"}</p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Ordre</p>
+                  <p className="mt-2 font-semibold">{item.order || "À compléter"}</p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Format</p>
+                  <p className="mt-2 font-semibold">{item.format ?? "Carré standard"}</p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 text-sm shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Colonnes</p>
+                  <p className="mt-2 font-semibold">Desktop / Tablette / Mobile · {columns}</p>
+                </div>
+              </div>
+              <p className="rounded-2xl bg-white p-4 text-xs leading-6 text-ink/45 shadow-sm">
+                Cette prévisualisation utilise uniquement les valeurs actuellement affichées dans le formulaire. Aucune publication ni écriture Supabase n’est effectuée.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ctr(clicks: number, impressions: number) {
   if (!impressions) return "0%";
   return `${((clicks / impressions) * 100).toFixed(1)}%`;
@@ -1527,6 +1589,7 @@ export function AdminDashboard() {
   const [simpleAdminReady, setSimpleAdminReady] = useState(false);
   const [simpleAdminGranted, setSimpleAdminGranted] = useState(false);
   const [savingAction, setSavingAction] = useState("");
+  const [previewRubric, setPreviewRubric] = useState<AdminRubric | null>(null);
   const [previewEstablishment, setPreviewEstablishment] = useState<AdminEstablishment | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUserProfile[]>([]);
   const [usersMessage, setUsersMessage] = useState("");
@@ -2189,6 +2252,11 @@ export function AdminDashboard() {
     setAdminMessage("Prévisualisation ouverte dans un nouvel onglet.");
   };
 
+  const previewRubricDraft = (rubric: AdminRubric) => {
+    setPreviewRubric({ ...rubric, slug: rubric.slug || slugify(rubric.name) });
+    setAdminMessage("Prévisualisation rubrique ouverte sans publication.");
+  };
+
   const applyRubricLocally = (rubric: AdminRubric, successMessage: string) => {
     skipNextAdminStateSave.current = true;
     setState((current) => normalizeAdminState({
@@ -2777,7 +2845,7 @@ export function AdminDashboard() {
                         disabled={Boolean(savingAction || rubricsOperation)}
                         publishing={rubricsOperation === `publish-${rubric.id}`}
                         onDraft={() => saveRubricDraft(rubric)}
-                        onPreview={() => previewPublicUrl(`/${rubric.slug ?? slugify(rubric.name)}`)}
+                        onPreview={() => previewRubricDraft(rubric)}
                         onPublish={() => publishRubric(rubric)}
                         onHide={() => void hideRubric(rubric)}
                         onTrash={() => void trashRubric(rubric)}
@@ -4024,6 +4092,7 @@ export function AdminDashboard() {
         </div>
       </div>
     </section>
+    <RubricPreviewModal item={previewRubric} onClose={() => setPreviewRubric(null)} />
     <EstablishmentPreviewModal item={previewEstablishment} tags={state.tags} onClose={() => setPreviewEstablishment(null)} />
     </>
   );

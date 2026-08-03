@@ -20,7 +20,5 @@ export function getSupabaseBrowserClient() {
 }
 
 export function getAuthRedirectUrl(path = "/mon-compte") {
-  if (typeof window === "undefined") return path;
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  return `${window.location.origin}${basePath}${path}`;
+  return `https://steven77726.github.io/LIBERTYK${path}`;
 }

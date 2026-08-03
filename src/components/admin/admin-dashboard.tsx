@@ -43,6 +43,17 @@ import { hasAdminSession } from "@/components/admin/admin-access-gate";
 import { uploadLibertyImage } from "@/lib/supabase/storage";
 import { fetchRealAnalyticsEvents, loadAdminStateFromSupabase, saveAdminStateToSupabase, saveSeoAnalysisHistory, writeAuditLog } from "@/lib/supabase/admin-state";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  createRubric as createRubricInSupabase,
+  duplicateRubric as duplicateRubricInSupabase,
+  hideRubric as hideRubricInSupabase,
+  importRubricsIfMissing,
+  listAllRubricsForAdmin,
+  moveRubricToTrash as moveRubricToTrashInSupabase,
+  publishRubric as publishRubricInSupabase,
+  restoreRubric as restoreRubricInSupabase,
+  updateRubricOrder,
+} from "@/lib/supabase/rubrics-repository";
 
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
 type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
@@ -1506,6 +1517,8 @@ export function AdminDashboard() {
   const [reviews, setReviews] = useState<ReturnType<typeof getReviews>>([]);
   const [events, setEvents] = useState<ReturnType<typeof getAnalyticsEvents>>([]);
   const [supabaseLoaded, setSupabaseLoaded] = useState(false);
+  const [rubricsSupabaseLoaded, setRubricsSupabaseLoaded] = useState(false);
+  const [rubricsOperation, setRubricsOperation] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -1562,6 +1575,34 @@ export function AdminDashboard() {
   }, []);
 
   const hasAdminAccess = simpleAdminGranted || (auth.configured && auth.isAdmin);
+
+  useEffect(() => {
+    if (!auth.configured || !hasAdminAccess || !supabaseLoaded || rubricsSupabaseLoaded) return;
+    let mounted = true;
+    setAdminMessage("Chargement des rubriques Supabase…");
+    listAllRubricsForAdmin()
+      .then(async (remoteRubrics) => {
+        if (!mounted) return;
+        const nextRubrics = remoteRubrics.length ? remoteRubrics : await importRubricsIfMissing(state.rubrics);
+        if (!mounted) return;
+        if (nextRubrics.length) {
+          setState((current) => normalizeAdminState({ ...current, rubrics: nextRubrics }));
+          window.dispatchEvent(new Event("liberty-admin-published"));
+          setAdminMessage(remoteRubrics.length ? "Rubriques chargées depuis Supabase." : "Rubriques existantes importées dans Supabase.");
+        } else {
+          setAdminMessage("Aucune rubrique Supabase trouvée : fallback local conservé.");
+        }
+        setRubricsSupabaseLoaded(true);
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setAdminMessage(`Erreur de connexion Supabase rubriques : ${error.message}`);
+        setRubricsSupabaseLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [auth.configured, hasAdminAccess, rubricsSupabaseLoaded, setState, state.rubrics, supabaseLoaded]);
 
   useEffect(() => {
     setReviews(getReviews());
@@ -2116,23 +2157,152 @@ export function AdminDashboard() {
     setAdminMessage("Prévisualisation ouverte dans un nouvel onglet.");
   };
 
-  const saveRubricDraft = (rubric: AdminRubric) => {
-    commitState((current) => ({
+  const applyRubricLocally = (rubric: AdminRubric, successMessage: string) => {
+    setState((current) => normalizeAdminState({
       ...current,
-      rubrics: current.rubrics.map((item) => (item.id === rubric.id ? { ...item, status: "Brouillon", updatedAt: new Date().toISOString() } : item)),
-    }), "Rubrique enregistrée en brouillon.", "Sauvegarde");
-    audit("brouillon", "rubrique", rubric.id, rubric.name);
+      rubrics: current.rubrics.some((item) => item.id === rubric.id)
+        ? current.rubrics.map((item) => (item.id === rubric.id ? rubric : item))
+        : [rubric, ...current.rubrics],
+    }));
+    window.dispatchEvent(new Event("liberty-admin-published"));
+    setAdminMessage(successMessage);
   };
 
-  const publishRubric = (rubric: AdminRubric) => {
+  const saveRubricDraft = async (rubric: AdminRubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`draft-${rubric.id}`);
+    setSavingAction("Sauvegarde rubrique");
+    const draft = { ...rubric, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await createRubricInSupabase(draft);
+        applyRubricLocally(saved, "Rubrique enregistrée en brouillon.");
+      } else {
+        commitState((current) => ({
+          ...current,
+          rubrics: current.rubrics.map((item) => (item.id === rubric.id ? draft : item)),
+        }), "Rubrique enregistrée en brouillon.", "Sauvegarde");
+      }
+      audit("brouillon", "rubrique", rubric.id, rubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de sauvegarde rubrique : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const publishRubric = async (rubric: AdminRubric) => {
+    if (savingAction || rubricsOperation) return;
     const slug = rubric.slug || slugify(rubric.name);
     if (!requireFields([["nom", rubric.name], ["slug", slug], ["description", rubric.description], ["icône", rubric.icon], ["image principale", rubric.image], ["texte alternatif", rubric.imageAlt], ["ordre d’affichage", rubric.order]])) return;
     if (!confirmSeoPublication("category", rubric.id)) return;
-    commitState((current) => ({
-      ...current,
-      rubrics: current.rubrics.map((item) => (item.id === rubric.id ? { ...item, slug, status: "Publié", showOnHome: item.showOnHome ?? true, updatedAt: new Date().toISOString() } : item)),
-    }), "Rubrique publiée avec succès.", "Publication");
-    audit("publication", "rubrique", rubric.id, rubric.name);
+    setRubricsOperation(`publish-${rubric.id}`);
+    setSavingAction("Publication rubrique");
+    const next = { ...rubric, slug, status: "Publié" as AdminStatus, showOnHome: rubric.showOnHome ?? true, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await publishRubricInSupabase(next);
+        applyRubricLocally(saved, "Rubrique publiée avec succès.");
+      } else {
+        commitState((current) => ({
+          ...current,
+          rubrics: current.rubrics.map((item) => (item.id === rubric.id ? next : item)),
+        }), "Rubrique publiée avec succès.", "Publication");
+      }
+      audit("publication", "rubrique", rubric.id, rubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de publication : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const duplicateRubric = async (rubric: AdminRubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`duplicate-${rubric.id}`);
+    setSavingAction("Duplication rubrique");
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const copy = await duplicateRubricInSupabase(rubric);
+        setState((current) => normalizeAdminState({ ...current, rubrics: [copy, ...current.rubrics] }));
+      } else {
+        const copy = { ...rubric, id: newId("rubrique"), name: `${rubric.name} copie`, slug: `${rubric.slug ?? slugify(rubric.name)}-copie`, status: "Brouillon" as AdminStatus, order: state.rubrics.length + 1 };
+        setState((current) => normalizeAdminState({ ...current, rubrics: [copy, ...current.rubrics] }));
+      }
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Rubrique dupliquée en brouillon.");
+      audit("duplication", "rubrique", rubric.id, rubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de duplication : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const hideRubric = async (rubric: AdminRubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`hide-${rubric.id}`);
+    setSavingAction("Masquage rubrique");
+    try {
+      const hidden = { ...rubric, status: "Masqué" as AdminStatus, updatedAt: new Date().toISOString() };
+      if (auth.configured && hasAdminAccess) {
+        const saved = await hideRubricInSupabase(hidden);
+        applyRubricLocally(saved, "Rubrique masquée.");
+      } else {
+        commitState((current) => ({ ...current, rubrics: current.rubrics.map((item) => item.id === rubric.id ? hidden : item) }), "Rubrique masquée avec succès.", "Masquage");
+      }
+      audit("masquage", "rubrique", rubric.id, rubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de masquage : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const trashRubric = async (rubric: AdminRubric) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`trash-${rubric.id}`);
+    setSavingAction("Corbeille rubrique");
+    try {
+      if (auth.configured && hasAdminAccess) await moveRubricToTrashInSupabase(rubric);
+      moveToTrash("rubrique", rubric.name, rubric, (current) => ({ ...current, rubrics: current.rubrics.filter((item) => item.id !== rubric.id) }));
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Rubrique envoyée dans la corbeille.");
+    } catch (error) {
+      setAdminMessage(`Échec de suppression : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const reorderRubric = async (id: string, direction: -1 | 1) => {
+    if (savingAction || rubricsOperation) return;
+    const sorted = [...state.rubrics].sort((a, b) => a.order - b.order);
+    const index = sorted.findIndex((item) => item.id === id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= sorted.length) return;
+    const reordered = [...sorted];
+    const [item] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, item);
+    const nextRubrics = reordered.map((rubric, orderIndex) => ({ ...rubric, order: orderIndex + 1 }));
+    setRubricsOperation(`order-${id}`);
+    setSavingAction("Ordre rubriques");
+    try {
+      if (auth.configured && hasAdminAccess) await updateRubricOrder(nextRubrics);
+      setState((current) => normalizeAdminState({ ...current, rubrics: nextRubrics }));
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Ordre des rubriques enregistré.");
+    } catch (error) {
+      setAdminMessage(`Échec de réorganisation : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
   };
 
   const saveSubrubricDraft = (subrubric: AdminSubrubric) => {
@@ -2222,19 +2392,33 @@ export function AdminDashboard() {
     audit("suppression_corbeille", entityType, payload.id, label, { trashItem });
   };
 
-  const restoreTrashItem = (trashItem: TrashItem) => {
-    setState((current) => {
-      const next = { ...current, trash: current.trash.filter((item) => item.id !== trashItem.id) };
-      if (trashItem.entityType === "rubrique") next.rubrics = [trashItem.payload as AdminRubric, ...next.rubrics];
-      if (trashItem.entityType === "sous-rubrique") next.subrubrics = [trashItem.payload as AdminSubrubric, ...next.subrubrics];
-      if (trashItem.entityType === "fiche") next.establishments = [trashItem.payload as AdminEstablishment, ...next.establishments];
-      if (trashItem.entityType === "bannière") next.banners = [trashItem.payload as AdminBanner, ...next.banners];
-      if (trashItem.entityType === "tag") next.tags = [trashItem.payload as AdminTag, ...next.tags];
-      if (trashItem.entityType === "certification") next.certifications = [trashItem.payload as AdminCertification, ...next.certifications];
-      if (trashItem.entityType === "notification") next.notifications = [trashItem.payload as AdminNotification, ...next.notifications];
-      return next;
-    });
-    audit("restauration", trashItem.entityType, trashItem.id, trashItem.label);
+  const restoreTrashItem = async (trashItem: TrashItem) => {
+    if (savingAction || rubricsOperation) return;
+    setRubricsOperation(`restore-${trashItem.id}`);
+    try {
+      let restoredPayload = trashItem.payload;
+      if (trashItem.entityType === "rubrique" && auth.configured && hasAdminAccess) {
+        restoredPayload = await restoreRubricInSupabase(trashItem.payload as AdminRubric);
+      }
+      setState((current) => {
+        const next = { ...current, trash: current.trash.filter((item) => item.id !== trashItem.id) };
+        if (trashItem.entityType === "rubrique") next.rubrics = [restoredPayload as AdminRubric, ...next.rubrics];
+        if (trashItem.entityType === "sous-rubrique") next.subrubrics = [trashItem.payload as AdminSubrubric, ...next.subrubrics];
+        if (trashItem.entityType === "fiche") next.establishments = [trashItem.payload as AdminEstablishment, ...next.establishments];
+        if (trashItem.entityType === "bannière") next.banners = [trashItem.payload as AdminBanner, ...next.banners];
+        if (trashItem.entityType === "tag") next.tags = [trashItem.payload as AdminTag, ...next.tags];
+        if (trashItem.entityType === "certification") next.certifications = [trashItem.payload as AdminCertification, ...next.certifications];
+        if (trashItem.entityType === "notification") next.notifications = [trashItem.payload as AdminNotification, ...next.notifications];
+        return normalizeAdminState(next);
+      });
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage("Élément restauré.");
+      audit("restauration", trashItem.entityType, trashItem.id, trashItem.label);
+    } catch (error) {
+      setAdminMessage(`Échec de restauration : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+    }
   };
 
   if (!simpleAdminReady) {
@@ -2512,38 +2696,45 @@ export function AdminDashboard() {
 
             {active === "rubrics" && (
               <Panel title="Rubriques" subtitle="Ajouter, modifier, masquer, publier et organiser les catégories principales." actionLabel="Ajouter une rubrique" onAction={addRubric}>
+                {(rubricsOperation || (!rubricsSupabaseLoaded && auth.configured)) && (
+                  <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
+                    {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des rubriques Supabase…"}
+                  </p>
+                )}
                 <div className="mt-6 grid gap-4 xl:grid-cols-2">
                   {state.rubrics.sort((a, b) => a.order - b.order).map((rubric) => (
                     <article key={rubric.id} className="rounded-3xl border border-black/5 bg-white p-5">
                       <div className="flex items-center justify-between gap-3">
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(rubric.status)}`}>{rubric.status}</span>
                         <div className="flex gap-2">
-                          <button onClick={() => { const copy = { ...rubric, id: newId("rubrique"), name: `${rubric.name} copie`, slug: `${rubric.slug ?? slugify(rubric.name)}-copie`, status: "Brouillon" as AdminStatus, order: state.rubrics.length + 1 }; setState((current) => ({ ...current, rubrics: [copy, ...current.rubrics] })); audit("duplication", "rubrique", rubric.id, rubric.name); }} className="grid size-9 place-items-center rounded-full bg-sage text-moss">
+                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45">
                             <Plus size={15} />
                           </button>
-                          <button onClick={() => updateRubric(rubric.id, { status: "Publié" })} className="grid size-9 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void publishRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-emerald-50 text-emerald-700 disabled:cursor-not-allowed disabled:opacity-45">
                             <CheckCircle2 size={15} />
                           </button>
-                          <button onClick={() => reorderById("rubrics", rubric.id, -1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55">↑</button>
-                          <button onClick={() => reorderById("rubrics", rubric.id, 1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55">↓</button>
-                          <button onClick={() => updateRubric(rubric.id, { status: rubric.status === "Masqué" ? "Publié" : "Masqué" })} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55">
+                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, -1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
+                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, 1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
+                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void (rubric.status === "Masqué" ? publishRubric(rubric) : hideRubric(rubric))} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">
                             {rubric.status === "Masqué" ? <Eye size={15} /> : <EyeOff size={15} />}
                           </button>
                           <button
-                            onClick={() => moveToTrash("rubrique", rubric.name, rubric, (current) => ({ ...current, rubrics: current.rubrics.filter((item) => item.id !== rubric.id) }))}
-                            className="grid size-9 place-items-center rounded-full bg-rose-50 text-rose-500"
+                            disabled={Boolean(savingAction || rubricsOperation)}
+                            onClick={() => void trashRubric(rubric)}
+                            className="grid size-9 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
                           >
                             <Trash2 size={15} />
                           </button>
                         </div>
                       </div>
                       <FormActionBar
-                        disabled={Boolean(savingAction)}
+                        disabled={Boolean(savingAction || rubricsOperation)}
+                        publishing={rubricsOperation === `publish-${rubric.id}`}
                         onDraft={() => saveRubricDraft(rubric)}
                         onPreview={() => previewPublicUrl(`/${rubric.slug ?? slugify(rubric.name)}`)}
                         onPublish={() => publishRubric(rubric)}
-                        onHide={() => commitState((current) => ({ ...current, rubrics: current.rubrics.map((item) => item.id === rubric.id ? { ...item, status: "Masqué" } : item) }), "Rubrique masquée avec succès.", "Masquage")}
-                        onTrash={() => moveToTrash("rubrique", rubric.name, rubric, (current) => ({ ...current, rubrics: current.rubrics.filter((item) => item.id !== rubric.id) }))}
+                        onHide={() => void hideRubric(rubric)}
+                        onTrash={() => void trashRubric(rubric)}
                       />
                       <div className="mt-4 grid gap-4 sm:grid-cols-[120px_1fr]">
                         <PreviewImage src={rubric.image} alt={rubric.name} />

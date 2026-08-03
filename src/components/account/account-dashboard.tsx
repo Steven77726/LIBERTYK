@@ -26,8 +26,19 @@ export function AccountDashboard() {
 
   const submitEmail = async () => {
     setMessage("");
-    const result = mode === "signin" ? await auth.signInWithEmail(email, password) : await auth.signUpWithEmail(email, password);
-    setMessage(result.error ?? (mode === "signin" ? "Connexion réussie." : "Compte créé. Vérifiez votre email si Supabase demande une confirmation."));
+    if (mode === "signin") {
+      const result = await auth.signInWithEmail(email, password);
+      setMessage(result.error ?? "Connexion réussie.");
+      return;
+    }
+    const result = await auth.signUpWithEmail(email, password);
+    setMessage(result.error ?? (result.confirmationRequired ? "Compte créé dans Supabase. Vérifiez votre email pour confirmer l’inscription avant de vous connecter." : "Compte créé et session ouverte."));
+  };
+
+  const submitOAuth = async (provider: "google" | "apple") => {
+    setMessage("");
+    const result = provider === "google" ? await auth.signInWithGoogle() : await auth.signInWithApple();
+    if (result.error) setMessage(result.error);
   };
 
   const resetPassword = async () => {
@@ -75,8 +86,8 @@ export function AccountDashboard() {
         <h2 className="mt-7 text-3xl font-semibold tracking-[-.04em]">{mode === "signin" ? "Connexion" : "Créer un compte"}</h2>
         <p className="mt-3 text-sm leading-6 text-ink/50">Connectez-vous pour retrouver vos favoris et votre compte sur tous vos appareils.</p>
         <div className="mt-8 grid gap-3">
-          <button onClick={() => void auth.signInWithGoogle()} className="flex items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold">G Continuer avec Google</button>
-          <button onClick={() => void auth.signInWithApple()} className="flex items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold"><Apple size={17} /> Continuer avec Apple</button>
+          {auth.googleAuthEnabled && <button onClick={() => void submitOAuth("google")} className="flex items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold">G Continuer avec Google</button>}
+          {auth.appleAuthEnabled && <button onClick={() => void submitOAuth("apple")} className="flex items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold"><Apple size={17} /> Continuer avec Apple</button>}
           <div className="rounded-3xl border border-black/10 bg-white p-3">
             <div className="grid gap-2">
               <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="Email" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />

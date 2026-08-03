@@ -6,6 +6,7 @@ import { ArrowUpRight, Store } from "lucide-react";
 import { categories } from "@/data/categories";
 import { assetPath } from "@/lib/assets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { listPublishedRubrics, type RubricRecord } from "@/lib/supabase/rubrics-repository";
 
 type AdminRubricPreview = {
   id: string;
@@ -33,6 +34,26 @@ export function CategoryGrid() {
   useEffect(() => {
     let mounted = true;
     async function loadRubrics() {
+      try {
+        const publishedRubrics = await listPublishedRubrics();
+        if (mounted && publishedRubrics?.length) {
+          setAdminRubrics(publishedRubrics.map((rubric) => ({
+            id: rubric.id,
+            slug: rubric.slug,
+            name: rubric.name,
+            description: rubric.description,
+            image: rubric.image,
+            imageAlt: rubric.imageAlt,
+            showOnHome: rubric.showOnHome,
+            format: rubric.format,
+            order: rubric.order,
+            status: rubric.status,
+          })));
+          return;
+        }
+      } catch {
+        // Fallback sécurisé ci-dessous : ancien admin_state puis données TypeScript.
+      }
       const supabase = getSupabaseBrowserClient();
       if (supabase) {
         const { data } = await supabase.from("app_settings").select("value").eq("key", ADMIN_STATE_KEY).maybeSingle();
@@ -58,7 +79,27 @@ export function CategoryGrid() {
   }, []);
 
   useEffect(() => {
-    const refresh = () => {
+    const refresh = async () => {
+      try {
+        const publishedRubrics = await listPublishedRubrics();
+        if (publishedRubrics?.length) {
+          setAdminRubrics(publishedRubrics.map((rubric: RubricRecord) => ({
+            id: rubric.id,
+            slug: rubric.slug,
+            name: rubric.name,
+            description: rubric.description,
+            image: rubric.image,
+            imageAlt: rubric.imageAlt,
+            showOnHome: rubric.showOnHome,
+            format: rubric.format,
+            order: rubric.order,
+            status: rubric.status,
+          })));
+          return;
+        }
+      } catch {
+        // Fallback local conservé.
+      }
       try {
         const raw = window.localStorage.getItem(ADMIN_STORAGE_KEY);
         if (!raw) return;

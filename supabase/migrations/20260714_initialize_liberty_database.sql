@@ -1,5 +1,6 @@
--- Liberty / Application Web Casher — Supabase progressive migration schema
--- À exécuter dans Supabase SQL Editor.
+-- Liberty — safe production database initialization
+-- Idempotent migration. Preserves existing data, users, buckets, images and content.
+-- Do not execute automatically from Codex; run manually in Supabase SQL Editor.
 
 create extension if not exists "pgcrypto";
 
@@ -8,20 +9,39 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
+alter type public.user_role add value if not exists 'admin';
+alter type public.user_role add value if not exists 'professional';
+alter type public.user_role add value if not exists 'user';
+
 do $$ begin
   create type public.publish_status as enum ('published', 'draft', 'hidden', 'trashed');
 exception when duplicate_object then null;
 end $$;
+
+alter type public.publish_status add value if not exists 'published';
+alter type public.publish_status add value if not exists 'draft';
+alter type public.publish_status add value if not exists 'hidden';
+alter type public.publish_status add value if not exists 'trashed';
 
 do $$ begin
   create type public.sponsorship_level as enum ('standard', 'sponsored', 'partner', 'liberty_favorite');
 exception when duplicate_object then null;
 end $$;
 
+alter type public.sponsorship_level add value if not exists 'standard';
+alter type public.sponsorship_level add value if not exists 'sponsored';
+alter type public.sponsorship_level add value if not exists 'partner';
+alter type public.sponsorship_level add value if not exists 'liberty_favorite';
+
 do $$ begin
   create type public.notification_status as enum ('draft', 'scheduled', 'sent', 'cancelled');
 exception when duplicate_object then null;
 end $$;
+
+alter type public.notification_status add value if not exists 'draft';
+alter type public.notification_status add value if not exists 'scheduled';
+alter type public.notification_status add value if not exists 'sent';
+alter type public.notification_status add value if not exists 'cancelled';
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -39,6 +59,21 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists email text,
+  add column if not exists full_name text,
+  add column if not exists first_name text,
+  add column if not exists last_name text,
+  add column if not exists avatar_url text,
+  add column if not exists phone text,
+  add column if not exists auth_provider text not null default 'email',
+  add column if not exists status text not null default 'active',
+  add column if not exists last_sign_in_at timestamptz,
+  add column if not exists role public.user_role not null default 'user',
+  add column if not exists settings jsonb not null default '{}'::jsonb,
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists public.rubrics (
   id uuid primary key default gen_random_uuid(),
@@ -63,6 +98,30 @@ create table if not exists public.rubrics (
   updated_at timestamptz not null default now()
 );
 
+alter table public.rubrics
+  add column if not exists external_id text,
+  add column if not exists slug text,
+  add column if not exists name text,
+  add column if not exists description text,
+  add column if not exists icon text,
+  add column if not exists image_url text,
+  add column if not exists image_alt text,
+  add column if not exists show_on_home boolean not null default true,
+  add column if not exists search_keywords text[] not null default '{}',
+  add column if not exists display_format text not null default 'Carré standard',
+  add column if not exists desktop_columns int not null default 3,
+  add column if not exists tablet_columns int not null default 2,
+  add column if not exists mobile_columns int not null default 1,
+  add column if not exists display_order int not null default 0,
+  add column if not exists status public.publish_status not null default 'draft',
+  add column if not exists deleted_at timestamptz,
+  add column if not exists deleted_by uuid references public.profiles(id) on delete set null,
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
+
+create unique index if not exists rubrics_external_id_unique_idx on public.rubrics(external_id) where external_id is not null;
+create unique index if not exists rubrics_slug_unique_idx on public.rubrics(slug) where slug is not null;
+
 create table if not exists public.subrubrics (
   id uuid primary key default gen_random_uuid(),
   external_id text unique,
@@ -82,6 +141,22 @@ create table if not exists public.subrubrics (
   updated_at timestamptz not null default now(),
   unique (rubric_id, slug)
 );
+
+alter table public.subrubrics
+  add column if not exists external_id text,
+  add column if not exists slug text,
+  add column if not exists name text,
+  add column if not exists description text,
+  add column if not exists image_url text,
+  add column if not exists image_alt text,
+  add column if not exists icon text,
+  add column if not exists search_keywords text[] not null default '{}',
+  add column if not exists display_order int not null default 0,
+  add column if not exists status public.publish_status not null default 'draft',
+  add column if not exists deleted_at timestamptz,
+  add column if not exists deleted_by uuid references public.profiles(id) on delete set null,
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists public.establishments (
   id uuid primary key default gen_random_uuid(),
@@ -128,6 +203,52 @@ create table if not exists public.establishments (
   updated_at timestamptz not null default now()
 );
 
+alter table public.establishments
+  add column if not exists external_id text,
+  add column if not exists rubric_id uuid references public.rubrics(id) on delete set null,
+  add column if not exists subrubric_id uuid references public.subrubrics(id) on delete set null,
+  add column if not exists slug text,
+  add column if not exists name text,
+  add column if not exists short_description text,
+  add column if not exists description text,
+  add column if not exists address text,
+  add column if not exists city text,
+  add column if not exists arrondissement text,
+  add column if not exists postal_code text,
+  add column if not exists email text,
+  add column if not exists phone text,
+  add column if not exists whatsapp text,
+  add column if not exists instagram text,
+  add column if not exists website text,
+  add column if not exists hours jsonb not null default '{}'::jsonb,
+  add column if not exists amenities jsonb not null default '{}'::jsonb,
+  add column if not exists services jsonb not null default '{}'::jsonb,
+  add column if not exists certification text,
+  add column if not exists kosher_type text,
+  add column if not exists average_price text,
+  add column if not exists latitude numeric,
+  add column if not exists longitude numeric,
+  add column if not exists customer_searches text[] not null default '{}',
+  add column if not exists visible_tags text[] not null default '{}',
+  add column if not exists status public.publish_status not null default 'draft',
+  add column if not exists sponsorship public.sponsorship_level not null default 'standard',
+  add column if not exists sponsor_priority int not null default 0,
+  add column if not exists sponsor_starts_at timestamptz,
+  add column if not exists sponsor_ends_at timestamptz,
+  add column if not exists sponsor_placement text,
+  add column if not exists sponsor_notes text,
+  add column if not exists reservation_enabled boolean not null default false,
+  add column if not exists reservation_target text,
+  add column if not exists display_order int not null default 0,
+  add column if not exists owner_id uuid references public.profiles(id) on delete set null,
+  add column if not exists deleted_at timestamptz,
+  add column if not exists deleted_by uuid references public.profiles(id) on delete set null,
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now();
+
+create unique index if not exists establishments_external_id_unique_idx on public.establishments(external_id) where external_id is not null;
+create unique index if not exists establishments_slug_unique_idx on public.establishments(slug) where slug is not null;
+
 create table if not exists public.photos (
   id uuid primary key default gen_random_uuid(),
   entity_type text not null,
@@ -151,6 +272,8 @@ create table if not exists public.visible_tags (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create unique index if not exists visible_tags_external_id_unique_idx on public.visible_tags(external_id) where external_id is not null;
 
 create table if not exists public.certifications (
   id uuid primary key default gen_random_uuid(),
@@ -346,7 +469,8 @@ create table if not exists public.app_settings (
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
-security definer set search_path = public
+security definer
+set search_path = public
 as $$
 begin
   insert into public.profiles (id, email, full_name, first_name, last_name, avatar_url, auth_provider, last_sign_in_at, role)
@@ -375,14 +499,21 @@ create or replace function public.is_admin()
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
-  select exists(select 1 from public.profiles where id = auth.uid() and role = 'admin');
+  select coalesce(
+    (select role = 'admin'::public.user_role from public.profiles where id = auth.uid()),
+    false
+  );
 $$;
 
 create or replace function public.is_professional_for(establishment uuid)
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select exists(select 1 from public.establishments where id = establishment and owner_id = auth.uid())
   or public.is_admin();
@@ -411,63 +542,149 @@ alter table public.seo_analysis_history enable row level security;
 alter table public.reservations enable row level security;
 alter table public.app_settings enable row level security;
 
+drop policy if exists "Profiles are readable by owner or admin" on public.profiles;
 create policy "Profiles are readable by owner or admin" on public.profiles for select using (id = auth.uid() or public.is_admin());
-create policy "Profiles are insertable by owner" on public.profiles for insert with check (id = auth.uid());
-create policy "Profiles are updatable by owner or admin" on public.profiles for update using (id = auth.uid() or public.is_admin());
 
+drop policy if exists "Profiles are insertable by owner" on public.profiles;
+create policy "Profiles are insertable by owner" on public.profiles for insert with check (id = auth.uid());
+
+drop policy if exists "Profiles are updatable by owner or admin" on public.profiles;
+create policy "Profiles are updatable by owner or admin" on public.profiles for update using (id = auth.uid() or public.is_admin()) with check (id = auth.uid() or public.is_admin());
+
+drop policy if exists "Published rubrics are public" on public.rubrics;
 create policy "Published rubrics are public" on public.rubrics for select using ((status = 'published' and show_on_home = true and deleted_at is null) or public.is_admin());
+
+drop policy if exists "Admins manage rubrics" on public.rubrics;
 create policy "Admins manage rubrics" on public.rubrics for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Published subrubrics are public" on public.subrubrics;
 create policy "Published subrubrics are public" on public.subrubrics for select using (status = 'published' or public.is_admin());
+
+drop policy if exists "Admins manage subrubrics" on public.subrubrics;
 create policy "Admins manage subrubrics" on public.subrubrics for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "Published establishments are public" on public.establishments;
 create policy "Published establishments are public" on public.establishments for select using (status = 'published' or public.is_admin() or owner_id = auth.uid());
+
+drop policy if exists "Admins manage establishments" on public.establishments;
 create policy "Admins manage establishments" on public.establishments for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Professionals update own establishments" on public.establishments;
 create policy "Professionals update own establishments" on public.establishments for update using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
+drop policy if exists "Photos are public" on public.photos;
 create policy "Photos are public" on public.photos for select using (true);
+
+drop policy if exists "Admins manage photos" on public.photos;
 create policy "Admins manage photos" on public.photos for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Published visible tags are public" on public.visible_tags;
 create policy "Published visible tags are public" on public.visible_tags for select using (status = 'published' or public.is_admin());
+
+drop policy if exists "Admins manage visible tags" on public.visible_tags;
 create policy "Admins manage visible tags" on public.visible_tags for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Published certifications are public" on public.certifications;
 create policy "Published certifications are public" on public.certifications for select using (status = 'published' or public.is_admin());
+
+drop policy if exists "Admins manage certifications" on public.certifications;
 create policy "Admins manage certifications" on public.certifications for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "Users manage own favorites" on public.favorites;
 create policy "Users manage own favorites" on public.favorites for all using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "Users manage own likes" on public.likes for all using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "Published reviews are public" on public.reviews for select using (status = 'published' or user_id = auth.uid() or public.is_admin());
-create policy "Users create own reviews" on public.reviews for insert with check (user_id = auth.uid());
-create policy "Users update own reviews" on public.reviews for update using (user_id = auth.uid() or public.is_admin());
 
+drop policy if exists "Users manage own likes" on public.likes;
+create policy "Users manage own likes" on public.likes for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "Published reviews are public" on public.reviews;
+create policy "Published reviews are public" on public.reviews for select using (status = 'published' or user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Users create own reviews" on public.reviews;
+create policy "Users create own reviews" on public.reviews for insert with check (user_id = auth.uid());
+
+drop policy if exists "Users update own reviews" on public.reviews;
+create policy "Users update own reviews" on public.reviews for update using (user_id = auth.uid() or public.is_admin()) with check (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Published banners are public" on public.banners;
 create policy "Published banners are public" on public.banners for select using (status = 'published' or public.is_admin());
+
+drop policy if exists "Admins manage banners" on public.banners;
 create policy "Admins manage banners" on public.banners for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Published page sections are public" on public.page_sections;
 create policy "Published page sections are public" on public.page_sections for select using (status = 'published' or public.is_admin());
+
+drop policy if exists "Admins manage page sections" on public.page_sections;
 create policy "Admins manage page sections" on public.page_sections for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Published notifications are readable" on public.notifications;
 create policy "Published notifications are readable" on public.notifications for select using (status = 'sent' or public.is_admin());
+
+drop policy if exists "Admins manage notifications" on public.notifications;
 create policy "Admins manage notifications" on public.notifications for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Admins manage professionals" on public.professionals;
 create policy "Admins manage professionals" on public.professionals for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Professionals read own profile" on public.professionals;
 create policy "Professionals read own profile" on public.professionals for select using (user_id = auth.uid() or public.is_admin());
 
+drop policy if exists "Users read own deliveries" on public.notification_deliveries;
 create policy "Users read own deliveries" on public.notification_deliveries for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Admins manage deliveries" on public.notification_deliveries;
 create policy "Admins manage deliveries" on public.notification_deliveries for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "Analytics insert allowed" on public.analytics_events;
 create policy "Analytics insert allowed" on public.analytics_events for insert with check (true);
+
+drop policy if exists "Admins read analytics" on public.analytics_events;
 create policy "Admins read analytics" on public.analytics_events for select using (public.is_admin());
+
+drop policy if exists "Admins manage trash" on public.trash_items;
 create policy "Admins manage trash" on public.trash_items for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Admins read audit log" on public.audit_log;
 create policy "Admins read audit log" on public.audit_log for select using (public.is_admin());
+
+drop policy if exists "Admins write audit log" on public.audit_log;
 create policy "Admins write audit log" on public.audit_log for insert with check (public.is_admin());
+
+drop policy if exists "Search insert allowed" on public.searches;
 create policy "Search insert allowed" on public.searches for insert with check (true);
+
+drop policy if exists "Admins read searches" on public.searches;
 create policy "Admins read searches" on public.searches for select using (public.is_admin());
+
+drop policy if exists "Admins manage seo analysis history" on public.seo_analysis_history;
 create policy "Admins manage seo analysis history" on public.seo_analysis_history for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "Users create reservations" on public.reservations;
 create policy "Users create reservations" on public.reservations for insert with check (auth.uid() is null or user_id = auth.uid());
+
+drop policy if exists "Users read own reservations" on public.reservations;
 create policy "Users read own reservations" on public.reservations for select using (user_id = auth.uid() or public.is_admin() or public.is_professional_for(establishment_id));
+
+drop policy if exists "Admins manage settings" on public.app_settings;
 create policy "Admins manage settings" on public.app_settings for all using (public.is_admin()) with check (public.is_admin());
 
+create index if not exists subrubrics_rubric_id_idx on public.subrubrics(rubric_id);
+create index if not exists establishments_rubric_id_idx on public.establishments(rubric_id);
+create index if not exists establishments_subrubric_id_idx on public.establishments(subrubric_id);
+create index if not exists establishments_owner_id_idx on public.establishments(owner_id);
+create index if not exists favorites_user_id_idx on public.favorites(user_id);
+create index if not exists likes_user_id_idx on public.likes(user_id);
+create index if not exists reviews_user_id_idx on public.reviews(user_id);
+create index if not exists notification_deliveries_notification_id_idx on public.notification_deliveries(notification_id);
+create index if not exists notification_deliveries_user_id_idx on public.notification_deliveries(user_id);
+create index if not exists reservations_establishment_id_idx on public.reservations(establishment_id);
 create index if not exists analytics_events_type_created_idx on public.analytics_events(event_type, created_at desc);
 create index if not exists analytics_events_entity_idx on public.analytics_events(entity_id, created_at desc);
 create index if not exists searches_query_created_idx on public.searches(query, created_at desc);
 create index if not exists seo_analysis_history_created_idx on public.seo_analysis_history(created_at desc);
 create index if not exists establishments_status_order_idx on public.establishments(status, display_order);
 create index if not exists establishments_searches_gin_idx on public.establishments using gin(customer_searches);
+create index if not exists rubrics_public_home_idx on public.rubrics(status, show_on_home, display_order) where deleted_at is null;
 
 insert into public.certifications (label, display_order, status)
 values
@@ -481,7 +698,14 @@ insert into storage.buckets (id, name, public)
 values ('liberty-images', 'liberty-images', true)
 on conflict (id) do nothing;
 
+drop policy if exists "Public image reads" on storage.objects;
 create policy "Public image reads" on storage.objects for select using (bucket_id = 'liberty-images');
+
+drop policy if exists "Admins upload images" on storage.objects;
 create policy "Admins upload images" on storage.objects for insert with check (bucket_id = 'liberty-images' and public.is_admin());
+
+drop policy if exists "Admins update images" on storage.objects;
 create policy "Admins update images" on storage.objects for update using (bucket_id = 'liberty-images' and public.is_admin());
+
+drop policy if exists "Admins delete images" on storage.objects;
 create policy "Admins delete images" on storage.objects for delete using (bucket_id = 'liberty-images' and public.is_admin());

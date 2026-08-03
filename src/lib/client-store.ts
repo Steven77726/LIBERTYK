@@ -49,25 +49,6 @@ export function getCurrentUser() {
   return safeRead<LibertyUser | null>(USER_KEY, null);
 }
 
-export function createDemoUser(provider: LibertyUser["provider"] = "classic", email = "demo@liberty.local") {
-  const user: LibertyUser = {
-    id: "demo-user",
-    name: "Utilisateur Liberty",
-    email,
-    provider,
-    createdAt: new Date().toISOString(),
-  };
-  safeWrite(USER_KEY, user);
-  trackEvent("user_login", "Mon compte");
-  return user;
-}
-
-export function clearDemoUser() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(USER_KEY);
-  trackEvent("user_logout", "Mon compte");
-}
-
 export function requireUser(message = "Connectez-vous pour aimer ce contenu.") {
   const user = getCurrentUser();
   if (user) return user;

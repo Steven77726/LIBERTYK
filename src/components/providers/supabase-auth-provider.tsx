@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { getAuthRedirectUrl, getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { getAuthRedirectUrl, getSupabaseBrowserClient, isAppleAuthEnabled, isGoogleAuthEnabled, isSupabaseConfigured } from "@/lib/supabase/client";
 import { mergeSavedEntities } from "@/lib/client-store";
 import { fetchUserSavedEntities } from "@/lib/supabase/sync";
 
@@ -31,10 +31,12 @@ type SupabaseAuthContextValue = {
   role: LibertyRole;
   isAdmin: boolean;
   isProfessional: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInWithApple: () => Promise<void>;
+  googleAuthEnabled: boolean;
+  appleAuthEnabled: boolean;
+  signInWithGoogle: () => Promise<{ error?: string }>;
+  signInWithApple: () => Promise<{ error?: string }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
-  signUpWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error?: string; confirmationRequired?: boolean }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   updatePassword: (password: string) => Promise<{ error?: string }>;
   updateProfile: (profile: Partial<Pick<LibertyProfile, "first_name" | "last_name" | "avatar_url" | "phone">>) => Promise<{ error?: string }>;
@@ -137,19 +139,29 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       role,
       isAdmin: role === "admin",
       isProfessional: role === "professional" || role === "admin",
+      googleAuthEnabled: isGoogleAuthEnabled,
+      appleAuthEnabled: isAppleAuthEnabled,
       signInWithGoogle: async () => {
-        await supabase?.auth.signInWithOAuth({ provider: "google", options: { redirectTo: getAuthRedirectUrl("/mon-compte") } });
+        if (!supabase) return { error: "Supabase Auth n’est pas configuré." };
+        if (!isGoogleAuthEnabled) return { error: "Google Auth n’est pas encore activé dans la configuration Liberty." };
+        const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: getAuthRedirectUrl("/mon-compte") } });
+        return { error: error?.message };
       },
       signInWithApple: async () => {
-        await supabase?.auth.signInWithOAuth({ provider: "apple", options: { redirectTo: getAuthRedirectUrl("/mon-compte") } });
+        if (!supabase) return { error: "Supabase Auth n’est pas configuré." };
+        if (!isAppleAuthEnabled) return { error: "Apple Auth n’est pas encore activé dans la configuration Liberty." };
+        const { error } = await supabase.auth.signInWithOAuth({ provider: "apple", options: { redirectTo: getAuthRedirectUrl("/mon-compte") } });
+        return { error: error?.message };
       },
       signInWithEmail: async (email, password) => {
-        const { error } = await supabase!.auth.signInWithPassword({ email, password });
+        if (!supabase) return { error: "Supabase Auth n’est pas configuré." };
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
         return { error: error?.message };
       },
       signUpWithEmail: async (email, password) => {
-        const { error } = await supabase!.auth.signUp({ email, password, options: { emailRedirectTo: getAuthRedirectUrl("/mon-compte") } });
-        return { error: error?.message };
+        if (!supabase) return { error: "Supabase Auth n’est pas configuré." };
+        const { data, error } = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password, options: { emailRedirectTo: getAuthRedirectUrl("/mon-compte") } });
+        return { error: error?.message, confirmationRequired: Boolean(data.user && !data.session) };
       },
       resetPassword: async (email) => {
         const { error } = await supabase!.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl("/mon-compte") });

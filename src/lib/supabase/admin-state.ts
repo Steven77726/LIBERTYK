@@ -10,6 +10,7 @@ export async function loadAdminStateFromSupabase<T>() {
 }
 
 export async function saveAdminStateToSupabase<T>(_value: T) {
+  void _value;
   return {
     ok: true,
     error: undefined,

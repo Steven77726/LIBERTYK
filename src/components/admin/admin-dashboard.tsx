@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -3161,10 +3162,10 @@ export function AdminDashboard() {
       <div className="overflow-hidden rounded-4xl border border-black/5 bg-[#f2f3ef] shadow-soft">
         <div className="flex min-h-[840px]">
           <aside className="hidden w-72 shrink-0 flex-col bg-ink p-6 text-white lg:flex">
-            <a href="/" className="mb-10 flex items-center gap-3 text-lg font-semibold">
+            <Link href="/" className="mb-10 flex items-center gap-3 text-lg font-semibold">
               <span className="grid size-9 place-items-center rounded-xl bg-white text-moss">ל</span>
               liberty admin
-            </a>
+            </Link>
             <nav className="space-y-1 text-sm">
               {menu.map(({ id, label, icon: Icon }) => (
                 <button

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, Compass, MapPin, Search } from "lucide-react";
+import { Compass, MapPin, Search } from "lucide-react";
 import { notFound } from "next/navigation";
 import { categories, categoryBySlug } from "@/data/categories";
 import { categoryCards } from "@/data/mock";
@@ -43,7 +42,7 @@ export default async function CategoryPage({ params }: Props) {
       </section>
 
       <section className="page-shell py-8">
-        <div className="mb-8 flex items-end justify-between"><div><p className="eyebrow">Pour vous</p><h2 className="section-title">Nos recommandations</h2></div><Link href="#" className="hidden items-center gap-2 text-sm font-semibold sm:flex">Voir tout <ArrowRight size={16} /></Link></div>
+        <div className="mb-8 flex items-end justify-between"><div><p className="eyebrow">Pour vous</p><h2 className="section-title">Nos recommandations</h2></div></div>
         <div className="grid gap-5 md:grid-cols-3">{categoryCards.map((card, index) => <article key={card.title} className="relative flex min-h-80 flex-col justify-end overflow-hidden rounded-4xl p-7 text-white" style={{ background: card.tone }}><span className="absolute right-6 top-6 grid size-10 place-items-center rounded-full bg-white/15 backdrop-blur">{index === 0 ? <Compass size={18} /> : <MapPin size={18} />}</span><p className="text-xs font-semibold uppercase tracking-[.18em] text-white/55">{category.label}</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{card.title}</h3><p className="mt-2 max-w-xs text-sm leading-6 text-white/65">{card.subtitle}</p></article>)}</div>
       </section>
     </>

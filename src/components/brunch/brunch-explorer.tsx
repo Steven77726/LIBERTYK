@@ -155,7 +155,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
     const typeTags = groups[1].values;
     const kosher = groups[2].values;
     const services = [...groups[3].values, ...groups[6].values];
-    let list = brunchData.filter((brunch) => {
+    const list = brunchData.filter((brunch) => {
       if (q && !fold(`${brunch.name} ${brunch.address ?? ""} ${brunch.arrondissement ?? ""} ${brunch.cuisine} ${brunch.specialty}`).includes(q)) return false;
       const chosenTypes = filters.filter((item) => typeTags.includes(item));
       if (chosenTypes.length && !chosenTypes.some((item) => fold(`${brunch.specialty} ${brunch.tags.join(" ")}`).includes(fold(item)))) return false;

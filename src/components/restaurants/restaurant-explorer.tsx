@@ -130,7 +130,7 @@ function getOpenStatus(restaurant: Restaurant) {
     const [endHour, endMinute] = end.split(":").map(Number);
     const startMinutes = startHour * 60 + startMinute + (previousDay ? -24 * 60 : 0);
     let endMinutes = endHour * 60 + endMinute + (previousDay ? -24 * 60 : 0);
-    let current = nowMinutes;
+    const current = nowMinutes;
     if (endMinutes < startMinutes) {
       endMinutes += 24 * 60;
     }
@@ -510,7 +510,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   };
   const results = useMemo(() => {
     const search = normalize(query);
-    let filtered = restaurantData.filter((restaurant) => {
+    const filtered = restaurantData.filter((restaurant) => {
       const corpus = normalize(`${restaurant.name} ${restaurant.fullAddress} ${restaurant.arrondissement} ${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
       if (search && !corpus.includes(search)) return false;
       const cuisineSelected = filters.filter((filter) => cuisineFilters.includes(filter));

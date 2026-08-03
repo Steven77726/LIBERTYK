@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Apple, Heart, Mail, UserRound } from "lucide-react";
 import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
@@ -10,21 +10,28 @@ export function AccountDashboard() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
   const [fieldError, setFieldError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const profileMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setFirstName(auth.profile?.first_name ?? "");
     setLastName(auth.profile?.last_name ?? "");
     setPhone(auth.profile?.phone ?? "");
-    setAvatarUrl(auth.profile?.avatar_url ?? "");
   }, [auth.profile]);
+
+  useEffect(() => {
+    return () => {
+      if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
+    };
+  }, []);
 
   const validateEmailForm = () => {
     const cleanEmail = email.trim();
@@ -73,18 +80,29 @@ export function AccountDashboard() {
   };
 
   const saveProfile = async () => {
-    const result = await auth.updateProfile({ first_name: firstName, last_name: lastName, phone, avatar_url: avatarUrl });
-    setMessage(result.error ?? "Profil enregistré.");
-  };
-
-  const changePassword = async () => {
-    if (newPassword.length < 6) {
-      setMessage("Le nouveau mot de passe doit contenir au moins 6 caractères.");
+    if (savingProfile) return;
+    setProfileMessage("");
+    setProfileError("");
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+    const cleanPhone = phone.trim();
+    if (cleanFirstName.length > 80 || cleanLastName.length > 80 || cleanPhone.length > 40) {
+      setProfileError("Impossible d’enregistrer vos informations. Réessayez.");
       return;
     }
-    const result = await auth.updatePassword(newPassword);
-    setMessage(result.error ?? "Mot de passe modifié.");
-    if (!result.error) setNewPassword("");
+    setSavingProfile(true);
+    const result = await auth.updateProfile({ first_name: cleanFirstName, last_name: cleanLastName, phone: cleanPhone });
+    setSavingProfile(false);
+    if (result.error) {
+      setProfileError(`Impossible d’enregistrer vos informations. Réessayez. ${result.error}`);
+      return;
+    }
+    setFirstName(cleanFirstName);
+    setLastName(cleanLastName);
+    setPhone(cleanPhone);
+    setProfileMessage("Vos informations ont bien été enregistrées.");
+    if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
+    profileMessageTimer.current = setTimeout(() => setProfileMessage(""), 4500);
   };
 
   if (auth.loading) {
@@ -152,21 +170,26 @@ export function AccountDashboard() {
       <section id="mon-compte" className="rounded-[2rem] bg-white p-6 shadow-soft">
         <h3 className="text-xl font-semibold tracking-[-.03em]">Mon Compte</h3>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <input value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} placeholder="URL photo de profil" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-          <input value={auth.user.email ?? ""} disabled className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/45 outline-none" />
-          <input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Prénom" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-          <input value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Nom" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-          <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Téléphone optionnel" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-          <button onClick={saveProfile} className="rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-white">Enregistrer</button>
+          <label className="grid gap-2">
+            <span className="px-1 text-xs font-semibold text-ink/45">Email</span>
+            <input value={auth.user.email ?? ""} readOnly className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/45 outline-none" />
+          </label>
+          <label className="grid gap-2">
+            <span className="px-1 text-xs font-semibold text-ink/45">Prénom</span>
+            <input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Prénom" autoComplete="given-name" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
+          </label>
+          <label className="grid gap-2">
+            <span className="px-1 text-xs font-semibold text-ink/45">Nom</span>
+            <input value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Nom" autoComplete="family-name" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
+          </label>
+          <label className="grid gap-2">
+            <span className="px-1 text-xs font-semibold text-ink/45">Téléphone</span>
+            <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Téléphone optionnel" autoComplete="tel" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
+          </label>
+          <button onClick={saveProfile} disabled={savingProfile} className="rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2">{savingProfile ? "Enregistrement…" : "Enregistrer"}</button>
         </div>
-        <div className="mt-6 rounded-3xl bg-cream p-4">
-          <p className="text-sm font-semibold">Changer le mot de passe</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
-            <input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type="password" placeholder="Nouveau mot de passe" className="rounded-2xl bg-white px-4 py-3 text-sm outline-none" />
-            <button onClick={changePassword} className="rounded-2xl bg-ink px-5 py-3 text-sm font-semibold text-white">Changer</button>
-          </div>
-        </div>
-        {message && <p className="mt-4 rounded-2xl bg-sage p-4 text-sm text-moss">{message}</p>}
+        {profileMessage && <p role="status" aria-live="polite" className="mt-4 rounded-2xl bg-sage p-4 text-sm font-medium text-moss">{profileMessage}</p>}
+        {profileError && <p role="alert" className="mt-4 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-600">{profileError}</p>}
       </section>
     </div>
   );

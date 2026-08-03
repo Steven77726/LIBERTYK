@@ -28,6 +28,7 @@ type SupabaseAuthContextValue = {
   session: Session | null;
   user: User | null;
   profile: LibertyProfile | null;
+  profileLoadError: string;
   role: LibertyRole;
   isAdmin: boolean;
   isProfessional: boolean;
@@ -39,7 +40,7 @@ type SupabaseAuthContextValue = {
   signUpWithEmail: (email: string, password: string) => Promise<{ error?: string; confirmationRequired?: boolean }>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
   updatePassword: (password: string) => Promise<{ error?: string }>;
-  updateProfile: (profile: Partial<Pick<LibertyProfile, "first_name" | "last_name" | "avatar_url" | "phone">>) => Promise<{ error?: string }>;
+  updateProfile: (profile: Partial<Pick<LibertyProfile, "first_name" | "last_name" | "avatar_url" | "phone">>) => Promise<{ error?: string; profile?: LibertyProfile }>;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -65,6 +66,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<LibertyRole>("user");
   const [profile, setProfile] = useState<LibertyProfile | null>(null);
+  const [profileLoadError, setProfileLoadError] = useState("");
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   const loadProfileForSession = async (currentSession: Session | null) => {
@@ -74,22 +76,54 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (!supabase || !currentSession?.user) {
       setRole("user");
       setProfile(null);
+      setProfileLoadError("");
       setLoading(false);
       return;
     }
     const user = currentSession.user;
     const provider = user.app_metadata?.provider ?? "email";
-    await supabase.from("profiles").upsert({
+    const fallbackProfile = {
       id: user.id,
-      email: user.email,
+      email: user.email ?? "",
       full_name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Utilisateur Liberty",
       first_name: user.user_metadata?.given_name ?? "",
       last_name: user.user_metadata?.family_name ?? "",
       avatar_url: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? "",
       auth_provider: provider,
       last_sign_in_at: new Date().toISOString(),
-    }, { onConflict: "id" });
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    };
+    const { data: existingProfile, error: readError } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    if (readError) {
+      setProfileLoadError("Impossible de charger vos informations.");
+      setLoading(false);
+      return;
+    }
+    if (!existingProfile) {
+      const { error: insertError } = await supabase.from("profiles").insert(fallbackProfile);
+      if (insertError) {
+        setProfileLoadError("Impossible de charger vos informations.");
+        setLoading(false);
+        return;
+      }
+    } else {
+      const { error: touchError } = await supabase.from("profiles").update({
+        email: user.email ?? existingProfile.email,
+        auth_provider: provider,
+        last_sign_in_at: new Date().toISOString(),
+      }).eq("id", user.id);
+      if (touchError) {
+        setProfileLoadError("Impossible de charger vos informations.");
+        setLoading(false);
+        return;
+      }
+    }
+    const { data, error: profileError } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    if (profileError) {
+      setProfileLoadError("Impossible de charger vos informations.");
+      setLoading(false);
+      return;
+    }
+    setProfileLoadError("");
     if (data?.status === "suspended") {
       setProfile(data as LibertyProfile);
       setRole("user");
@@ -136,6 +170,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       session,
       user: session?.user ?? null,
       profile,
+      profileLoadError,
       role,
       isAdmin: role === "admin",
       isProfessional: role === "professional" || role === "admin",
@@ -182,12 +217,18 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       updateProfile: async (nextProfile) => {
         if (!session?.user) return { error: "Utilisateur non connecté." };
         const fullName = [nextProfile.first_name ?? profile?.first_name, nextProfile.last_name ?? profile?.last_name].filter(Boolean).join(" ").trim();
-        const { error } = await supabase!.from("profiles").update({
+        const { data, error } = await supabase!.from("profiles").update({
           ...nextProfile,
           full_name: fullName || profile?.full_name,
           updated_at: new Date().toISOString(),
-        }).eq("id", session.user.id);
-        if (!error) await loadProfileForSession(session);
+        }).eq("id", session.user.id).select("*").single();
+        if (!error && data) {
+          const nextStoredProfile = data as LibertyProfile;
+          setProfile(nextStoredProfile);
+          setRole(nextStoredProfile.role ?? "user");
+          setProfileLoadError("");
+          return { profile: nextStoredProfile };
+        }
         return { error: error?.message };
       },
       refreshProfile: async () => {
@@ -198,7 +239,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         await supabase?.auth.signOut();
       },
     };
-  }, [loading, profile, role, session]);
+  }, [loading, profile, profileLoadError, role, session]);
 
   return <SupabaseAuthContext.Provider value={value}>{children}</SupabaseAuthContext.Provider>;
 }

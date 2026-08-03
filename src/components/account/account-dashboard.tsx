@@ -97,9 +97,9 @@ export function AccountDashboard() {
       setProfileError(`Impossible d’enregistrer vos informations. Réessayez. ${result.error}`);
       return;
     }
-    setFirstName(cleanFirstName);
-    setLastName(cleanLastName);
-    setPhone(cleanPhone);
+    setFirstName(result.profile?.first_name ?? cleanFirstName);
+    setLastName(result.profile?.last_name ?? cleanLastName);
+    setPhone(result.profile?.phone ?? cleanPhone);
     setProfileMessage("Vos informations ont bien été enregistrées.");
     if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
     profileMessageTimer.current = setTimeout(() => setProfileMessage(""), 4500);
@@ -169,6 +169,7 @@ export function AccountDashboard() {
 
       <section id="mon-compte" className="rounded-[2rem] bg-white p-6 shadow-soft">
         <h3 className="text-xl font-semibold tracking-[-.03em]">Mon Compte</h3>
+        {auth.profileLoadError && <p role="alert" className="mt-4 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-600">{auth.profileLoadError}</p>}
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <label className="grid gap-2">
             <span className="px-1 text-xs font-semibold text-ink/45">Email</span>

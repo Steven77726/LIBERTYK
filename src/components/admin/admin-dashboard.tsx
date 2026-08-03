@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ArrowLeft,
@@ -1522,6 +1522,8 @@ export function AdminDashboard() {
   const [adminMessage, setAdminMessage] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [adminLoginMessage, setAdminLoginMessage] = useState("");
+  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
   const [simpleAdminReady, setSimpleAdminReady] = useState(false);
   const [simpleAdminGranted, setSimpleAdminGranted] = useState(false);
   const [savingAction, setSavingAction] = useState("");
@@ -1535,6 +1537,7 @@ export function AdminDashboard() {
   const [seoSearch, setSeoSearch] = useState("");
   const [seoFilter, setSeoFilter] = useState("Toutes les pages");
   const [selectedSeoReportId, setSelectedSeoReportId] = useState("");
+  const skipNextAdminStateSave = useRef(false);
 
   const goToSection = (section: AdminSection) => {
     if (section === active) return;
@@ -1574,7 +1577,7 @@ export function AdminDashboard() {
     }
   }, []);
 
-  const hasAdminAccess = simpleAdminGranted || (auth.configured && auth.isAdmin);
+  const hasAdminAccess = simpleAdminGranted && auth.configured && auth.isAdmin;
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded || rubricsSupabaseLoaded) return;
@@ -1624,6 +1627,10 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded) return;
+    if (skipNextAdminStateSave.current) {
+      skipNextAdminStateSave.current = false;
+      return;
+    }
     const timer = window.setTimeout(() => {
       saveAdminStateToSupabase(state).then((result) => {
         if (!result.ok) setAdminMessage(`Sauvegarde Supabase impossible : ${result.error}`);
@@ -1631,6 +1638,26 @@ export function AdminDashboard() {
     }, 650);
     return () => window.clearTimeout(timer);
   }, [auth.configured, hasAdminAccess, state, supabaseLoaded]);
+
+  const signInAdminWithEmail = async () => {
+    if (adminLoginLoading) return;
+    setAdminLoginMessage("");
+    if (!adminEmail.trim() || !adminPassword) {
+      setAdminLoginMessage("Indiquez l’email et le mot de passe administrateur.");
+      return;
+    }
+    setAdminLoginLoading(true);
+    const result = await auth.signInWithEmail(adminEmail, adminPassword);
+    setAdminLoginLoading(false);
+    setAdminLoginMessage(result.error ?? "Connexion réussie. Vérification du rôle admin…");
+  };
+
+  const signOutAdmin = async () => {
+    window.sessionStorage.removeItem("liberty-admin-session");
+    setSimpleAdminGranted(false);
+    setAdminMessage("");
+    await auth.signOut();
+  };
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess) return;
@@ -1976,7 +2003,8 @@ export function AdminDashboard() {
     });
   };
 
-  const addRubric = () =>
+  const addRubric = () => {
+    skipNextAdminStateSave.current = true;
     setState((current) => {
       const id = newId("rubrique");
       return {
@@ -1987,6 +2015,7 @@ export function AdminDashboard() {
         ],
       };
     });
+  };
 
   const addSubrubric = () =>
     setState((current) => {
@@ -2158,6 +2187,7 @@ export function AdminDashboard() {
   };
 
   const applyRubricLocally = (rubric: AdminRubric, successMessage: string) => {
+    skipNextAdminStateSave.current = true;
     setState((current) => normalizeAdminState({
       ...current,
       rubrics: current.rubrics.some((item) => item.id === rubric.id)
@@ -2226,6 +2256,7 @@ export function AdminDashboard() {
     try {
       if (auth.configured && hasAdminAccess) {
         const copy = await duplicateRubricInSupabase(rubric);
+        skipNextAdminStateSave.current = true;
         setState((current) => normalizeAdminState({ ...current, rubrics: [copy, ...current.rubrics] }));
       } else {
         const copy = { ...rubric, id: newId("rubrique"), name: `${rubric.name} copie`, slug: `${rubric.slug ?? slugify(rubric.name)}-copie`, status: "Brouillon" as AdminStatus, order: state.rubrics.length + 1 };
@@ -2269,6 +2300,7 @@ export function AdminDashboard() {
     setSavingAction("Corbeille rubrique");
     try {
       if (auth.configured && hasAdminAccess) await moveRubricToTrashInSupabase(rubric);
+      skipNextAdminStateSave.current = true;
       moveToTrash("rubrique", rubric.name, rubric, (current) => ({ ...current, rubrics: current.rubrics.filter((item) => item.id !== rubric.id) }));
       window.dispatchEvent(new Event("liberty-admin-published"));
       setAdminMessage("Rubrique envoyée dans la corbeille.");
@@ -2294,6 +2326,7 @@ export function AdminDashboard() {
     setSavingAction("Ordre rubriques");
     try {
       if (auth.configured && hasAdminAccess) await updateRubricOrder(nextRubrics);
+      skipNextAdminStateSave.current = true;
       setState((current) => normalizeAdminState({ ...current, rubrics: nextRubrics }));
       window.dispatchEvent(new Event("liberty-admin-published"));
       setAdminMessage("Ordre des rubriques enregistré.");
@@ -2400,6 +2433,7 @@ export function AdminDashboard() {
       if (trashItem.entityType === "rubrique" && auth.configured && hasAdminAccess) {
         restoredPayload = await restoreRubricInSupabase(trashItem.payload as AdminRubric);
       }
+      if (trashItem.entityType === "rubrique") skipNextAdminStateSave.current = true;
       setState((current) => {
         const next = { ...current, trash: current.trash.filter((item) => item.id !== trashItem.id) };
         if (trashItem.entityType === "rubrique") next.rubrics = [restoredPayload as AdminRubric, ...next.rubrics];
@@ -2431,9 +2465,21 @@ export function AdminDashboard() {
     );
   }
 
-  if (!hasAdminAccess) return null;
+  if (!simpleAdminGranted) return null;
 
-  if (auth.configured && auth.loading && !simpleAdminGranted) {
+  if (!auth.configured) {
+    return (
+      <section className="page-shell py-16">
+        <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 text-center shadow-soft">
+          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
+          <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Connexion Supabase requise</h1>
+          <p className="mt-3 text-sm leading-6 text-ink/50">Le Dashboard Admin doit être connecté à Supabase pour vérifier le rôle administrateur.</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (auth.loading) {
     return (
       <section className="page-shell py-16">
         <div className="rounded-4xl bg-white p-10 text-center shadow-soft">
@@ -2443,33 +2489,32 @@ export function AdminDashboard() {
     );
   }
 
-  if (auth.configured && !auth.user && !simpleAdminGranted) {
+  if (!auth.user) {
     return (
       <section className="page-shell py-16">
         <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 shadow-soft">
           <span className="grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
           <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Connexion administrateur</h1>
           <p className="mt-3 text-sm leading-6 text-ink/50">Connectez-vous avec un compte ayant le rôle admin. Les données privées restent protégées par Supabase RLS.</p>
-          <div className="mt-7 grid gap-3">
-            <button onClick={() => void auth.signInWithGoogle()} className="rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold">Continuer avec Google</button>
-            <button onClick={() => void auth.signInWithApple()} className="rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold">Continuer avec Apple</button>
+          <form onSubmit={(event) => { event.preventDefault(); void signInAdminWithEmail(); }} className="mt-7 grid gap-3">
             <input value={adminEmail} onChange={(event) => setAdminEmail(event.target.value)} type="email" placeholder="Email admin" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
             <input value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} type="password" placeholder="Mot de passe" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-            <button onClick={() => void auth.signInWithEmail(adminEmail, adminPassword)} className="rounded-2xl bg-ink py-4 text-sm font-semibold text-white">Connexion Email</button>
-          </div>
+            <button type="submit" disabled={adminLoginLoading} className="rounded-2xl bg-ink py-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{adminLoginLoading ? "Connexion…" : "Connexion Email"}</button>
+            {adminLoginMessage && <p role="status" aria-live="polite" className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/55">{adminLoginMessage}</p>}
+          </form>
         </div>
       </section>
     );
   }
 
-  if (auth.configured && !auth.isAdmin && !simpleAdminGranted) {
+  if (!auth.isAdmin) {
     return (
       <section className="page-shell py-16">
         <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 text-center shadow-soft">
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
           <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Accès non autorisé</h1>
           <p className="mt-3 text-sm leading-6 text-ink/50">Votre compte est connecté mais ne possède pas le rôle admin. Aucune donnée privée du Dashboard n’a été chargée.</p>
-          <button onClick={() => void auth.signOut()} className="mt-6 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Se déconnecter</button>
+          <button onClick={() => void signOutAdmin()} className="mt-6 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Se déconnecter</button>
         </div>
       </section>
     );
@@ -2528,9 +2573,7 @@ export function AdminDashboard() {
                 <button onClick={() => goToSection("dashboard")} className="grid size-11 place-items-center rounded-full bg-white shadow-sm" aria-label="Retour au Dashboard">
                   <Home size={18} />
                 </button>
-                {auth.configured && (
-                  <button onClick={() => void auth.signOut()} className="rounded-full bg-ink px-4 py-3 text-xs font-semibold text-white">Déconnexion</button>
-                )}
+                <button onClick={() => void signOutAdmin()} className="rounded-full bg-ink px-4 py-3 text-xs font-semibold text-white">Déconnexion</button>
               </div>
             </header>
 

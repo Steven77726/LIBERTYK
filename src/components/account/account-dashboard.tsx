@@ -12,6 +12,8 @@ export function AccountDashboard() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [fieldError, setFieldError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -24,15 +26,35 @@ export function AccountDashboard() {
     setAvatarUrl(auth.profile?.avatar_url ?? "");
   }, [auth.profile]);
 
-  const submitEmail = async () => {
+  const validateEmailForm = () => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) return "Indiquez votre email.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return "Indiquez un email valide.";
+    if (!password) return "Indiquez votre mot de passe.";
+    if (password.length < 6) return "Le mot de passe doit contenir au moins 6 caractères.";
+    return "";
+  };
+
+  const submitEmail = async (event?: React.FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    if (submitting) return;
     setMessage("");
+    setFieldError("");
+    const validationError = validateEmailForm();
+    if (validationError) {
+      setFieldError(validationError);
+      return;
+    }
+    setSubmitting(true);
     if (mode === "signin") {
       const result = await auth.signInWithEmail(email, password);
       setMessage(result.error ?? "Connexion réussie.");
+      setSubmitting(false);
       return;
     }
     const result = await auth.signUpWithEmail(email, password);
     setMessage(result.error ?? (result.confirmationRequired ? "Compte créé dans Supabase. Vérifiez votre email pour confirmer l’inscription avant de vous connecter." : "Compte créé et session ouverte."));
+    setSubmitting(false);
   };
 
   const submitOAuth = async (provider: "google" | "apple") => {
@@ -88,18 +110,19 @@ export function AccountDashboard() {
         <div className="mt-8 grid gap-3">
           {auth.googleAuthEnabled && <button onClick={() => void submitOAuth("google")} className="flex items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold">G Continuer avec Google</button>}
           {auth.appleAuthEnabled && <button onClick={() => void submitOAuth("apple")} className="flex items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-4 text-sm font-semibold"><Apple size={17} /> Continuer avec Apple</button>}
-          <div className="rounded-3xl border border-black/10 bg-white p-3">
+          <form onSubmit={submitEmail} className="rounded-3xl border border-black/10 bg-white p-3">
             <div className="grid gap-2">
-              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="Email" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-              <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Mot de passe" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
+              <input value={email} onChange={(event) => { setEmail(event.target.value); setFieldError(""); }} type="email" placeholder="Email" autoComplete="email" aria-invalid={Boolean(fieldError)} className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
+              <input value={password} onChange={(event) => { setPassword(event.target.value); setFieldError(""); }} type="password" placeholder="Mot de passe" autoComplete={mode === "signin" ? "current-password" : "new-password"} aria-invalid={Boolean(fieldError)} className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <button onClick={submitEmail} className="flex items-center justify-center gap-2 rounded-2xl bg-ink py-3 text-xs font-semibold text-white"><Mail size={15} /> {mode === "signin" ? "Connexion Email" : "Créer le compte"}</button>
-              <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="rounded-2xl border border-black/10 py-3 text-xs font-semibold">{mode === "signin" ? "Créer un compte" : "J’ai déjà un compte"}</button>
+              <button type="submit" disabled={submitting} className="flex items-center justify-center gap-2 rounded-2xl bg-ink py-3 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"><Mail size={15} /> {submitting ? (mode === "signin" ? "Connexion…" : "Création du compte…") : mode === "signin" ? "Connexion Email" : "Créer mon compte"}</button>
+              <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); setFieldError(""); }} className="rounded-2xl border border-black/10 py-3 text-xs font-semibold">{mode === "signin" ? "Créer un compte" : "J’ai déjà un compte"}</button>
             </div>
-            <button onClick={resetPassword} className="mt-3 w-full text-center text-xs font-semibold text-moss">Mot de passe oublié ?</button>
+            <button type="button" onClick={resetPassword} className="mt-3 w-full text-center text-xs font-semibold text-moss">Mot de passe oublié ?</button>
+            {fieldError && <p className="mt-3 text-center text-xs text-red-500">{fieldError}</p>}
             {message && <p className="mt-3 text-center text-xs text-ink/45">{message}</p>}
-          </div>
+          </form>
         </div>
       </div>
     );

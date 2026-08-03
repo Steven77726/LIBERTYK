@@ -155,13 +155,21 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       },
       signInWithEmail: async (email, password) => {
         if (!supabase) return { error: "Supabase Auth n’est pas configuré." };
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-        return { error: error?.message };
+        try {
+          const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+          return { error: error?.message };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : "Erreur de connexion Supabase." };
+        }
       },
       signUpWithEmail: async (email, password) => {
         if (!supabase) return { error: "Supabase Auth n’est pas configuré." };
-        const { data, error } = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password, options: { emailRedirectTo: getAuthRedirectUrl("/mon-compte") } });
-        return { error: error?.message, confirmationRequired: Boolean(data.user && !data.session) };
+        try {
+          const { data, error } = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password, options: { emailRedirectTo: getAuthRedirectUrl("/mon-compte") } });
+          return { error: error?.message, confirmationRequired: Boolean(data.user && !data.session) };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : "Erreur de création du compte Supabase." };
+        }
       },
       resetPassword: async (email) => {
         const { error } = await supabase!.auth.resetPasswordForEmail(email, { redirectTo: getAuthRedirectUrl("/mon-compte") });

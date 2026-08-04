@@ -3423,7 +3423,7 @@ export function AdminDashboard() {
                       <div className="flex items-center justify-between gap-3">
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(rubric.status)}`}>{rubric.status}</span>
                         <div className="flex gap-2">
-                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45">
+                          <button disabled={Boolean(savingAction || rubricsOperation || isUnsavedRubric(rubric))} onClick={() => void duplicateRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45">
                             <Plus size={15} />
                           </button>
                           <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void publishRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-emerald-50 text-emerald-700 disabled:cursor-not-allowed disabled:opacity-45">
@@ -3431,12 +3431,12 @@ export function AdminDashboard() {
                           </button>
                           <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, -1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
                           <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, 1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
-                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void (rubric.status === "Masqué" ? publishRubric(rubric) : hideRubric(rubric))} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">
+                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : rubric.status === "Masqué" ? publishRubric(rubric) : hideRubric(rubric))} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">
                             {rubric.status === "Masqué" ? <Eye size={15} /> : <EyeOff size={15} />}
                           </button>
                           <button
                             disabled={Boolean(savingAction || rubricsOperation)}
-                            onClick={() => void trashRubric(rubric)}
+                            onClick={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : trashRubric(rubric))}
                             className="grid size-9 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
                           >
                             <Trash2 size={15} />

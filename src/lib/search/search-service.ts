@@ -167,7 +167,8 @@ function tokenMatchesText(normalizedText: string, token: string) {
 function getHref(row: EstablishmentSearchRow) {
   const rubricSlug = row.rubrics?.slug ?? "food";
   const subrubricSlug = row.subrubrics?.slug ?? "";
-  const base = routeOverrides[[rubricSlug, subrubricSlug].filter(Boolean).join("/")] ?? `/${[rubricSlug, subrubricSlug].filter(Boolean).join("/")}`;
+  const routeKey = [rubricSlug, subrubricSlug].filter(Boolean).join("/");
+  const base = routeOverrides[routeKey] ?? `/${rubricSlug}${subrubricSlug ? `?type=${subrubricSlug}` : ""}`;
   return `${base}#${row.slug}`;
 }
 

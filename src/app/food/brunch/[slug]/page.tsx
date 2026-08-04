@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  ArrowLeft, CalendarDays, Car, Check, Clock3, Globe2, Instagram,
-  MapPin, Navigation, Package, Phone, Send, Share2, ShoppingBag, Store,
+  ArrowLeft, CalendarDays, Car, Check,
+  MapPin, Navigation, Package, Phone, ShoppingBag, Store,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { brunchBySlug, brunches } from "@/data/brunches";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { assetPath } from "@/lib/assets";
-import { LikeButton } from "@/components/ui/entity-actions";
+import { LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
 import { JsonLd } from "@/components/seo/json-ld";
 import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
@@ -43,6 +43,7 @@ export default async function BrunchDetailPage({ params }: Props) {
     ["Terrasse", brunch.amenities.terrace], ["Wifi", brunch.amenities.wifi], ["Parking", brunch.amenities.parking],
     ["Adapté aux familles", brunch.amenities.family], ["Accessible PMR", brunch.amenities.accessible],
   ] as const;
+  const entity = { id: `brunch-${brunch.slug}`, title: brunch.name, url: `/food/brunch/${brunch.slug}`, text: `${brunch.name} · ${brunch.address ?? "Paris"}` };
 
   return (
     <>
@@ -85,7 +86,7 @@ export default async function BrunchDetailPage({ params }: Props) {
           <div>
             <div className="flex flex-wrap items-start justify-between gap-5 border-b border-black/[.07] pb-8">
               <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-moss/55">{brunch.cuisine}</p><h1 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">{brunch.name}</h1><p className="mt-4 flex items-center gap-2 text-sm text-ink/50"><MapPin size={15} />{brunch.address || "Adresse en cours de vérification"}{brunch.arrondissement && ` · Paris ${brunch.arrondissement}e`}</p></div>
-              <div className="flex gap-2"><button className="grid size-11 place-items-center rounded-full bg-white" aria-label="Partager"><Share2 size={17} /></button><LikeButton entity={{ id: `brunch-${brunch.slug}`, title: brunch.name, url: `/food/brunch/${brunch.slug}`, text: `${brunch.name} · ${brunch.address ?? "Paris"}` }} className="grid size-11 place-items-center rounded-full bg-white" /></div>
+              <div className="flex gap-2"><ShareButton entity={entity} compact /><LikeButton entity={entity} className="grid size-11 place-items-center rounded-full bg-white" /></div>
             </div>
 
             <div className="border-b border-black/[.07] py-8"><h2 className="text-xl font-semibold">À propos</h2><p className="mt-4 max-w-3xl text-sm leading-7 text-ink/55">{brunch.description}</p><div className="mt-5 flex flex-wrap gap-2"><span className="rounded-full bg-sage px-3 py-2 text-xs font-semibold text-moss">{brunch.kosherType}</span>{brunch.certification && <span className="rounded-full bg-white px-3 py-2 text-xs">✡ {brunch.certification}</span>}{brunch.price && <span className="rounded-full bg-white px-3 py-2 text-xs">{brunch.price}</span>}</div></div>
@@ -98,7 +99,7 @@ export default async function BrunchDetailPage({ params }: Props) {
           </div>
 
           <aside className="sticky top-24 space-y-4">
-            <div className="rounded-[1.75rem] bg-white p-5 shadow-soft"><div className="flex items-center justify-between gap-3"><CustomerRating rating={brunch.rating} reviewCount={brunch.reviewCount} /><RecommendationBadge rating={brunch.rating} reviewCount={brunch.reviewCount} /></div><div className="mt-5 grid gap-2">{brunch.phone && <a href={`tel:${brunch.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white"><Phone size={14} /> Appeler</a>}<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(brunch.address || brunch.name)}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-cream py-3 text-xs font-semibold"><Navigation size={14} /> Itinéraire</a></div><div className="mt-3 flex justify-center gap-1">{[Globe2, Instagram, Share2, Send].map((Icon, index) => <button key={index} className="grid size-9 place-items-center rounded-full text-ink/35 hover:bg-cream" aria-label={["Site internet", "Instagram", "Partager", "Donner un avis"][index]}><Icon size={15} /></button>)}<LikeButton entity={{ id: `brunch-${brunch.slug}`, title: brunch.name, url: `/food/brunch/${brunch.slug}`, text: `${brunch.name} · ${brunch.address ?? "Paris"}` }} className="grid size-9 place-items-center rounded-full text-ink/35 hover:bg-cream" /></div></div>
+            <div className="rounded-[1.75rem] bg-white p-5 shadow-soft"><div className="flex items-center justify-between gap-3"><CustomerRating rating={brunch.rating} reviewCount={brunch.reviewCount} /><RecommendationBadge rating={brunch.rating} reviewCount={brunch.reviewCount} /></div><div className="mt-5 grid gap-2">{brunch.phone && <a href={`tel:${brunch.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white"><Phone size={14} /> Appeler</a>}<a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(brunch.address || brunch.name)}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-cream py-3 text-xs font-semibold"><Navigation size={14} /> Itinéraire</a></div><div className="mt-3 flex justify-center gap-1"><ShareButton entity={entity} compact /><ReviewButton entity={entity} compact /><LikeButton entity={entity} className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" /></div></div>
             <div className="relative h-72 overflow-hidden rounded-[1.75rem] bg-[#dfe6df]"><div className="absolute inset-0 opacity-45" style={{ backgroundImage: "linear-gradient(35deg,transparent 46%,#fff 47%,#fff 51%,transparent 52%),linear-gradient(108deg,transparent 47%,#fff 48%,#fff 51%,transparent 52%)", backgroundSize: "90px 75px" }} /><span className="absolute left-1/2 top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-white bg-moss text-white shadow-xl"><MapPin size={19} /></span><span className="absolute bottom-4 left-4 right-4 rounded-xl bg-white/90 p-3 text-xs font-medium shadow-sm backdrop-blur">{brunch.address || "Adresse en cours de vérification"}</span></div>
           </aside>
         </div>

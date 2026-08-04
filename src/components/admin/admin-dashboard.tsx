@@ -4686,7 +4686,7 @@ export function AdminDashboard() {
                       <p className="font-semibold">Rapport professionnel</p>
                       <p className="mt-1 text-sm text-white/50">Inclura les recherches clients ayant amené des visiteurs sur la fiche.</p>
                     </div>
-                    <button className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-ink">
+                    <button onClick={() => window.print()} className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-ink">
                       <FileDown size={16} /> Exporter un rapport PDF
                     </button>
                   </div>

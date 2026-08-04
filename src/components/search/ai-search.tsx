@@ -44,6 +44,14 @@ export function AiSearch() {
   }, []);
 
   useEffect(() => {
+    const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim();
+    if (initialQuery) {
+      setQuery(initialQuery);
+      setFocused(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!focused && query.trim().length < 2) return;
 
     const searchQuery = query.trim();

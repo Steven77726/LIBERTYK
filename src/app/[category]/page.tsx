@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Compass, MapPin, Search } from "lucide-react";
+import { Compass, MapPin } from "lucide-react";
 import { notFound } from "next/navigation";
 import { categories, categoryBySlug } from "@/data/categories";
 import { categoryCards } from "@/data/mock";
 import { GenericSubrubricGrid } from "@/components/ui/subrubric-grids";
 import { JsonLd } from "@/components/seo/json-ld";
 import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
+import { CategorySearchRedirect } from "@/components/search/category-search-redirect";
 
 type Props = { params: Promise<{ category: string }> };
 
@@ -52,7 +53,7 @@ export default async function CategoryPage({ params }: Props) {
       <section className="page-shell pt-8 sm:pt-12">
         <div className="relative overflow-hidden rounded-4xl px-6 py-16 sm:px-12 lg:px-16 lg:py-24" style={{ background: category.softColor }}>
           <div className="absolute -right-20 -top-32 size-96 rounded-full opacity-15 blur-3xl" style={{ background: category.color }} />
-          <div className="relative max-w-3xl"><span className="mb-7 grid size-14 place-items-center rounded-2xl bg-white/70 shadow-sm" style={{ color: category.color }}><Icon size={25} /></span><p className="mb-4 text-xs font-semibold uppercase tracking-[.22em]" style={{ color: category.color }}>{category.eyebrow}</p><h1 className="text-5xl font-semibold tracking-[-.055em] sm:text-7xl">{category.label}</h1><p className="mt-6 max-w-2xl text-base leading-7 text-ink/60 sm:text-lg">{category.description}</p><div className="mt-9 flex max-w-xl items-center rounded-2xl bg-white p-2 shadow-soft"><Search className="ml-3 text-ink/30" size={19} /><input placeholder={`Rechercher dans ${category.label.toLowerCase()}...`} className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" /><button className="rounded-xl bg-ink px-4 py-3 text-sm font-medium text-white">Rechercher</button></div></div>
+          <div className="relative max-w-3xl"><span className="mb-7 grid size-14 place-items-center rounded-2xl bg-white/70 shadow-sm" style={{ color: category.color }}><Icon size={25} /></span><p className="mb-4 text-xs font-semibold uppercase tracking-[.22em]" style={{ color: category.color }}>{category.eyebrow}</p><h1 className="text-5xl font-semibold tracking-[-.055em] sm:text-7xl">{category.label}</h1><p className="mt-6 max-w-2xl text-base leading-7 text-ink/60 sm:text-lg">{category.description}</p><CategorySearchRedirect label={category.label} /></div>
         </div>
       </section>
 

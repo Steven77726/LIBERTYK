@@ -445,11 +445,10 @@ export async function searchEstablishments(query: string): Promise<Establishment
   }
 
   const { data, error } = await request.returns<EstablishmentSearchRow[]>();
-  if (error) return fallbackSearch(query);
 
-  let rows = data ?? [];
+  let rows = error ? [] : data ?? [];
   if (normalizedQuery) {
-    const { data: candidateRows } = await supabase
+    const { data: candidateRows, error: candidateError } = await supabase
       .from("establishments")
       .select(establishmentSelect)
       .eq("status", "published")
@@ -458,7 +457,10 @@ export async function searchEstablishments(query: string): Promise<Establishment
       .order("display_order", { ascending: true })
       .limit(200)
       .returns<EstablishmentSearchRow[]>();
+    if (error && candidateError) return fallbackSearch(query);
     rows = mergeRows(rows, candidateRows ?? []);
+  } else if (error) {
+    return fallbackSearch(query);
   }
   if (!normalizedQuery) {
     const photos = await getPhotoMap(rows.map((row) => row.id));

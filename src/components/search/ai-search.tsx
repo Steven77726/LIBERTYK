@@ -96,7 +96,10 @@ export function AiSearch() {
         <div className="relative flex items-center gap-2">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setFocused(true);
+            }}
             onFocus={() => setFocused(true)}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {

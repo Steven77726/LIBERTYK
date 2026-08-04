@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
+import { FoodSubrubricResults } from "@/components/food/food-subrubric-results";
 import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -71,6 +73,9 @@ export default function FoodPage() {
               <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Où souhaitez-vous aller ?</h2>
             </div>
             <FoodSubrubricGrid fallbackCards={addressTypes.map(({ icon: _icon, ...item }) => item)} />
+            <Suspense fallback={null}>
+              <FoodSubrubricResults />
+            </Suspense>
           </div>
 
           <div className="lg:sticky lg:top-28">

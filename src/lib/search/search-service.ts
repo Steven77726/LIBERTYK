@@ -58,6 +58,7 @@ type TaxonomyMatch = {
 };
 
 const searchableColumns = [
+  "slug",
   "name",
   "short_description",
   "description",
@@ -77,15 +78,32 @@ const routeOverrides: Record<string, string> = {
   "vin-spiritueux/selections": "/vin-spiritueux",
 };
 
+const establishmentSelect = `
+  id,slug,name,short_description,description,address,city,arrondissement,district,postal_code,
+  certification,kosher_type,average_price,latitude,longitude,customer_searches,visible_tags,
+  sponsorship,sponsor_priority,display_order,
+  rubrics(name,slug),
+  subrubrics(name,slug)
+`;
+
 const synonymMap: Record<string, string[]> = {
+  abitol: ["abitbol"],
+  abitbol: ["abitol"],
   resto: ["restaurant"],
   restaurant: ["resto", "restaurants"],
-  bakery: ["boulangerie"],
-  boulangerie: ["bakery"],
+  bakery: ["boulangerie", "boulangeries", "pain"],
+  boulangerie: ["bakery", "boulangeries", "pain"],
+  boulangeries: ["bakery", "boulangerie", "pain"],
+  pastry: ["patisserie", "patisseries", "gateau", "gateaux"],
+  patisserie: ["pastry", "patisseries", "gateau", "gateaux"],
+  patisseries: ["pastry", "patisserie", "gateau", "gateaux"],
   wine: ["vin", "caviste", "spiritueux"],
   vin: ["wine", "caviste", "spiritueux"],
+  bar: ["cocktail", "cocktails", "vin", "spiritueux", "caviste"],
   travel: ["voyage"],
   voyage: ["travel"],
+  hotel: ["hotels", "voyage", "sejour"],
+  hotels: ["hotel", "voyage", "sejour"],
   kosher: ["casher", "cacher", "kasher"],
   casher: ["kosher", "cacher", "kasher"],
   viande: ["bassari", "steak", "grill"],
@@ -110,6 +128,42 @@ function toPostgrestArray(values: string[]) {
   return `{${unique(values).map((value) => `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`).join(",")}}`;
 }
 
+function mergeRows(primary: EstablishmentSearchRow[], candidates: EstablishmentSearchRow[]) {
+  const rows = new Map<string, EstablishmentSearchRow>();
+  [...primary, ...candidates].forEach((row) => rows.set(row.id, row));
+  return [...rows.values()];
+}
+
+function isNearTokenMatch(word: string, token: string) {
+  if (token.length < 4 || word.length < 4 || Math.abs(word.length - token.length) > 1) return false;
+
+  let previous = Array.from({ length: token.length + 1 }, (_, index) => index);
+  for (let rowIndex = 1; rowIndex <= word.length; rowIndex += 1) {
+    const current = [rowIndex];
+    let bestInRow = current[0];
+    for (let columnIndex = 1; columnIndex <= token.length; columnIndex += 1) {
+      const cost = word[rowIndex - 1] === token[columnIndex - 1] ? 0 : 1;
+      const value = Math.min(
+        previous[columnIndex] + 1,
+        current[columnIndex - 1] + 1,
+        previous[columnIndex - 1] + cost,
+      );
+      current[columnIndex] = value;
+      bestInRow = Math.min(bestInRow, value);
+    }
+    if (bestInRow > 1) return false;
+    previous = current;
+  }
+
+  return previous[token.length] <= 1;
+}
+
+function tokenMatchesText(normalizedText: string, token: string) {
+  if (!normalizedText || !token) return false;
+  if (normalizedText.includes(token)) return true;
+  return normalizedText.split(" ").some((word) => isNearTokenMatch(word, token));
+}
+
 function getHref(row: EstablishmentSearchRow) {
   const rubricSlug = row.rubrics?.slug ?? "food";
   const subrubricSlug = row.subrubrics?.slug ?? "";
@@ -118,9 +172,10 @@ function getHref(row: EstablishmentSearchRow) {
 }
 
 function highlightText(value: string, tokens: string[]) {
-  const token = tokens.find((item) => normalizeSearchText(value).includes(item));
+  const normalizedValue = normalizeSearchText(value);
+  const token = tokens.find((item) => tokenMatchesText(normalizedValue, item));
   if (!token) return escapeHtml(value);
-  const index = normalizeSearchText(value).indexOf(token);
+  const index = normalizedValue.indexOf(token);
   if (index < 0) return escapeHtml(value);
   return `${escapeHtml(value.slice(0, index))}<mark>${escapeHtml(value.slice(index, index + token.length))}</mark>${escapeHtml(value.slice(index + token.length))}`;
 }
@@ -153,7 +208,7 @@ function getMatches(row: EstablishmentSearchRow, tagLabels: string[], tokens: st
     const normalized = normalizeSearchText(value);
     if (!normalized) return [];
     if (normalizedQuery.length > 1 && normalized.includes(normalizedQuery)) return [{ field, label: value.split(/\s+/).slice(0, 6).join(" ") }];
-    const token = tokens.find((item) => normalized.includes(item));
+    const token = tokens.find((item) => tokenMatchesText(normalized, item));
     return token ? [{ field, label: token }] : [];
   });
 }
@@ -175,12 +230,15 @@ function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: stri
     if (!normalized) return;
     if (normalized === normalizedQuery) score += weight * 2.6;
     else if (normalized.includes(normalizedQuery) && normalizedQuery.length > 1) score += weight * 1.45;
+    const words = normalized.split(" ");
     tokens.forEach((token) => {
-      if (normalized.split(" ").includes(token)) score += weight * 0.42;
+      if (words.includes(token)) score += weight * 0.42;
       else if (normalized.includes(token)) score += weight * 0.22;
+      else if (words.some((word) => isNearTokenMatch(word, token))) score += weight * 0.18;
     });
   });
   const allCorpus = normalizeSearchText([
+    row.slug,
     row.name,
     row.short_description ?? "",
     row.description ?? "",
@@ -194,7 +252,7 @@ function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: stri
     tagLabels.join(" "),
     (row.customer_searches ?? []).join(" "),
   ].join(" "));
-  const matchedTokens = tokens.filter((token) => allCorpus.includes(token)).length;
+  const matchedTokens = tokens.filter((token) => tokenMatchesText(allCorpus, token)).length;
   score += matchedTokens * 12;
   if (score > 35 && row.sponsorship !== "standard") score += row.sponsorship === "partner" || row.sponsorship === "liberty_favorite" ? 8 : 5;
   score += Math.max(0, 8 - (row.display_order ?? 99) * 0.05);
@@ -214,6 +272,7 @@ function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: stri
     image: image || "/images/food/restaurants-khan.jpg",
     keywords: unique([
       row.name,
+      row.slug,
       row.short_description ?? "",
       row.description ?? "",
       row.address ?? "",
@@ -224,6 +283,7 @@ function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: stri
       row.rubrics?.name ?? "",
       row.subrubrics?.name ?? "",
       ...tagLabels,
+      ...(row.customer_searches ?? []),
     ]),
     customerSearches: row.customer_searches ?? [],
     location: {
@@ -304,13 +364,13 @@ async function getTaxonomyMatches(tokens: string[], normalizedQuery: string): Pr
     rubricIds: unique((rubrics ?? [])
       .filter((rubric) => {
         const normalized = normalizeSearchText(`${rubric.name} ${rubric.slug}`);
-        return normalized.includes(normalizedQuery) || tokens.some((token) => normalized.includes(token));
+        return normalized.includes(normalizedQuery) || tokens.some((token) => tokenMatchesText(normalized, token));
       })
       .map((rubric) => rubric.id)),
     subrubricIds: unique((subrubrics ?? [])
       .filter((subrubric) => {
         const normalized = normalizeSearchText(`${subrubric.name} ${subrubric.slug}`);
-        return normalized.includes(normalizedQuery) || tokens.some((token) => normalized.includes(token));
+        return normalized.includes(normalizedQuery) || tokens.some((token) => tokenMatchesText(normalized, token));
       })
       .map((subrubric) => subrubric.id)),
   };
@@ -355,24 +415,18 @@ export async function searchEstablishments(query: string): Promise<Establishment
     const normalizedTag = normalizeSearchText([tag.label, tag.external_id ?? ""].join(" "));
     const matches = normalizedQuery.length > 1 && normalizedTag.includes(normalizedQuery)
       ? true
-      : tokens.some((token) => normalizedTag.includes(token));
+      : tokens.some((token) => tokenMatchesText(normalizedTag, token));
     return matches ? [tag.id, tag.external_id, tag.label].filter(Boolean) as string[] : [];
   });
   const arraySearchValues = unique([query.trim(), normalizedQuery, ...tokens, ...tagSearchValues]).filter((value) => value.length > 1);
   let request = supabase
     .from("establishments")
-    .select(`
-      id,slug,name,short_description,description,address,city,arrondissement,district,postal_code,
-      certification,kosher_type,average_price,latitude,longitude,customer_searches,visible_tags,
-      sponsorship,sponsor_priority,display_order,
-      rubrics(name,slug),
-      subrubrics(name,slug)
-    `)
+    .select(establishmentSelect)
     .eq("status", "published")
     .eq("is_visible", true)
     .is("deleted_at", null)
     .order("display_order", { ascending: true })
-    .limit(normalizedQuery ? 80 : 12);
+    .limit(normalizedQuery ? 120 : 12);
 
   if (tokens.length) {
     const scalarFilters = tokens.flatMap((token) => searchableColumns.map((column) => `${column}.ilike.%${token}%`));
@@ -392,7 +446,19 @@ export async function searchEstablishments(query: string): Promise<Establishment
   const { data, error } = await request.returns<EstablishmentSearchRow[]>();
   if (error) return fallbackSearch(query);
 
-  const rows = data ?? [];
+  let rows = data ?? [];
+  if (normalizedQuery) {
+    const { data: candidateRows } = await supabase
+      .from("establishments")
+      .select(establishmentSelect)
+      .eq("status", "published")
+      .eq("is_visible", true)
+      .is("deleted_at", null)
+      .order("display_order", { ascending: true })
+      .limit(200)
+      .returns<EstablishmentSearchRow[]>();
+    rows = mergeRows(rows, candidateRows ?? []);
+  }
   if (!normalizedQuery) {
     const photos = await getPhotoMap(rows.map((row) => row.id));
     const tagMap = await getTagMap();
@@ -413,5 +479,5 @@ export async function searchEstablishments(query: string): Promise<Establishment
     .filter((result) => result.score > 12)
     .sort((a, b) => b.score - a.score)
     .filter((result, index, list) => list.findIndex((item) => item.href === result.href) === index)
-    .slice(0, 12);
+    .slice(0, 40);
 }

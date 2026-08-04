@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Search, Sparkles, WandSparkles, X } from "lucide-react";
@@ -38,6 +38,44 @@ export function AiSearch() {
   }, [query, results]);
   const open = focused && (query.trim().length >= 2 || results.length > 0 || loading);
 
+  const runSearch = useCallback(async (rawQuery: string, force = false) => {
+    const searchQuery = rawQuery.trim();
+    if (searchQuery.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return [];
+    }
+
+    if (!force && lastQueryRef.current === searchQuery) return results;
+
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+    lastQueryRef.current = searchQuery;
+    setFocused(true);
+    setLoading(true);
+
+    try {
+      const nextResults = await searchEstablishments(searchQuery);
+      if (requestRef.current === requestId) {
+        setResults(nextResults);
+        setActiveIndex(0);
+      }
+      return nextResults;
+    } finally {
+      if (requestRef.current === requestId) setLoading(false);
+    }
+  }, [results]);
+
+  const updateQuery = (value: string) => {
+    setQuery(value);
+    setFocused(true);
+    if (value.trim().length < 2) {
+      setResults([]);
+      setLoading(false);
+      lastQueryRef.current = null;
+    }
+  };
+
   useEffect(() => {
     const timer = window.setInterval(() => setExampleIndex((index) => (index + 1) % rotatingExamples.length), 3200);
     return () => window.clearInterval(timer);
@@ -55,27 +93,12 @@ export function AiSearch() {
     if (!focused && query.trim().length < 2) return;
 
     const searchQuery = query.trim();
-    const requestId = requestRef.current + 1;
-    requestRef.current = requestId;
-
     const timer = window.setTimeout(async () => {
-      if (lastQueryRef.current === searchQuery) return;
-      lastQueryRef.current = searchQuery;
-      setLoading(true);
-
-      try {
-        const nextResults = await searchEstablishments(searchQuery);
-        if (requestRef.current === requestId) {
-          setResults(nextResults);
-          setActiveIndex(0);
-        }
-      } finally {
-        if (requestRef.current === requestId) setLoading(false);
-      }
+      await runSearch(searchQuery);
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [focused, query]);
+  }, [focused, query, runSearch]);
 
   const openResult = (result: EstablishmentSearchResult | undefined) => {
     if (!result) return;
@@ -84,8 +107,15 @@ export function AiSearch() {
     router.push(result.href);
   };
 
-  const submit = () => {
-    openResult(results[activeIndex] ?? results[0]);
+  const submit = async () => {
+    const searchQuery = query.trim();
+    if (searchQuery.length < 2) return;
+    const currentResults = results.length ? results : await runSearch(searchQuery, true);
+    openResult(currentResults[activeIndex] ?? currentResults[0]);
+  };
+
+  const handleInput = (event: ChangeEvent<HTMLInputElement> | FormEvent<HTMLInputElement>) => {
+    updateQuery(event.currentTarget.value);
   };
 
   return (
@@ -96,10 +126,8 @@ export function AiSearch() {
         <div className="relative flex items-center gap-2">
           <input
             value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setFocused(true);
-            }}
+            onChange={handleInput}
+            onInput={handleInput}
             onFocus={() => setFocused(true)}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
@@ -112,7 +140,7 @@ export function AiSearch() {
               }
               if (event.key === "Enter") {
                 event.preventDefault();
-                submit();
+                void submit();
               }
               if (event.key === "Escape") setFocused(false);
             }}
@@ -125,7 +153,7 @@ export function AiSearch() {
               <X size={14} />
             </button>
           )}
-          <button onClick={submit} className="group grid size-12 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#101a15,#284636)] text-white shadow-[0_12px_28px_rgba(16,26,21,.28)] transition duration-300 hover:scale-[1.035] hover:shadow-[0_18px_44px_rgba(16,26,21,.36)]" aria-label="Rechercher">
+          <button onClick={() => void submit()} className="group grid size-12 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#101a15,#284636)] text-white shadow-[0_12px_28px_rgba(16,26,21,.28)] transition duration-300 hover:scale-[1.035] hover:shadow-[0_18px_44px_rgba(16,26,21,.36)]" aria-label="Rechercher">
             <Search size={18} className="transition group-hover:rotate-3" />
           </button>
         </div>

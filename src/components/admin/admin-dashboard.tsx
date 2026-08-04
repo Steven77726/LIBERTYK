@@ -1235,6 +1235,10 @@ function Field({
   placeholder,
   type = "text",
   textarea = false,
+  id,
+  required = false,
+  error,
+  inputRef,
 }: {
   label: string;
   value: string | number;
@@ -1242,27 +1246,38 @@ function Field({
   placeholder?: string;
   type?: string;
   textarea?: boolean;
+  id?: string;
+  required?: boolean;
+  error?: string;
+  inputRef?: (node: HTMLInputElement | HTMLTextAreaElement | null) => void;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">{label}</span>
+    <label id={id} className="block">
+      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">
+        {label}{required && <span className="text-rose-500"> *</span>}
+      </span>
       {textarea ? (
         <textarea
+          ref={inputRef}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           rows={4}
-          className="w-full resize-none rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-moss/40 focus:ring-4 focus:ring-moss/10"
+          aria-invalid={Boolean(error)}
+          className={`w-full resize-none rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:border-moss/40 focus:ring-4 focus:ring-moss/10 ${error ? "border-rose-300 ring-4 ring-rose-100" : "border-black/10"}`}
         />
       ) : (
         <input
+          ref={inputRef as ((node: HTMLInputElement | null) => void) | undefined}
           value={value}
           type={type}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-moss/40 focus:ring-4 focus:ring-moss/10"
+          aria-invalid={Boolean(error)}
+          className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:border-moss/40 focus:ring-4 focus:ring-moss/10 ${error ? "border-rose-300 ring-4 ring-rose-100" : "border-black/10"}`}
         />
       )}
+      {error && <span className="mt-1.5 block text-xs font-semibold text-rose-600">{error}</span>}
     </label>
   );
 }
@@ -1272,25 +1287,35 @@ function SelectField({
   value,
   onChange,
   children,
+  id,
+  required = false,
+  error,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   children: React.ReactNode;
+  id?: string;
+  required?: boolean;
+  error?: string;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">{label}</span>
+    <label id={id} className="block">
+      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">
+        {label}{required && <span className="text-rose-500"> *</span>}
+      </span>
       <span className="relative block">
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 py-3 pr-10 text-sm outline-none transition focus:border-moss/40 focus:ring-4 focus:ring-moss/10"
+          aria-invalid={Boolean(error)}
+          className={`w-full appearance-none rounded-2xl border bg-white px-4 py-3 pr-10 text-sm outline-none transition focus:border-moss/40 focus:ring-4 focus:ring-moss/10 ${error ? "border-rose-300 ring-4 ring-rose-100" : "border-black/10"}`}
         >
           {children}
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink/35" size={16} />
       </span>
+      {error && <span className="mt-1.5 block text-xs font-semibold text-rose-600">{error}</span>}
     </label>
   );
 }
@@ -1401,11 +1426,11 @@ function FormActionBar({
   );
 }
 
-function ImageUploadField({ label, value, onChange, folder = "admin" }: { label: string; value: string; onChange: (value: string) => void; folder?: string }) {
+function ImageUploadField({ label, value, onChange, folder = "admin", id, required = false, error }: { label: string; value: string; onChange: (value: string) => void; folder?: string; id?: string; required?: boolean; error?: string }) {
   const [message, setMessage] = useState("");
   return (
     <div>
-      <Field label={label} value={value} onChange={onChange} placeholder="URL locale, externe ou Supabase Storage" />
+      <Field id={id} label={label} value={value} onChange={onChange} placeholder="URL locale, externe ou Supabase Storage" required={required} error={error} />
       <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-full bg-cream px-3 py-2 text-[11px] font-semibold text-ink/55 transition hover:bg-sage hover:text-moss">
         <ImageIcon size={13} /> Envoyer une image
         <input
@@ -1701,6 +1726,8 @@ export function AdminDashboard() {
   const [seoFilter, setSeoFilter] = useState("Toutes les pages");
   const [selectedSeoReportId, setSelectedSeoReportId] = useState("");
   const skipNextAdminStateSave = useRef(false);
+  const subrubricNameRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
+  const [subrubricValidationErrors, setSubrubricValidationErrors] = useState<Record<string, Record<string, string>>>({});
 
   const goToSection = (section: AdminSection) => {
     if (section === active) return;
@@ -2313,22 +2340,40 @@ export function AdminDashboard() {
   };
 
   const addSubrubric = () => {
+    if (savingAction || rubricsOperation) {
+      setAdminMessage("Une opération est déjà en cours. Réessayez dans quelques secondes.");
+      return;
+    }
+    if (!state.rubrics.length) {
+      setAdminMessage("Créez d’abord une rubrique parente avant d’ajouter une sous-rubrique.");
+      return;
+    }
     skipNextAdminStateSave.current = true;
+    setActive("subrubrics");
+    let targetId = "";
     setState((current) => {
-      const rubricId = current.rubrics[0]?.id ?? "food";
+      const existingDraft = current.subrubrics.find((item) => !item.createdAt && item.status === "Brouillon" && item.id.startsWith("sous-rubrique-"));
+      if (existingDraft) {
+        targetId = existingDraft.id;
+        return current;
+      }
+      const firstRubric = [...current.rubrics].sort((a, b) => a.order - b.order)[0];
+      const rubricId = firstRubric.id;
+      const siblingCount = current.subrubrics.filter((item) => item.rubricId === rubricId).length;
+      const id = newId("sous-rubrique");
+      targetId = id;
       return {
         ...current,
         subrubrics: [
-          ...current.subrubrics,
           {
-            id: newId("sous-rubrique"),
+            id,
             rubricId,
-            name: "Nouvelle sous-rubrique",
-            slug: "nouvelle-sous-rubrique",
-            description: "Description à compléter",
-            icon: "✨",
+            name: "",
+            slug: "",
+            description: "",
+            icon: "",
             photo: "",
-            imageAlt: "Nouvelle sous-rubrique",
+            imageAlt: "",
             visible: true,
             showPublicly: true,
             format: "Carré standard",
@@ -2337,12 +2382,18 @@ export function AdminDashboard() {
             columnsTablet: 2,
             columnsMobile: 1,
             searchKeywords: [],
-            order: current.subrubrics.length + 1,
+            order: siblingCount + 1,
             status: "Brouillon",
           },
+          ...current.subrubrics,
         ],
       };
     });
+    setAdminMessage("Formulaire de création de sous-rubrique ouvert. Aucun contenu ne sera créé tant que vous n’enregistrez pas.");
+    window.setTimeout(() => {
+      document.getElementById(`subrubric-form-${targetId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      subrubricNameRefs.current[targetId]?.focus();
+    }, 80);
   };
 
   const addEstablishment = () => {
@@ -2497,6 +2548,47 @@ export function AdminDashboard() {
     return true;
   };
 
+  const clearSubrubricValidationError = (id: string, field: string) => {
+    setSubrubricValidationErrors((current) => {
+      const itemErrors = current[id];
+      if (!itemErrors?.[field]) return current;
+      const nextItemErrors = { ...itemErrors };
+      delete nextItemErrors[field];
+      const next = { ...current };
+      if (Object.keys(nextItemErrors).length) next[id] = nextItemErrors;
+      else delete next[id];
+      return next;
+    });
+  };
+
+  const scrollToSubrubricField = (id: string, field: string) => {
+    window.setTimeout(() => {
+      const target = document.getElementById(`subrubric-field-${id}-${field}`) ?? document.getElementById(`subrubric-form-${id}`);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (field === "name") subrubricNameRefs.current[id]?.focus();
+    }, 50);
+  };
+
+  const validateSubrubricForPublish = (subrubric: AdminSubrubric) => {
+    const slug = subrubric.slug || slugify(subrubric.name);
+    const errors: Record<string, string> = {};
+    if (!String(subrubric.rubricId ?? "").trim()) errors.rubricId = "Choisissez la rubrique parente.";
+    if (!subrubric.name.trim()) errors.name = "Le nom est obligatoire.";
+    if (!slug.trim()) errors.slug = "Le slug est obligatoire.";
+    if (!subrubric.description.trim()) errors.description = "La description est obligatoire.";
+    if (!subrubric.photo.trim()) errors.photo = "Ajoutez une photo ou une URL d’image.";
+    if (!String(subrubric.imageAlt ?? "").trim()) errors.imageAlt = "Le texte alternatif est obligatoire.";
+    if (!String(subrubric.order ?? "").trim()) errors.order = "L’ordre d’affichage est obligatoire.";
+    const duplicate = state.subrubrics.find((item) =>
+      item.id !== subrubric.id &&
+      item.rubricId === subrubric.rubricId &&
+      item.status !== "Masqué" &&
+      (item.slug || slugify(item.name)) === slug
+    );
+    if (duplicate) errors.slug = `Ce slug est déjà utilisé par “${duplicate.name}” dans cette rubrique.`;
+    return { slug, errors };
+  };
+
   const validateUniqueEstablishmentSlug = (establishment: AdminEstablishment, slug: string) => {
     const duplicate = state.establishments.find((item) => item.id !== establishment.id && (item.slug || slugify(item.name)) === slug);
     if (duplicate) {
@@ -2549,6 +2641,12 @@ export function AdminDashboard() {
 
   const applySubrubricLocally = (subrubric: AdminSubrubric, successMessage: string) => {
     skipNextAdminStateSave.current = true;
+    setSubrubricValidationErrors((current) => {
+      if (!current[subrubric.id]) return current;
+      const next = { ...current };
+      delete next[subrubric.id];
+      return next;
+    });
     setState((current) => normalizeAdminState({
       ...current,
       subrubrics: current.subrubrics.some((item) => item.id === subrubric.id)
@@ -2701,9 +2799,26 @@ export function AdminDashboard() {
 
   const saveSubrubricDraft = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
+    const slug = subrubric.slug || slugify(subrubric.name);
+    const draftErrors: Record<string, string> = {};
+    if (!String(subrubric.rubricId ?? "").trim()) draftErrors.rubricId = "Choisissez la rubrique parente.";
+    if (!subrubric.name.trim()) draftErrors.name = "Le nom est obligatoire pour enregistrer un brouillon.";
+    const duplicate = state.subrubrics.find((item) =>
+      item.id !== subrubric.id &&
+      item.rubricId === subrubric.rubricId &&
+      item.status !== "Masqué" &&
+      (item.slug || slugify(item.name)) === slug
+    );
+    if (duplicate) draftErrors.slug = `Ce slug est déjà utilisé par “${duplicate.name}” dans cette rubrique.`;
+    if (Object.keys(draftErrors).length) {
+      setSubrubricValidationErrors((current) => ({ ...current, [subrubric.id]: draftErrors }));
+      setAdminMessage(draftErrors.slug ? "Corrigez le slug avant d’enregistrer le brouillon." : "Veuillez remplir le nom et la rubrique parente avant d’enregistrer le brouillon.");
+      scrollToSubrubricField(subrubric.id, Object.keys(draftErrors)[0]);
+      return;
+    }
     setRubricsOperation(`subdraft-${subrubric.id}`);
     setSavingAction("Sauvegarde sous-rubrique");
-    const draft = { ...subrubric, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
+    const draft = { ...subrubric, slug, imageAlt: subrubric.imageAlt || subrubric.name, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await createSubrubricInSupabase(draft);
@@ -2725,8 +2840,13 @@ export function AdminDashboard() {
 
   const publishSubrubric = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
-    const slug = subrubric.slug || slugify(subrubric.name);
-    if (!requireFields([["rubrique parente", subrubric.rubricId], ["nom", subrubric.name], ["slug", slug], ["description", subrubric.description], ["photo", subrubric.photo], ["texte alternatif", subrubric.imageAlt], ["ordre", subrubric.order]])) return;
+    const { slug, errors } = validateSubrubricForPublish(subrubric);
+    if (Object.keys(errors).length) {
+      setSubrubricValidationErrors((current) => ({ ...current, [subrubric.id]: errors }));
+      setAdminMessage("Veuillez remplir les champs obligatoires avant de publier.");
+      scrollToSubrubricField(subrubric.id, Object.keys(errors)[0]);
+      return;
+    }
     if (!confirmSeoPublication("subcategory", subrubric.id)) return;
     setRubricsOperation(`subpublish-${subrubric.id}`);
     setSavingAction("Publication sous-rubrique");
@@ -3399,7 +3519,7 @@ export function AdminDashboard() {
                   <Panel title="Actions rapides" subtitle="Création directe des contenus.">
                     <div className="mt-5 grid gap-3">
                       <QuickAction label="Ajouter une rubrique" onClick={addRubric} />
-                      <QuickAction label="Ajouter une sous-rubrique" onClick={addSubrubric} />
+                      <QuickAction label="Créer une sous-rubrique" onClick={addSubrubric} />
                       <QuickAction label="Ajouter un établissement" onClick={addEstablishment} />
                       <QuickAction label="Créer un tag visible" onClick={addTag} />
                       <QuickAction label="Ajouter une certification" onClick={addCertification} />
@@ -3496,7 +3616,7 @@ export function AdminDashboard() {
             )}
 
             {active === "subrubrics" && (
-              <Panel title="Sous-rubriques" subtitle="Créer autant de sous-rubriques que nécessaire pour chaque rubrique." actionLabel="Ajouter une sous-rubrique" onAction={addSubrubric}>
+              <Panel title="Sous-rubriques" subtitle="Créer autant de sous-rubriques que nécessaire pour chaque rubrique." actionLabel="Créer une sous-rubrique" onAction={addSubrubric}>
                 {(rubricsOperation || (!subrubricsSupabaseLoaded && auth.configured)) && (
                   <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
                     {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des sous-rubriques Supabase…"}
@@ -3506,14 +3626,50 @@ export function AdminDashboard() {
                   {[...state.subrubrics].sort((a, b) => {
                     const parent = a.rubricId.localeCompare(b.rubricId);
                     return parent || a.order - b.order;
-                  }).map((subrubric) => (
-                    <div key={subrubric.id} className="grid gap-3 border-b border-black/5 p-4 last:border-b-0 lg:grid-cols-[36px_1fr_1fr_90px_140px_148px] lg:items-center">
+                  }).map((subrubric) => {
+                    const errors = subrubricValidationErrors[subrubric.id] ?? {};
+                    return (
+                    <div id={`subrubric-form-${subrubric.id}`} key={subrubric.id} className="scroll-mt-28 grid gap-3 border-b border-black/5 p-4 last:border-b-0 lg:grid-cols-[36px_1fr_1fr_90px_140px_148px] lg:items-center">
                       <GripVertical size={16} className="text-ink/25" />
-                      <Field label="Nom" value={subrubric.name} onChange={(value) => updateSubrubric(subrubric.id, { name: value })} />
-                      <SelectField label="Rubrique" value={subrubric.rubricId} onChange={(value) => updateSubrubric(subrubric.id, { rubricId: value })}>
+                      <Field
+                        id={`subrubric-field-${subrubric.id}-name`}
+                        label="Nom"
+                        value={subrubric.name}
+                        required
+                        error={errors.name}
+                        inputRef={(node) => { subrubricNameRefs.current[subrubric.id] = node; }}
+                        onChange={(value) => {
+                          updateSubrubric(subrubric.id, { name: value, slug: subrubric.slug ? subrubric.slug : slugify(value), imageAlt: subrubric.imageAlt ? subrubric.imageAlt : value });
+                          clearSubrubricValidationError(subrubric.id, "name");
+                          if (!subrubric.slug) clearSubrubricValidationError(subrubric.id, "slug");
+                          if (!subrubric.imageAlt) clearSubrubricValidationError(subrubric.id, "imageAlt");
+                        }}
+                      />
+                      <SelectField
+                        id={`subrubric-field-${subrubric.id}-rubricId`}
+                        label="Rubrique"
+                        value={subrubric.rubricId}
+                        required
+                        error={errors.rubricId}
+                        onChange={(value) => {
+                          updateSubrubric(subrubric.id, { rubricId: value });
+                          clearSubrubricValidationError(subrubric.id, "rubricId");
+                        }}
+                      >
                         {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>{rubric.name}</option>)}
                       </SelectField>
-                      <Field label="Ordre" value={subrubric.order} type="number" onChange={(value) => updateSubrubric(subrubric.id, { order: Number(value) })} />
+                      <Field
+                        id={`subrubric-field-${subrubric.id}-order`}
+                        label="Ordre"
+                        value={subrubric.order}
+                        type="number"
+                        required
+                        error={errors.order}
+                        onChange={(value) => {
+                          updateSubrubric(subrubric.id, { order: Number(value) });
+                          clearSubrubricValidationError(subrubric.id, "order");
+                        }}
+                      />
                       <SelectField label="Statut" value={subrubric.status} onChange={(value) => updateSubrubric(subrubric.id, { status: value as AdminStatus })}>
                         <option>Publié</option><option>Brouillon</option><option>Masqué</option>
                       </SelectField>
@@ -3540,10 +3696,51 @@ export function AdminDashboard() {
                           onTrash={() => void trashSubrubric(subrubric)}
                         />
                         <div className="grid gap-3 lg:grid-cols-3">
-                          <Field label="Slug" value={subrubric.slug ?? slugify(subrubric.name)} onChange={(value) => updateSubrubric(subrubric.id, { slug: value })} />
-                          <Field label="Description" value={subrubric.description} onChange={(value) => updateSubrubric(subrubric.id, { description: value })} />
-                          <ImageUploadField label="Photo" value={subrubric.photo} folder="subrubrics" onChange={(value) => updateSubrubric(subrubric.id, { photo: value })} />
-                          <Field label="Texte alternatif" value={subrubric.imageAlt ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { imageAlt: value })} />
+                          <Field
+                            id={`subrubric-field-${subrubric.id}-slug`}
+                            label="Slug"
+                            value={subrubric.slug ?? slugify(subrubric.name)}
+                            required
+                            error={errors.slug}
+                            onChange={(value) => {
+                              updateSubrubric(subrubric.id, { slug: value });
+                              clearSubrubricValidationError(subrubric.id, "slug");
+                            }}
+                          />
+                          <Field
+                            id={`subrubric-field-${subrubric.id}-description`}
+                            label="Description"
+                            value={subrubric.description}
+                            required
+                            error={errors.description}
+                            onChange={(value) => {
+                              updateSubrubric(subrubric.id, { description: value });
+                              clearSubrubricValidationError(subrubric.id, "description");
+                            }}
+                          />
+                          <ImageUploadField
+                            id={`subrubric-field-${subrubric.id}-photo`}
+                            label="Photo"
+                            value={subrubric.photo}
+                            folder="subrubrics"
+                            required
+                            error={errors.photo}
+                            onChange={(value) => {
+                              updateSubrubric(subrubric.id, { photo: value });
+                              clearSubrubricValidationError(subrubric.id, "photo");
+                            }}
+                          />
+                          <Field
+                            id={`subrubric-field-${subrubric.id}-imageAlt`}
+                            label="Texte alternatif"
+                            value={subrubric.imageAlt ?? ""}
+                            required
+                            error={errors.imageAlt}
+                            onChange={(value) => {
+                              updateSubrubric(subrubric.id, { imageAlt: value });
+                              clearSubrubricValidationError(subrubric.id, "imageAlt");
+                            }}
+                          />
                           <Field label="Icône" value={subrubric.icon ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { icon: value })} />
                           <SelectField label="Format de carte" value={subrubric.format ?? "Carré standard"} onChange={(value) => updateSubrubric(subrubric.id, { format: value as RubricFormat })}>
                             <option>Petit carré</option>
@@ -3566,7 +3763,8 @@ export function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </Panel>
             )}

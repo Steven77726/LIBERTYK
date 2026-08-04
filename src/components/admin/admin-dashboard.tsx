@@ -2262,17 +2262,54 @@ export function AdminDashboard() {
   };
 
   const addRubric = () => {
+    if (savingAction || rubricsOperation) {
+      setAdminMessage("Une opération est déjà en cours. Réessayez dans quelques secondes.");
+      return;
+    }
     skipNextAdminStateSave.current = true;
+    let targetId = "";
     setState((current) => {
+      const existingDraft = current.rubrics.find((rubric) => !rubric.createdAt && rubric.status === "Brouillon");
+      if (existingDraft) {
+        targetId = existingDraft.id;
+        return current;
+      }
       const id = newId("rubrique");
+      targetId = id;
       return {
         ...current,
         rubrics: [
+          {
+            id,
+            name: "",
+            slug: "",
+            description: "",
+            icon: "",
+            image: "",
+            imageAlt: "",
+            showOnHome: true,
+            format: "Carré standard",
+            columnsDesktop: 3,
+            columnsTablet: 2,
+            columnsMobile: 1,
+            searchKeywords: [],
+            order: current.rubrics.length + 1,
+            status: "Brouillon",
+          },
           ...current.rubrics,
-          { id, name: "Nouvelle rubrique", description: "Description à compléter", icon: "✨", image: "", format: "Carré standard", order: current.rubrics.length + 1, status: "Brouillon" },
         ],
       };
     });
+    setAdminMessage("Formulaire de création de rubrique ouvert. Aucun contenu ne sera créé tant que vous n’enregistrez pas.");
+    window.setTimeout(() => document.getElementById(`rubric-form-${targetId}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+
+  const isUnsavedRubric = (rubric: AdminRubric) => !rubric.createdAt && rubric.status === "Brouillon";
+
+  const cancelRubricCreation = (id: string) => {
+    skipNextAdminStateSave.current = true;
+    setState((current) => ({ ...current, rubrics: current.rubrics.filter((rubric) => rubric.id !== id) }));
+    setAdminMessage("Création de rubrique annulée.");
   };
 
   const addSubrubric = () => {
@@ -3374,7 +3411,7 @@ export function AdminDashboard() {
             )}
 
             {active === "rubrics" && (
-              <Panel title="Rubriques" subtitle="Ajouter, modifier, masquer, publier et organiser les catégories principales." actionLabel="Ajouter une rubrique" onAction={addRubric}>
+              <Panel title="Rubriques" subtitle="Ajouter, modifier, masquer, publier et organiser les catégories principales." actionLabel="Créer une rubrique" onAction={addRubric}>
                 {(rubricsOperation || (!rubricsSupabaseLoaded && auth.configured)) && (
                   <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
                     {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des rubriques Supabase…"}
@@ -3382,7 +3419,7 @@ export function AdminDashboard() {
                 )}
                 <div className="mt-6 grid gap-4 xl:grid-cols-2">
                   {state.rubrics.sort((a, b) => a.order - b.order).map((rubric) => (
-                    <article key={rubric.id} className="rounded-3xl border border-black/5 bg-white p-5">
+                    <article id={`rubric-form-${rubric.id}`} key={rubric.id} className="rounded-3xl border border-black/5 bg-white p-5">
                       <div className="flex items-center justify-between gap-3">
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(rubric.status)}`}>{rubric.status}</span>
                         <div className="flex gap-2">
@@ -3412,8 +3449,8 @@ export function AdminDashboard() {
                         onDraft={() => saveRubricDraft(rubric)}
                         onPreview={() => previewRubricDraft(rubric)}
                         onPublish={() => publishRubric(rubric)}
-                        onHide={() => void hideRubric(rubric)}
-                        onTrash={() => void trashRubric(rubric)}
+                        onHide={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : hideRubric(rubric))}
+                        onTrash={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : trashRubric(rubric))}
                       />
                       <div className="mt-4 grid gap-4 sm:grid-cols-[120px_1fr]">
                         <PreviewImage src={rubric.image} alt={rubric.name} />

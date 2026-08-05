@@ -117,6 +117,12 @@ function dedupe(items: SubrubricPreview[]) {
   return [...map.values()].sort((a, b) => a.order - b.order);
 }
 
+function subrubricHref(rubricSlug: string, subrubricSlug: string) {
+  if (rubricSlug === "food" && subrubricSlug === "restaurants") return "/food/restaurants";
+  if (rubricSlug === "food" && subrubricSlug === "brunch") return "/food/brunch";
+  return `/${rubricSlug}?type=${subrubricSlug}`;
+}
+
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {
   const [items, setItems] = useState<SubrubricPreview[] | null>(null);
 
@@ -156,7 +162,7 @@ export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
   return (
     <div className="mt-8 grid gap-3 sm:grid-cols-3">
       {items.map((item, index) => (
-        <Link key={item.id} href={`/${rubricSlug}?type=${item.slug ?? slugify(item.name)}`} className="group flex items-center justify-between rounded-3xl border border-black/5 bg-white p-6 transition hover:-translate-y-1 hover:shadow-soft">
+        <Link key={item.id} href={subrubricHref(rubricSlug, item.slug ?? slugify(item.name))} className="group flex items-center justify-between rounded-3xl border border-black/5 bg-white p-6 transition hover:-translate-y-1 hover:shadow-soft">
           <div>
             <span className="text-xs text-ink/35">{String(index + 1).padStart(2, "0")}</span>
             <h3 className="mt-5 text-lg font-semibold">{item.name}</h3>
@@ -179,7 +185,7 @@ export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubr
     return {
       label: item.name,
       description: item.description || fallbackCard?.description || "",
-      href: fallbackCard?.href || (slug === "restaurants" ? "/food/restaurants" : slug === "brunch" ? "/food/brunch" : `/food?type=${slug}`),
+      href: subrubricHref("food", slug),
       image: item.photo || fallbackCard?.image || "/images/food/restaurants-khan.jpg",
       icon: foodIconBySlug[slug] || Store,
     };
@@ -227,7 +233,7 @@ export function CardSubrubricGrid({
     return {
       title: item.name,
       description: item.description || fallbackCard?.description || "",
-      href: fallbackCard?.href || `/${rubricSlug}?type=${slug}`,
+      href: subrubricHref(rubricSlug, slug),
       image: item.photo || fallbackCard?.image || categories.find((category) => category.slug === rubricSlug)?.image || "/images/food/restaurants-khan.jpg",
       icon: genericIconBySlug[slug] || Store,
     };

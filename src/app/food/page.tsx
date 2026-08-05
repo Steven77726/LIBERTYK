@@ -5,8 +5,8 @@ import {
   ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
-import { FoodSubrubricResults } from "@/components/food/food-subrubric-results";
 import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { SubrubricEstablishmentResults } from "@/components/ui/subrubric-establishment-results";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -74,7 +74,7 @@ export default function FoodPage() {
             </div>
             <FoodSubrubricGrid fallbackCards={addressTypes.map(({ icon: _icon, ...item }) => item)} />
             <Suspense fallback={null}>
-              <FoodSubrubricResults />
+              <SubrubricEstablishmentResults rubricSlug="food" excludedTypes={["restaurants", "brunch"]} />
             </Suspense>
           </div>
 

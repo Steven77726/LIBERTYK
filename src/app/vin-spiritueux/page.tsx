@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Grape, Sparkles, Wine } from "lucide-react";
 import { wineActivities } from "@/data/wine-activities";
 import { WineActivityGrid } from "@/components/wine/wine-activity-grid";
+import { CardSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { SubrubricEstablishmentResults } from "@/components/ui/subrubric-establishment-results";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -25,6 +28,15 @@ export default function WineSpiritsPage() {
             <p className="mt-6 max-w-xl text-base leading-7 text-white/52 sm:text-lg">Quatre façons de découvrir, partager et célébrer le vin.</p>
           </div>
         </div>
+      </section>
+
+      <section className="page-shell pt-16 sm:pt-24">
+        <p className="eyebrow">Explorer</p>
+        <h2 className="section-title">Choisir un univers</h2>
+        <CardSubrubricGrid rubricSlug="vin-spiritueux" columns="md:grid-cols-3" />
+        <Suspense fallback={null}>
+          <SubrubricEstablishmentResults rubricSlug="vin-spiritueux" />
+        </Suspense>
       </section>
 
       <section className="page-shell py-16 sm:py-24">

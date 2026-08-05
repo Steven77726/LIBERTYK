@@ -37,7 +37,8 @@ export function SubrubricEstablishmentResults({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const excluded = useMemo(() => new Set(excludedTypes.map(slugify)), [excludedTypes]);
+  const excludedKey = excludedTypes.map(slugify).join("|");
+  const isExcluded = useMemo(() => excludedKey.split("|").filter(Boolean).includes(type), [excludedKey, type]);
   const title = useMemo(() => {
     if (!type) return "";
     const labels: Record<string, string> = {
@@ -58,7 +59,7 @@ export function SubrubricEstablishmentResults({
   useEffect(() => {
     let mounted = true;
     async function load() {
-      if (!type || excluded.has(type)) {
+      if (!type || isExcluded) {
         setItems([]);
         setError("");
         return;
@@ -83,9 +84,9 @@ export function SubrubricEstablishmentResults({
     return () => {
       mounted = false;
     };
-  }, [excluded, rubricSlug, type]);
+  }, [excludedKey, isExcluded, rubricSlug, type]);
 
-  if (!type || excluded.has(type)) return null;
+  if (!type || isExcluded) return null;
 
   return (
     <section className="mt-14 rounded-[2rem] border border-black/[.06] bg-white/80 p-5 shadow-soft backdrop-blur sm:p-7">

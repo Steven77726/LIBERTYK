@@ -1,35 +1,76 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, ExternalLink, MapPin, Wine } from "lucide-react";
+import { ArrowRight, ExternalLink, MapPin } from "lucide-react";
 import type { WineActivity } from "@/data/wine-activities";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
-import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { assetPath } from "@/lib/assets";
-import { EntityActions, LikeButton } from "@/components/ui/entity-actions";
+import { LikeButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 
-const recordsToWineActivities = (records: EstablishmentRecord[]): WineActivity[] => records.map((item) => ({
-  slug: item.slug ?? item.id,
-  title: item.name,
-  type: item.shortDescription?.split("·")[0]?.trim() || "Vin & Spiritueux",
-  address: item.address || undefined,
-  image: item.mainPhoto || "/images/winess/winess-shop.webp",
-  tags: [...new Set([...(item.visibleTagIds ?? [])].filter(Boolean))].slice(0, 6),
-  description: item.description,
-  action: item.website ? "Visiter le site" : item.reservation ? "Découvrir" : "Découvrir",
-  website: item.website || undefined,
-}));
+const activityToEstablishmentRecord = (activity: WineActivity, index: number): EstablishmentRecord => ({
+  id: activity.slug,
+  rubricId: "vin-spiritueux",
+  subrubricId: "selections",
+  mainPhoto: activity.image,
+  photos: [],
+  name: activity.title,
+  slug: activity.slug,
+  shortDescription: `${activity.type} · Vin & Spiritueux`,
+  description: activity.description,
+  address: activity.address ?? "",
+  city: "Paris",
+  arrondissement: activity.address?.includes("75017") ? "17e" : "",
+  postalCode: activity.address?.match(/750\d{2}/)?.[0] ?? "",
+  country: "France",
+  email: "",
+  phone: "",
+  whatsapp: "",
+  instagram: "",
+  website: activity.website ?? "",
+  hours: "",
+  terrace: false,
+  delivery: false,
+  takeaway: true,
+  reservation: activity.slug !== "winess",
+  privateHire: activity.slug.includes("signature"),
+  certification: "",
+  kosherType: "Parvé",
+  averagePrice: "€€€",
+  latitude: "",
+  longitude: "",
+  status: "Publié",
+  visible: true,
+  sponsorshipLevel: "Premium",
+  sponsored: true,
+  sponsorPriority: index + 1,
+  sponsorDuration: "",
+  sponsorStartsAt: "",
+  sponsorEndsAt: "",
+  sponsorPlacement: "",
+  sponsorNotes: "",
+  reservationTarget: activity.website ?? "",
+  cuisineTypes: ["Vin & Spiritueux", activity.type, ...activity.tags],
+  order: index + 1,
+  customerSearches: [],
+  visibleTagIds: activity.tags,
+  fieldVisibility: {},
+});
+
+function displayType(item: EstablishmentRecord) {
+  return item.shortDescription?.split("·")[0]?.trim() || "Vin & Spiritueux";
+}
 
 export function WineActivityGrid({ activities }: { activities: WineActivity[] }) {
-  const [activityData, setActivityData] = useState(activities);
-  const [selected, setSelected] = useState<WineActivity | null>(null);
+  const [activityData, setActivityData] = useState<EstablishmentRecord[]>(() => activities.map(activityToEstablishmentRecord));
+  const [selected, setSelected] = useState<EstablishmentRecord | null>(null);
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       const records = await listPublishedEstablishments({ rubricSlug: "vin-spiritueux" }).catch(() => null);
       if (!mounted) return;
-      setActivityData(records?.length ? recordsToWineActivities(records) : activities);
+      setActivityData(records?.length ? records : activities.map(activityToEstablishmentRecord));
     };
     void load();
     const refresh = () => void load();
@@ -43,19 +84,17 @@ export function WineActivityGrid({ activities }: { activities: WineActivity[] })
     <>
       <div className="grid gap-5 md:grid-cols-2">
         {activityData.map((activity) => (
-          <article key={activity.slug} className="group relative overflow-hidden rounded-[2rem] border border-black/[.055] bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-soft">
+          <article key={activity.id} className="group relative overflow-hidden rounded-[2rem] border border-black/[.055] bg-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-soft">
             <button onClick={() => setSelected(activity)} className="block w-full text-left">
-              <div className="relative aspect-[16/10] overflow-hidden bg-ink"><img src={assetPath(activity.image)} alt="" className="size-full object-cover transition duration-700 group-hover:scale-105" style={{ objectPosition: activity.imagePosition }} /><div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/5" /><div className="absolute left-5 top-5"><RecommendationBadge rating={activity.rating} reviewCount={activity.reviewCount} /></div><span className="absolute bottom-5 left-5 rounded-full border border-white/20 bg-black/25 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-white backdrop-blur">{activity.type}</span></div>
-              <div className="p-6 sm:p-7"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-semibold tracking-[-.04em]">{activity.title}</h2>{activity.address && <p className="mt-2 flex items-center gap-1.5 text-xs text-ink/45"><MapPin size={13} />{activity.address}</p>}</div><span className="grid size-10 shrink-0 place-items-center rounded-full bg-cream transition group-hover:bg-ink group-hover:text-white"><ArrowRight size={16} /></span></div><p className="mt-4 max-w-xl text-sm leading-6 text-ink/52">{activity.description}</p><div className="mt-3"><CustomerRating rating={activity.rating} reviewCount={activity.reviewCount} /></div><div className="mt-5 flex flex-wrap gap-2">{activity.tags.map((tag) => <span key={tag} className="rounded-full bg-cream px-3 py-2 text-[11px] text-ink/65">{tag}</span>)}</div></div>
+              <div className="relative aspect-[16/10] overflow-hidden bg-ink"><img src={assetPath(activity.mainPhoto || "/images/winess/winess-shop.webp")} alt="" className="size-full object-cover transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/5" /><div className="absolute left-5 top-5"><RecommendationBadge rating={null} reviewCount={0} /></div><span className="absolute bottom-5 left-5 rounded-full border border-white/20 bg-black/25 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-white backdrop-blur">{displayType(activity)}</span></div>
+              <div className="p-6 sm:p-7"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-semibold tracking-[-.04em]">{activity.name}</h2>{activity.address && <p className="mt-2 flex items-center gap-1.5 text-xs text-ink/45"><MapPin size={13} />{activity.address}</p>}</div><span className="grid size-10 shrink-0 place-items-center rounded-full bg-cream transition group-hover:bg-ink group-hover:text-white"><ArrowRight size={16} /></span></div><p className="mt-4 max-w-xl text-sm leading-6 text-ink/52">{activity.description}</p><div className="mt-3"><CustomerRating rating={null} reviewCount={0} /></div><div className="mt-5 flex flex-wrap gap-2">{activity.visibleTagIds.slice(0, 6).map((tag) => <span key={tag} className="rounded-full bg-cream px-3 py-2 text-[11px] text-ink/65">{tag}</span>)}</div></div>
             </button>
-            <div className="absolute right-5 top-5"><LikeButton entity={{ id: `wine-${activity.slug}`, title: activity.title, url: `/vin-spiritueux/${activity.slug}`, text: `${activity.title} · ${activity.type}` }} /></div>
-            {activity.website && <div className="px-6 pb-6 sm:px-7 sm:pb-7"><a href={activity.website} target="_blank" rel="noreferrer" className="flex w-fit items-center gap-2 rounded-xl bg-ink px-5 py-3 text-xs font-semibold text-white">🌐 {activity.action} <ExternalLink size={13} /></a></div>}
+            <div className="absolute right-5 top-5"><LikeButton entity={{ id: `establishment-${activity.id}`, title: activity.name, url: `/vin-spiritueux/selections#${activity.slug ?? activity.id}`, text: `${activity.name} · ${displayType(activity)}` }} /></div>
+            {activity.website && <div className="px-6 pb-6 sm:px-7 sm:pb-7"><a href={activity.website} target="_blank" rel="noreferrer" className="flex w-fit items-center gap-2 rounded-xl bg-ink px-5 py-3 text-xs font-semibold text-white">🌐 Visiter le site <ExternalLink size={13} /></a></div>}
           </article>
         ))}
       </div>
-      <EntityDrawer open={!!selected} onClose={() => setSelected(null)} title={selected?.title ?? "Vin & Spiritueux"}>
-        {selected && <div><div className="relative aspect-[4/3]"><img src={assetPath(selected.image)} alt="" className="size-full object-cover" style={{ objectPosition: selected.imagePosition }} /><div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><Wine size={20} /><p className="mt-3 text-xs text-white/55">{selected.type}</p><h2 className="mt-1 text-3xl font-semibold">{selected.title}</h2></div></div><div className="space-y-6 p-6"><CustomerRating rating={selected.rating} reviewCount={selected.reviewCount} /><EntityActions entity={{ id: `wine-${selected.slug}`, title: selected.title, url: `/vin-spiritueux/${selected.slug}`, text: `${selected.title} · ${selected.type}` }} /><p className="text-sm leading-7 text-ink/55">{selected.description}</p><div className="flex flex-wrap gap-2">{selected.tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs">{tag}</span>)}</div>{selected.address && <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{selected.address}</p></div>}{selected.website && <a href={selected.website} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-ink py-4 text-sm font-semibold text-white">{selected.action} <ExternalLink size={15} /></a>}</div></div>}
-      </EntityDrawer>
+      <EstablishmentDetailDrawer establishment={selected} open={!!selected} onClose={() => setSelected(null)} />
     </>
   );
 }

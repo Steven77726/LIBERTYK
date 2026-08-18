@@ -7,6 +7,8 @@ import { assetPath } from "@/lib/assets";
 import { categoryBySlug } from "@/data/categories";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
+import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
+import { LikeButton } from "@/components/ui/entity-actions";
 
 type Props = {
   rubricSlug: string;
@@ -38,6 +40,7 @@ export function SubrubricPageView({
   const rubric = categoryBySlug[rubricSlug];
   const [subrubric, setSubrubric] = useState<SubrubricRecord | null>(null);
   const [items, setItems] = useState<EstablishmentRecord[]>([]);
+  const [selectedEstablishment, setSelectedEstablishment] = useState<EstablishmentRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -127,7 +130,9 @@ export function SubrubricPageView({
 
         {items.length > 0 && (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((item) => (
+            {items.map((item) => {
+              const entityUrl = `/${[rubricSlug, subrubricSlug].filter(Boolean).join("/")}#${item.slug ?? item.id}`;
+              return (
               <article
                 key={item.id}
                 id={item.slug}
@@ -141,16 +146,22 @@ export function SubrubricPageView({
                     decoding="async"
                     className="size-full object-cover transition duration-700 group-hover:scale-105"
                   />
+                  <button onClick={() => setSelectedEstablishment(item)} className="absolute inset-0 z-10 size-full text-left" aria-label={`Ouvrir la fiche ${item.name}`} />
                   {item.sponsored && (
-                    <span className="absolute left-4 top-4 rounded-full bg-[#f6ecd9] px-3 py-1.5 text-[10px] font-semibold text-[#9b6b2d] shadow-sm">
+                    <span className="absolute left-4 top-4 z-20 rounded-full bg-[#f6ecd9] px-3 py-1.5 text-[10px] font-semibold text-[#9b6b2d] shadow-sm">
                       Sponsorisé
                     </span>
                   )}
+                  <div className="absolute right-4 top-4 z-20">
+                    <LikeButton entity={{ id: `establishment-${item.id}`, title: item.name, url: entityUrl, text: `${item.name} · ${title}` }} />
+                  </div>
                 </div>
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold tracking-tight">{item.name}</h3>
+                      <button onClick={() => setSelectedEstablishment(item)} className="text-left">
+                        <h3 className="text-lg font-semibold tracking-tight">{item.name}</h3>
+                      </button>
                       <p className="mt-1 flex items-center gap-1 text-sm text-ink/45">
                         <MapPin size={13} /> {[item.address, item.city].filter(Boolean).join(" · ")}
                       </p>
@@ -169,10 +180,16 @@ export function SubrubricPageView({
                   </div>
                 </div>
               </article>
-            ))}
+            );
+            })}
           </div>
         )}
       </section>
+      <EstablishmentDetailDrawer
+        establishment={selectedEstablishment}
+        open={Boolean(selectedEstablishment)}
+        onClose={() => setSelectedEstablishment(null)}
+      />
     </>
   );
 }

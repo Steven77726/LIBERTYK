@@ -1,19 +1,21 @@
 "use client";
 
 import {
-  ArrowUpRight, CalendarDays, Car, ChevronDown, ChevronLeft, ChevronRight, Clock,
-  Copy, ExternalLink, Filter, Globe2, Instagram, List, Mail, Map as MapIcon,
-  MapPin, MessageCircle, Navigation, Phone, Search, SlidersHorizontal,
+  ArrowUpRight, CalendarDays, Car, ChevronDown,
+  Copy, Filter, Globe2, Instagram, List, Map as MapIcon,
+  MapPin, Navigation, Phone, Search, SlidersHorizontal,
   Store, UtensilsCrossed, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Restaurant } from "@/types/restaurant";
+import type { LocalSponsorshipLevel } from "@/data/establishments";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
 import { assetPath } from "@/lib/assets";
-import { EntityActions, LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
+import { LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -64,6 +66,10 @@ const buildAddressQuery = (restaurant: Restaurant) => {
   return [restaurant.fullAddress, restaurant.postalCode, restaurant.city ?? "Paris", restaurant.country ?? "France"].filter(Boolean).join(", ");
 };
 const uniqueList = (values: Array<string | undefined | null>) => [...new Set(values.map((value) => value?.trim()).filter(Boolean) as string[])];
+const normalizeSponsorshipLevel = (value?: string): LocalSponsorshipLevel => {
+  const levels: LocalSponsorshipLevel[] = ["Standard", "Featured", "Premium", "Sponsorisé", "Partenaire officiel", "Coup de cœur Liberty"];
+  return levels.includes(value as LocalSponsorshipLevel) ? value as LocalSponsorshipLevel : "Standard";
+};
 const distanceBetween = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const radius = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -88,6 +94,57 @@ function mapKosherType(value?: string): Restaurant["type"] {
 function mapPrice(value?: string): Restaurant["price"] {
   if (value === "€" || value === "€€" || value === "€€€") return value;
   return "À compléter";
+}
+
+function restaurantToEstablishmentRecord(restaurant: Restaurant): EstablishmentRecord {
+  return {
+    id: restaurant.id,
+    rubricId: "food",
+    subrubricId: "restaurants",
+    mainPhoto: restaurant.image,
+    photos: restaurant.gallery ?? [],
+    name: restaurant.name,
+    slug: restaurant.id,
+    shortDescription: `${restaurant.specialty} · ${restaurant.cuisine}`,
+    description: [restaurant.specialty, restaurant.cuisine].filter((value) => value && value !== "À compléter").join(" — "),
+    address: restaurant.fullAddress,
+    city: restaurant.city ?? "Paris",
+    arrondissement: restaurant.arrondissement ? `${restaurant.arrondissement}e` : "",
+    postalCode: restaurant.postalCode,
+    country: restaurant.country ?? "France",
+    email: restaurant.email ?? "",
+    phone: restaurant.phone,
+    whatsapp: restaurant.whatsapp ?? "",
+    instagram: restaurant.instagram ?? "",
+    website: restaurant.website ?? "",
+    hours: Object.entries(restaurant.hours).map(([day, hours]) => `${day}: ${hours}`).join("\n"),
+    terrace: restaurant.amenities.terrace === true,
+    delivery: restaurant.services.delivery === true,
+    takeaway: restaurant.services.takeaway === true,
+    reservation: restaurant.services.reservation === true,
+    privateHire: restaurant.amenities.privateHire === true,
+    certification: restaurant.certification,
+    kosherType: restaurant.type === "Viande" ? "Bassari" : restaurant.type === "Lait" ? "Halavi" : restaurant.type,
+    averagePrice: restaurant.price,
+    latitude: String(restaurant.latitude),
+    longitude: String(restaurant.longitude),
+    status: "Publié",
+    visible: true,
+    sponsorshipLevel: normalizeSponsorshipLevel(restaurant.sponsorshipLevel),
+    sponsored: restaurant.sponsored ?? false,
+    sponsorPriority: 0,
+    sponsorDuration: "",
+    sponsorStartsAt: "",
+    sponsorEndsAt: "",
+    sponsorPlacement: "",
+    sponsorNotes: "",
+    reservationTarget: "",
+    cuisineTypes: [restaurant.cuisine, restaurant.specialty].filter(Boolean),
+    order: 0,
+    customerSearches: [],
+    visibleTagIds: restaurant.tags ?? [],
+    fieldVisibility: restaurant.fieldVisibility,
+  };
 }
 
 function hourLinesToRecord(value?: string) {
@@ -297,63 +354,6 @@ function ItineraryMenu({ restaurant, compact = false, label = "Itinéraire", add
         </div>
       )}
     </div>
-  );
-}
-
-function PhotoGallery({ restaurant }: { restaurant: Restaurant }) {
-  const images = uniqueList(restaurant.gallery?.length ? restaurant.gallery : [restaurant.image]);
-  const [index, setIndex] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  if (!images.length) return null;
-
-  const move = (delta: number) => setIndex((current) => (current + delta + images.length) % images.length);
-  const current = images[index] ?? images[0];
-
-  return (
-    <>
-      <div className="grid gap-2">
-        <button onClick={() => setOpen(true)} className="relative aspect-[16/10] overflow-hidden rounded-3xl bg-sage text-left">
-          <img src={assetPath(images[0])} alt="" className="size-full object-cover" />
-          <span className="absolute bottom-4 right-4 rounded-full bg-ink/80 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">{images.length} photo{images.length > 1 ? "s" : ""}</span>
-        </button>
-        {images.length > 1 && (
-          <div className="grid grid-cols-4 gap-2">
-            {images.slice(0, 4).map((image, imageIndex) => (
-              <button key={image} onClick={() => { setIndex(imageIndex); setOpen(true); }} className="aspect-square overflow-hidden rounded-2xl bg-sage">
-                <img src={assetPath(image)} alt="" className="size-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      {open && (
-        <div
-          className="fixed inset-0 z-[120] bg-black/85 p-4 backdrop-blur-sm"
-          onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}
-          onTouchStart={(event) => { if (event.target === event.currentTarget) setOpen(false); }}
-        >
-          <button onClick={() => setOpen(false)} className="absolute right-4 top-4 z-10 grid size-11 place-items-center rounded-full bg-white text-ink"><X size={20} /></button>
-          <div className="flex h-full items-center justify-center" onMouseDown={(event) => event.stopPropagation()}>
-            {images.length > 1 && <button onClick={() => move(-1)} className="absolute left-4 hidden size-11 place-items-center rounded-full bg-white/90 text-ink sm:grid"><ChevronLeft /></button>}
-            <div
-              className="max-h-full max-w-5xl"
-              onTouchStart={(event) => setTouchStart(event.touches[0]?.clientX ?? null)}
-              onTouchEnd={(event) => {
-                if (touchStart === null) return;
-                const delta = (event.changedTouches[0]?.clientX ?? touchStart) - touchStart;
-                if (Math.abs(delta) > 40) move(delta > 0 ? -1 : 1);
-                setTouchStart(null);
-              }}
-            >
-              <img src={assetPath(current)} alt="" className="max-h-[82vh] max-w-full rounded-3xl object-contain shadow-2xl" />
-              <p className="mt-4 text-center text-sm font-semibold text-white">{index + 1} / {images.length}</p>
-            </div>
-            {images.length > 1 && <button onClick={() => move(1)} className="absolute right-4 hidden size-11 place-items-center rounded-full bg-white/90 text-ink sm:grid"><ChevronRight /></button>}
-          </div>
-        </div>
-      )}
-    </>
   );
 }
 
@@ -621,59 +621,13 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
           <div className={`${view === "map" ? "block lg:col-span-1 xl:col-span-1" : "hidden xl:block"}`}><RestaurantMap restaurants={results} selected={selected} onSelect={(restaurant) => setSelected(selected?.id === restaurant.id ? null : restaurant)} /></div>
         </div>
       </section>
-      <EntityDrawer open={!!detailRestaurant} onClose={() => setDetailRestaurant(null)} title={detailRestaurant?.name ?? "Restaurant"}>
-        {detailRestaurant && (() => {
-          const visibility = { ...publicDefaultFieldVisibility, ...(detailRestaurant.fieldVisibility ?? {}) };
-          const entity = { id: `restaurant-${detailRestaurant.id}`, title: detailRestaurant.name, url: `/food/restaurants#${detailRestaurant.id}`, text: `${detailRestaurant.name} · ${detailRestaurant.fullAddress}` };
-          return (
-            <div>
-              <div className="space-y-5 p-6">
-                {visibility.gallery !== false && <PhotoGallery restaurant={detailRestaurant} />}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-moss/55">{detailRestaurant.cuisine}</p>
-                  <h2 className="mt-1 text-3xl font-semibold tracking-[-.04em]">{detailRestaurant.name}</h2>
-                </div>
-                {visibility.reviews !== false && <CustomerRating rating={detailRestaurant.rating} reviewCount={detailRestaurant.reviewCount} />}
-                <EntityActions entity={entity} />
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {detailRestaurant.type !== "À compléter" && <button onClick={() => applyTagFilter(detailRestaurant.type)} className="rounded-full bg-sage px-3 py-2 text-moss">{detailRestaurant.type}</button>}
-                  {visibility.certification !== false && detailRestaurant.certification && normalize(detailRestaurant.certification) !== "a completer" && <button onClick={() => applyTagFilter(detailRestaurant.certification)} className="rounded-full bg-white px-3 py-2">✡ {detailRestaurant.certification}</button>}
-                  {visibility.price !== false && <span className="rounded-full bg-white px-3 py-2">{detailRestaurant.price}</span>}
-                  {visibility.tags !== false && (detailRestaurant.tags ?? []).map((tag) => (
-                    <button key={tag} onClick={() => applyTagFilter(tag)} className="rounded-full bg-white px-3 py-2 transition hover:bg-sage hover:text-moss">{tag}</button>
-                  ))}
-                </div>
-                {visibility.address !== false && hasMeaningfulAddress(detailRestaurant) && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p>
-                    <div className="mt-2">
-                      <ItineraryMenu restaurant={detailRestaurant} addressTrigger label={`${detailRestaurant.fullAddress}, ${detailRestaurant.postalCode} ${detailRestaurant.city ?? "Paris"}`} />
-                    </div>
-                    <div className="mt-3"><ItineraryMenu restaurant={detailRestaurant} /></div>
-                  </div>
-                )}
-                {visibility.opening_hours !== false && <div>
-                  <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Horaires</p>
-                  {hasMeaningfulHours(detailRestaurant) ? (
-                    <button onClick={() => setHoursRestaurant(detailRestaurant)} className="mt-2 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold"><Clock size={16} /> Horaires disponibles</button>
-                  ) : (
-                    <p className="mt-2 text-sm text-ink/45">Horaires non renseignés</p>
-                  )}
-                </div>}
-                <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Spécialité</p><p className="mt-2 text-sm leading-6 text-ink/60">{detailRestaurant.specialty}</p></div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {visibility.phone !== false && detailRestaurant.phone && <a href={`tel:${detailRestaurant.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><Phone size={15} /> Téléphone</a>}
-                  {visibility.whatsapp !== false && detailRestaurant.whatsapp && <a href={`https://wa.me/${detailRestaurant.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><MessageCircle size={15} /> WhatsApp</a>}
-                  {visibility.email !== false && detailRestaurant.email && <a href={`mailto:${detailRestaurant.email}`} className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><Mail size={15} /> Email</a>}
-                  {visibility.website !== false && detailRestaurant.website && <a href={normalizeExternalUrl(detailRestaurant.website)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><ExternalLink size={15} /> Site web</a>}
-                  {visibility.instagram !== false && detailRestaurant.instagram && <a href={normalizeExternalUrl(detailRestaurant.instagram)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><Instagram size={15} /> Instagram</a>}
-                  {visibility.reservation !== false && <button onClick={() => setReservationRestaurant(detailRestaurant)} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><CalendarDays size={16} /> Réservation</button>}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </EntityDrawer>
+      <EstablishmentDetailDrawer
+        establishment={detailRestaurant ? restaurantToEstablishmentRecord(detailRestaurant) : null}
+        open={!!detailRestaurant}
+        onClose={() => setDetailRestaurant(null)}
+        onReserve={() => detailRestaurant && setReservationRestaurant(detailRestaurant)}
+        onTag={applyTagFilter}
+      />
       <HoursPanel restaurant={hoursRestaurant} open={!!hoursRestaurant} onClose={() => setHoursRestaurant(null)} />
       <EntityDrawer open={!!reservationRestaurant} onClose={() => setReservationRestaurant(null)} title="Demande de réservation">
         {reservationRestaurant && <ReservationForm restaurant={reservationRestaurant} onDone={() => setReservationRestaurant(null)} />}

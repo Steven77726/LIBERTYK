@@ -1,23 +1,74 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Shirt } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { azamra } from "@/data/shops";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
-import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { assetPath } from "@/lib/assets";
-import { EntityActions, LikeButton } from "@/components/ui/entity-actions";
-import { listPublishedEstablishments } from "@/lib/supabase/establishments-repository";
+import { LikeButton } from "@/components/ui/entity-actions";
+import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
+
+const azamraToEstablishmentRecord = (): EstablishmentRecord => ({
+  id: "azamra",
+  rubricId: "shopping",
+  subrubricId: "mode",
+  mainPhoto: azamra.image,
+  photos: [],
+  name: azamra.name,
+  slug: azamra.slug,
+  shortDescription: azamra.type,
+  description: azamra.description,
+  address: "",
+  city: "Paris",
+  arrondissement: "",
+  postalCode: "",
+  country: "France",
+  email: "",
+  phone: "",
+  whatsapp: "",
+  instagram: "",
+  website: "",
+  hours: "",
+  terrace: false,
+  delivery: false,
+  takeaway: false,
+  reservation: false,
+  privateHire: false,
+  certification: "",
+  kosherType: "À compléter",
+  averagePrice: "",
+  latitude: "",
+  longitude: "",
+  status: "Publié",
+  visible: true,
+  sponsorshipLevel: "Standard",
+  sponsored: false,
+  sponsorPriority: 0,
+  sponsorDuration: "",
+  sponsorStartsAt: "",
+  sponsorEndsAt: "",
+  sponsorPlacement: "",
+  sponsorNotes: "",
+  reservationTarget: "",
+  cuisineTypes: azamra.tags,
+  order: 1,
+  customerSearches: [],
+  visibleTagIds: azamra.tags,
+  fieldVisibility: {},
+});
 
 export function AzamraCard() {
   const [open, setOpen] = useState(false);
   const [shop, setShop] = useState(azamra);
+  const [shopRecord, setShopRecord] = useState<EstablishmentRecord>(() => azamraToEstablishmentRecord());
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       const records = await listPublishedEstablishments({ rubricSlug: "shopping", subrubricSlug: "mode" }).catch(() => null);
       const azamraRecord = records?.find((item) => (item.slug ?? item.id) === "azamra") ?? records?.[0];
       if (!mounted || !azamraRecord) return;
+      setShopRecord(azamraRecord);
       setShop({
         ...azamra,
         slug: azamraRecord.slug ?? azamraRecord.id,
@@ -45,9 +96,7 @@ export function AzamraCard() {
         </button>
         <div className="absolute right-5 top-5"><LikeButton entity={{ id: "shop-azamra", title: shop.name, url: "/shopping/vetements/azamra", text: `${shop.name} · ${shop.type}` }} /></div>
       </article>
-      <EntityDrawer open={open} onClose={() => setOpen(false)} title="Azamra">
-        <div><div className="relative aspect-[3/4] max-h-[65vh]"><img src={assetPath(shop.image)} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" /><div className="absolute bottom-6 left-6 text-white"><Shirt size={20} /><p className="mt-3 text-xs text-white/55">{shop.type}</p><h2 className="mt-1 text-3xl font-semibold">{shop.name}</h2></div></div><div className="space-y-5 p-6"><CustomerRating rating={shop.rating} reviewCount={shop.reviewCount} /><EntityActions entity={{ id: "shop-azamra", title: shop.name, url: "/shopping/vetements/azamra", text: `${shop.name} · ${shop.type}` }} /><p className="text-sm leading-7 text-ink/55">{shop.description}</p><div className="flex gap-2">{shop.tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs">{tag}</span>)}</div></div></div>
-      </EntityDrawer>
+      <EstablishmentDetailDrawer establishment={shopRecord} open={open} onClose={() => setOpen(false)} />
     </>
   );
 }

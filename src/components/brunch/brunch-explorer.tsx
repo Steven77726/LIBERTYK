@@ -7,10 +7,10 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { Brunch } from "@/types/brunch";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
-import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { assetPath } from "@/lib/assets";
-import { EntityActions, LikeButton } from "@/components/ui/entity-actions";
+import { LikeButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 
 const groups = [
   { title: "Localisation", values: ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"] },
@@ -82,6 +82,55 @@ const recordsToBrunches = (records: EstablishmentRecord[]): Brunch[] => records.
   longitude: Number(item.longitude) || 2.3522,
   importedAt: item.updatedAt ?? new Date(Date.now() + index).toISOString(),
 }));
+
+const brunchToEstablishmentRecord = (brunch: Brunch): EstablishmentRecord => ({
+  id: brunch.slug,
+  rubricId: "food",
+  subrubricId: "brunch",
+  mainPhoto: brunch.images[0] ?? "",
+  photos: brunch.images.slice(1),
+  name: brunch.name,
+  slug: brunch.slug,
+  shortDescription: `${brunch.specialty} · ${brunch.cuisine}`,
+  description: brunch.description,
+  address: brunch.address ?? "",
+  city: "Paris",
+  arrondissement: brunch.arrondissement ? `${brunch.arrondissement}e` : "",
+  postalCode: brunch.postalCode ?? "",
+  country: "France",
+  email: "",
+  phone: brunch.phone ?? "",
+  whatsapp: "",
+  instagram: "",
+  website: brunch.source ?? "",
+  hours: Object.entries(brunch.hours).map(([day, hours]) => `${day}: ${hours ?? ""}`).join("\n"),
+  terrace: brunch.amenities.terrace === true,
+  delivery: brunch.services.delivery === true,
+  takeaway: brunch.services.takeaway === true,
+  reservation: brunch.services.reservation === true,
+  privateHire: brunch.amenities.privateHire === true,
+  certification: brunch.certification ?? "",
+  kosherType: brunch.kosherType === "Lait" ? "Halavi" : brunch.kosherType === "Viande" ? "Bassari" : "Parvé",
+  averagePrice: brunch.price ?? "",
+  latitude: String(brunch.latitude),
+  longitude: String(brunch.longitude),
+  status: "Publié",
+  visible: true,
+  sponsorshipLevel: "Standard",
+  sponsored: false,
+  sponsorPriority: 0,
+  sponsorDuration: "",
+  sponsorStartsAt: "",
+  sponsorEndsAt: "",
+  sponsorPlacement: "",
+  sponsorNotes: "",
+  reservationTarget: "",
+  cuisineTypes: [brunch.cuisine, brunch.specialty, ...brunch.tags].filter(Boolean),
+  order: 0,
+  customerSearches: [],
+  visibleTagIds: brunch.tags,
+  fieldVisibility: brunch.fieldVisibility,
+});
 const serviceMap = (brunch: Brunch): Record<string, boolean | undefined> => ({
   "Sur place": brunch.services.dineIn, "À emporter": brunch.services.takeaway, Livraison: brunch.services.delivery,
   "Click & Collect": brunch.services.clickCollect, Réservation: brunch.services.reservation,
@@ -189,12 +238,11 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
         <div className={view === "map" ? "hidden xl:block" : ""}><p className="mb-4 text-sm font-semibold">{results.length} brunch{results.length > 1 ? "s" : ""}</p>{results.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{results.map((brunch) => <BrunchCard key={brunch.slug} brunch={brunch} onOpen={() => setDetailBrunch(brunch)} />)}</div> : <div className="grid min-h-80 place-items-center rounded-[2rem] bg-white"><div className="text-center"><Search className="mx-auto text-ink/20" /><p className="mt-3 font-semibold">Aucun brunch trouvé</p><button onClick={() => { setFilters([]); setQuery(""); }} className="mt-2 text-xs font-semibold text-moss">Réinitialiser</button></div></div>}</div>
         <div className={`${view === "map" ? "block" : "hidden xl:block"}`}><div className="sticky top-24 h-[calc(100vh-7rem)] min-h-[560px] overflow-hidden rounded-[2rem] bg-[#dfe6df]"><div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(35deg,transparent 46%,#fff 47%,#fff 51%,transparent 52%),linear-gradient(108deg,transparent 47%,#fff 48%,#fff 51%,transparent 52%)", backgroundSize: "110px 90px" }} /><span className="absolute left-5 top-5 rounded-xl bg-white/90 px-4 py-2 text-xs font-semibold shadow-sm">Paris · {results.length} brunchs</span>{results.map((brunch, index) => <button key={brunch.slug} onClick={() => setSelected(brunch)} style={{ left: `${16 + (index * 19) % 70}%`, top: `${22 + (index * 23) % 62}%` }} className="absolute grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-moss text-[10px] font-bold text-white shadow-lg transition hover:scale-125">{index + 1}</button>)}{selected && <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-white p-4 shadow-2xl"><button onClick={() => setSelected(null)} className="absolute right-3 top-3"><X size={14} /></button><p className="font-semibold">{selected.name}</p><p className="mt-1 text-xs text-ink/45">{selected.address || "Adresse non renseignée"} · {selected.distanceKm} km</p><button onClick={() => setDetailBrunch(selected)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-moss">Ouvrir la fiche <ArrowRight size={13} /></button></div>}</div></div>
       </div></section>
-      <EntityDrawer open={!!detailBrunch} onClose={() => setDetailBrunch(null)} title={detailBrunch?.name ?? "Brunch"}>
-        {detailBrunch && (() => {
-          const visibility = { address: true, tags: true, opening_hours: true, gallery: true, reviews: true, ...(detailBrunch.fieldVisibility ?? {}) };
-          return <div>{visibility.gallery !== false && <div className="relative aspect-[16/10]"><img src={assetPath(detailBrunch.images[0])} alt="" className="size-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" /><div className="absolute bottom-5 left-5 text-white"><p className="text-xs text-white/55">{detailBrunch.cuisine}</p><h2 className="mt-1 text-3xl font-semibold">{detailBrunch.name}</h2></div></div>}<div className="space-y-6 p-6">{visibility.reviews !== false && <CustomerRating rating={detailBrunch.rating} reviewCount={detailBrunch.reviewCount} />}<EntityActions entity={{ id: `brunch-${detailBrunch.slug}`, title: detailBrunch.name, url: `/food/brunch/${detailBrunch.slug}`, text: `${detailBrunch.name} · ${detailBrunch.address ?? "Paris"}` }} /><p className="text-sm leading-7 text-ink/55">{detailBrunch.description}</p>{visibility.tags !== false && <div className="flex flex-wrap gap-2">{detailBrunch.tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs">{tag}</span>)}</div>}{visibility.address !== false && <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p><p className="mt-2 text-sm">{detailBrunch.address || "Adresse en cours de vérification"}</p></div>}{visibility.opening_hours !== false && <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Horaires</p><div className="mt-2 rounded-2xl bg-white">{Object.entries(detailBrunch.hours).map(([day, value]) => <div key={day} className="flex justify-between border-b border-black/[.05] px-4 py-3 text-xs last:border-0"><span className="capitalize text-ink/50">{day}</span><span>{value || "Non renseigné"}</span></div>)}</div></div>}</div></div>;
-        })()}
-      </EntityDrawer>
+      <EstablishmentDetailDrawer
+        establishment={detailBrunch ? brunchToEstablishmentRecord(detailBrunch) : null}
+        open={!!detailBrunch}
+        onClose={() => setDetailBrunch(null)}
+      />
     </>
   );
 }

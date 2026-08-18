@@ -1,12 +1,12 @@
 "use client";
 
-import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Search, Sparkles, WandSparkles, X } from "lucide-react";
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
 import { assetPath } from "@/lib/assets";
 import { trackEvent } from "@/lib/client-store";
+import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 
 const rotatingExamples = [
   "Où trouver un avocado toast dans le 17e ouvert dimanche ?",
@@ -17,16 +17,25 @@ const rotatingExamples = [
   "Mikvé homme proche de moi",
 ];
 
+const SEARCH_DEBOUNCE_MS = 150;
+const SEARCH_CACHE_TTL_MS = 45_000;
+const MAX_RESULTS = 10;
+
 export function AiSearch() {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [exampleIndex, setExampleIndex] = useState(0);
   const [results, setResults] = useState<EstablishmentSearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedResult, setSelectedResult] = useState<EstablishmentSearchResult | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const requestRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
   const lastQueryRef = useRef<string | null>(null);
+  const cacheRef = useRef(new Map<string, { expiresAt: number; results: EstablishmentSearchResult[] }>());
   const suggestions = useMemo(() => {
     if (query.trim().length < 2) return [];
     return [...new Set(results.flatMap((result) => [
@@ -43,7 +52,19 @@ export function AiSearch() {
     if (searchQuery.length < 2) {
       setResults([]);
       setLoading(false);
+      setError("");
       return [];
+    }
+
+    const cacheKey = searchQuery.toLocaleLowerCase("fr-FR");
+    const cached = cacheRef.current.get(cacheKey);
+    if (!force && cached && cached.expiresAt > Date.now()) {
+      setResults(cached.results);
+      setActiveIndex(0);
+      setLoading(false);
+      setError("");
+      lastQueryRef.current = searchQuery;
+      return cached.results;
     }
 
     if (!force && lastQueryRef.current === searchQuery) return results;
@@ -51,16 +72,28 @@ export function AiSearch() {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     lastQueryRef.current = searchQuery;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setFocused(true);
     setLoading(true);
+    setError("");
 
     try {
-      const nextResults = await searchEstablishments(searchQuery);
+      const nextResults = await searchEstablishments(searchQuery, { signal: controller.signal, limit: MAX_RESULTS });
       if (requestRef.current === requestId) {
         setResults(nextResults);
         setActiveIndex(0);
+        cacheRef.current.set(cacheKey, { expiresAt: Date.now() + SEARCH_CACHE_TTL_MS, results: nextResults });
       }
       return nextResults;
+    } catch (searchError) {
+      if (controller.signal.aborted) return [];
+      if (requestRef.current === requestId) {
+        setResults([]);
+        setError(searchError instanceof Error ? searchError.message : "Recherche indisponible.");
+      }
+      return [];
     } finally {
       if (requestRef.current === requestId) setLoading(false);
     }
@@ -70,8 +103,10 @@ export function AiSearch() {
     setQuery(value);
     setFocused(true);
     if (value.trim().length < 2) {
+      abortRef.current?.abort();
       setResults([]);
       setLoading(false);
+      setError("");
       lastQueryRef.current = null;
     }
   };
@@ -80,6 +115,16 @@ export function AiSearch() {
     const timer = window.setInterval(() => setExampleIndex((index) => (index + 1) % rotatingExamples.length), 3200);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setFocused(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
     const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim();
@@ -93,9 +138,11 @@ export function AiSearch() {
     if (!focused && query.trim().length < 2) return;
 
     const searchQuery = query.trim();
+    if (searchQuery.length < 2) return;
+    setLoading(true);
     const timer = window.setTimeout(async () => {
       await runSearch(searchQuery);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
   }, [focused, query, runSearch]);
@@ -104,7 +151,7 @@ export function AiSearch() {
     if (!result) return;
     if (query.trim().length >= 2) trackEvent("ai_search", query.trim(), result.id);
     setFocused(false);
-    router.push(result.href);
+    setSelectedResult(result);
   };
 
   const submit = async () => {
@@ -114,20 +161,21 @@ export function AiSearch() {
     openResult(currentResults[activeIndex] ?? currentResults[0]);
   };
 
-  const handleInput = (event: ChangeEvent<HTMLInputElement> | FormEvent<HTMLInputElement>) => {
+  const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     updateQuery(event.currentTarget.value);
   };
 
   return (
-    <div className="relative z-30 mx-auto mt-3.5 max-w-4xl">
+    <div ref={rootRef} className="relative z-30 mx-auto mt-3.5 w-full max-w-4xl">
       <div className="liberty-search-glow pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_50%_50%,rgba(213,187,125,.28),rgba(143,169,141,.16)_38%,transparent_70%)] blur-xl" />
-      <div className={`relative overflow-hidden rounded-[1.65rem] border bg-white/[.96] p-2 shadow-[0_26px_90px_rgba(0,0,0,.42),0_0_0_1px_rgba(255,255,255,.45)_inset] backdrop-blur-2xl transition-all duration-500 ${focused ? "border-[#d5bb7d]/65 shadow-[0_34px_120px_rgba(0,0,0,.48),0_0_0_7px_rgba(213,187,125,.10)]" : "border-white/25"}`}>
+      <div className={`relative h-[4.25rem] overflow-hidden rounded-[1.65rem] border bg-white/[.96] p-2 shadow-[0_26px_90px_rgba(0,0,0,.42),0_0_0_1px_rgba(255,255,255,.45)_inset] backdrop-blur-2xl transition-all duration-500 sm:h-[4.5rem] ${focused ? "border-[#d5bb7d]/65 shadow-[0_34px_120px_rgba(0,0,0,.48),0_0_0_7px_rgba(213,187,125,.10)]" : "border-white/25"}`}>
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,.7),transparent_30%,transparent_70%,rgba(213,187,125,.16))]" />
-        <div className="relative flex items-center gap-2">
+        <div className="relative flex h-full min-w-0 items-center gap-2">
+          <Search size={18} className="ml-2 hidden shrink-0 text-ink/25 sm:block" />
           <input
+            ref={inputRef}
             value={query}
             onChange={handleInput}
-            onInput={handleInput}
             onFocus={() => setFocused(true)}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
@@ -146,14 +194,30 @@ export function AiSearch() {
             }}
             aria-label="Recherche Liberty"
             placeholder={rotatingExamples[exampleIndex]}
-            className="min-w-0 flex-1 bg-transparent px-2 py-3 text-[15px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-ink/32 sm:px-4 sm:text-base"
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            className="h-full min-w-0 flex-1 truncate bg-transparent px-1 text-[15px] font-semibold leading-none text-ink outline-none placeholder:truncate placeholder:font-medium placeholder:text-ink/32 sm:px-3 sm:text-base"
           />
           {query && (
-            <button onClick={() => { setQuery(""); lastQueryRef.current = null; }} className="grid size-8 place-items-center rounded-lg text-ink/35 hover:bg-cream" aria-label="Effacer">
+            <button
+              type="button"
+              onClick={() => {
+                abortRef.current?.abort();
+                setQuery("");
+                setResults([]);
+                setLoading(false);
+                setError("");
+                lastQueryRef.current = null;
+                inputRef.current?.focus();
+              }}
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-ink/35 hover:bg-cream"
+              aria-label="Effacer"
+            >
               <X size={14} />
             </button>
           )}
-          <button onClick={() => void submit()} className="group grid size-12 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#101a15,#284636)] text-white shadow-[0_12px_28px_rgba(16,26,21,.28)] transition duration-300 hover:scale-[1.035] hover:shadow-[0_18px_44px_rgba(16,26,21,.36)]" aria-label="Rechercher">
+          <button type="button" onClick={() => void submit()} className="group grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#101a15,#284636)] text-white shadow-[0_12px_28px_rgba(16,26,21,.28)] transition duration-300 hover:scale-[1.035] hover:shadow-[0_18px_44px_rgba(16,26,21,.36)] sm:size-12" aria-label="Rechercher">
             <Search size={18} className="transition group-hover:rotate-3" />
           </button>
         </div>
@@ -170,7 +234,7 @@ export function AiSearch() {
           >
             <div className="flex items-center justify-between px-3 py-2">
               <p className="text-[10px] font-semibold uppercase tracking-[.15em] text-ink/35">Suggestions automatiques</p>
-              <p className="text-[10px] text-ink/30">{loading ? "Recherche…" : `${results.length} résultat${results.length > 1 ? "s" : ""}`}</p>
+              <p className="text-[10px] text-ink/30">{loading ? "Recherche…" : error ? "Erreur" : `${results.length} résultat${results.length > 1 ? "s" : ""}`}</p>
             </div>
 
             {suggestions.length > 0 && (
@@ -183,7 +247,12 @@ export function AiSearch() {
               </div>
             )}
 
-            {results.length > 0 ? (
+            {loading ? (
+              <div className="px-4 py-8 text-center" role="status" aria-live="polite">
+                <Search size={22} className="mx-auto animate-pulse text-ink/15" />
+                <p className="mt-3 text-sm font-medium">Recherche…</p>
+              </div>
+            ) : results.length > 0 ? (
               <div className="grid max-h-[420px] gap-1 overflow-y-auto pt-2">
                 {results.map((result, index) => (
                   <button
@@ -200,7 +269,7 @@ export function AiSearch() {
                         {result.filters?.openNow === false && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-semibold text-zinc-500">Fermé</span>}
                         {result.filters?.openNow === true && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">Ouvert</span>}
                       </div>
-                      <p className={`mt-0.5 truncate text-[11px] ${result.filters?.openNow === false ? "text-ink/25" : "text-ink/42"}`}>{result.category} · {result.subtitle}</p>
+                      <p className={`mt-0.5 truncate text-[11px] ${result.filters?.openNow === false ? "text-ink/25" : "text-ink/42"}`}>{[result.subcategory ?? result.category, result.location?.city].filter(Boolean).join(" · ")}</p>
                       {result.matches.length > 0 && (
                         <p className="mt-1 truncate text-[10px] font-medium text-moss/75">
                           Correspond : {result.matches.slice(0, 3).map((match) => match.label).join(" · ")}
@@ -212,9 +281,9 @@ export function AiSearch() {
                 ))}
               </div>
             ) : (
-              <div className="px-4 py-8 text-center">
+              <div className="px-4 py-8 text-center" role="status" aria-live="polite">
                 <Search size={22} className="mx-auto text-ink/15" />
-                <p className="mt-3 text-sm font-medium">Aucun résultat pour le moment</p>
+                <p className="mt-3 text-sm font-medium">{error || "Aucun résultat"}</p>
                 <p className="mt-1 text-xs text-ink/35">Essayez une envie, un lieu ou une catégorie.</p>
               </div>
             )}
@@ -227,6 +296,11 @@ export function AiSearch() {
           <Sparkles size={11} /> Exemple : Où trouver un avocado toast dans le 17e ouvert dimanche ?
         </p>
       </div>
+      <EstablishmentDetailDrawer
+        establishment={selectedResult?.establishment ?? null}
+        open={Boolean(selectedResult?.establishment)}
+        onClose={() => setSelectedResult(null)}
+      />
     </div>
   );
 }

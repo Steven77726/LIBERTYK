@@ -3,6 +3,7 @@
 import { searchIndex } from "@/data/search-index";
 import { normalizeSearchText, searchItems, type SearchItem } from "@/lib/search-engine";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 
 export type SearchMatch = {
   field: "name" | "alias" | "tag" | "rubric" | "subrubric" | "city" | "district" | "description";
@@ -13,6 +14,7 @@ export type EstablishmentSearchResult = SearchItem & {
   score: number;
   matches: SearchMatch[];
   highlight: string;
+  establishment?: EstablishmentRecord;
 };
 
 type EstablishmentSearchRow = {
@@ -29,6 +31,19 @@ type EstablishmentSearchRow = {
   certification: string | null;
   kosher_type: string | null;
   average_price: string | null;
+  country: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  instagram: string | null;
+  website: string | null;
+  reservation_url: string | null;
+  reservation_target: string | null;
+  hours: Record<string, unknown> | null;
+  amenities: Record<string, unknown> | null;
+  services: Record<string, unknown> | null;
+  field_visibility: Record<string, boolean> | null;
+  reservation_enabled: boolean | null;
   latitude: number | null;
   longitude: number | null;
   customer_searches: string[] | null;
@@ -40,16 +55,16 @@ type EstablishmentSearchRow = {
   subrubrics?: { name: string; slug: string } | null;
 };
 
-type PhotoRow = {
-  entity_id: string;
-  url: string;
-  display_order: number;
-};
-
 type TagRow = {
   id: string;
   external_id: string | null;
   label: string;
+};
+
+type TaxonomyRow = {
+  id: string;
+  name: string;
+  slug: string;
 };
 
 type TaxonomyMatch = {
@@ -78,7 +93,8 @@ const routeOverrides: Record<string, string> = {
 
 const establishmentSelect = `
   id,slug,name,short_description,description,address,city,arrondissement,district,postal_code,
-  certification,kosher_type,average_price,latitude,longitude,customer_searches,visible_tags,
+  country,phone,whatsapp,email,instagram,website,reservation_url,reservation_target,hours,amenities,services,
+  certification,kosher_type,average_price,latitude,longitude,customer_searches,visible_tags,field_visibility,reservation_enabled,
   sponsorship,sponsor_priority,display_order,
   rubrics(name,slug),
   subrubrics(name,slug)
@@ -112,6 +128,10 @@ const synonymMap: Record<string, string[]> = {
   avocato: ["avocado"],
 };
 
+let visibleTagsCache: { expiresAt: number; rows: TagRow[] } | null = null;
+let taxonomyCache: { expiresAt: number; rubrics: TaxonomyRow[]; subrubrics: TaxonomyRow[] } | null = null;
+const DICTIONARY_CACHE_TTL_MS = 5 * 60 * 1000;
+
 function unique(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
@@ -124,12 +144,6 @@ function getQueryTokens(query: string) {
 
 function toPostgrestArray(values: string[]) {
   return `{${unique(values).map((value) => `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`).join(",")}}`;
-}
-
-function mergeRows(primary: EstablishmentSearchRow[], candidates: EstablishmentSearchRow[]) {
-  const rows = new Map<string, EstablishmentSearchRow>();
-  [...primary, ...candidates].forEach((row) => rows.set(row.id, row));
-  return [...rows.values()];
 }
 
 function isNearTokenMatch(word: string, token: string) {
@@ -179,6 +193,17 @@ function highlightText(value: string, tokens: string[]) {
   return `${escapeHtml(value.slice(0, index))}<mark>${escapeHtml(value.slice(index, index + token.length))}</mark>${escapeHtml(value.slice(index + token.length))}`;
 }
 
+function parseJsonHours(value: Record<string, unknown> | null) {
+  if (!value || !Object.keys(value).length) return "";
+  return Object.entries(value)
+    .map(([day, hours]) => `${day}: ${String(hours ?? "")}`)
+    .join("\n");
+}
+
+function boolFromJson(source: Record<string, unknown> | null | undefined, key: string) {
+  return source?.[key] === true;
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -190,6 +215,16 @@ function escapeHtml(value: string) {
 
 function resolveTagLabels(values: string[] | null | undefined, tagMap: Map<string, string>) {
   return unique((values ?? []).map((value) => tagMap.get(value) ?? value));
+}
+
+function tagRowsToMap(rows: TagRow[]) {
+  const map = new Map<string, string>();
+  rows.forEach((tag) => {
+    map.set(tag.id, tag.label);
+    if (tag.external_id) map.set(tag.external_id, tag.label);
+    map.set(tag.label, tag.label);
+  });
+  return map;
 }
 
 function getMatches(row: EstablishmentSearchRow, tagLabels: string[], tokens: string[], normalizedQuery: string): SearchMatch[] {
@@ -214,11 +249,11 @@ function getMatches(row: EstablishmentSearchRow, tagLabels: string[], tokens: st
 
 function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: string[], normalizedQuery: string) {
   const fields: Array<[string, number]> = [
-    [row.name, 100],
+    [row.name, 120],
     [(row.customer_searches ?? []).join(" "), 90],
     [tagLabels.join(" "), 80],
-    [row.rubrics?.name ?? "", 65],
-    [row.subrubrics?.name ?? "", 58],
+    [row.subrubrics?.name ?? "", 62],
+    [row.rubrics?.name ?? "", 55],
     [row.city ?? "", 42],
     [`${row.district ?? ""} ${row.arrondissement ?? ""} ${row.postal_code ?? ""}`, 40],
     [`${row.short_description ?? ""} ${row.description ?? ""}`, 22],
@@ -227,8 +262,9 @@ function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: stri
   fields.forEach(([value, weight]) => {
     const normalized = normalizeSearchText(value);
     if (!normalized) return;
-    if (normalized === normalizedQuery) score += weight * 2.6;
-    else if (normalized.includes(normalizedQuery) && normalizedQuery.length > 1) score += weight * 1.45;
+    if (normalized === normalizedQuery) score += weight * 3.2;
+    else if (normalized.startsWith(normalizedQuery) && normalizedQuery.length > 1) score += weight * 2.1;
+    else if (normalized.includes(normalizedQuery) && normalizedQuery.length > 1) score += weight * 1.35;
     const words = normalized.split(" ");
     tokens.forEach((token) => {
       if (words.includes(token)) score += weight * 0.42;
@@ -256,6 +292,60 @@ function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: stri
   if (score > 35 && row.sponsorship !== "standard") score += row.sponsorship === "partner" || row.sponsorship === "liberty_favorite" ? 8 : 5;
   score += Math.max(0, 8 - (row.display_order ?? 99) * 0.05);
   return score;
+}
+
+function rowToEstablishment(row: EstablishmentSearchRow, image: string, tagLabels: string[]): EstablishmentRecord {
+  const sponsorshipLevel = row.sponsorship === "partner" || row.sponsorship === "liberty_favorite"
+    ? "Premium"
+    : row.sponsorship === "sponsored"
+      ? "Featured"
+      : "Standard";
+
+  return {
+    id: row.id,
+    rubricId: row.rubrics?.slug ?? "food",
+    subrubricId: row.subrubrics?.slug ?? "",
+    mainPhoto: image,
+    photos: [],
+    photoAlts: [],
+    name: row.name,
+    slug: row.slug,
+    shortDescription: row.short_description ?? "",
+    description: row.description ?? row.short_description ?? "",
+    address: row.address ?? "",
+    city: row.city ?? "",
+    arrondissement: row.district ?? row.arrondissement ?? "",
+    postalCode: row.postal_code ?? "",
+    country: row.country ?? "France",
+    email: row.email ?? "",
+    phone: row.phone ?? "",
+    whatsapp: row.whatsapp ?? "",
+    instagram: row.instagram ?? "",
+    website: row.website ?? "",
+    hours: parseJsonHours(row.hours),
+    terrace: boolFromJson(row.amenities, "terrace"),
+    delivery: boolFromJson(row.services, "delivery"),
+    takeaway: boolFromJson(row.services, "takeaway"),
+    reservation: row.reservation_enabled === true || boolFromJson(row.services, "reservation"),
+    privateHire: boolFromJson(row.amenities, "privateHire"),
+    certification: row.certification ?? "",
+    kosherType: (row.kosher_type || "À compléter") as EstablishmentRecord["kosherType"],
+    averagePrice: row.average_price ?? "",
+    latitude: row.latitude === null ? "" : String(row.latitude),
+    longitude: row.longitude === null ? "" : String(row.longitude),
+    status: "Publié",
+    visible: true,
+    sponsorshipLevel,
+    sponsored: sponsorshipLevel !== "Standard",
+    sponsorPriority: row.sponsor_priority ?? 0,
+    sponsorDuration: "",
+    reservationTarget: row.reservation_url ?? row.reservation_target ?? "",
+    cuisineTypes: [],
+    order: row.display_order ?? 0,
+    customerSearches: row.customer_searches ?? [],
+    visibleTagIds: tagLabels,
+    fieldVisibility: row.field_visibility ?? undefined,
+  };
 }
 
 function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: string[], score: number, matches: SearchMatch[], tokens: string[]): EstablishmentSearchResult {
@@ -304,92 +394,72 @@ function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: stri
     score,
     matches,
     highlight: highlightText(row.name, tokens),
+    establishment: rowToEstablishment(row, image || "/images/food/restaurants-khan.jpg", tagLabels),
   };
-}
-
-async function getTagMap() {
-  const supabase = getSupabaseBrowserClient();
-  const map = new Map<string, string>();
-  if (!supabase) return map;
-  const { data } = await supabase
-    .from("visible_tags")
-    .select("id,external_id,label")
-    .eq("status", "published")
-    .is("deleted_at", null)
-    .returns<TagRow[]>();
-  (data ?? []).forEach((tag) => {
-    map.set(tag.id, tag.label);
-    if (tag.external_id) map.set(tag.external_id, tag.label);
-    map.set(tag.label, tag.label);
-  });
-  return map;
 }
 
 async function getTagRows() {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return [];
+  if (visibleTagsCache && visibleTagsCache.expiresAt > Date.now()) return visibleTagsCache.rows;
   const { data } = await supabase
     .from("visible_tags")
     .select("id,external_id,label")
     .eq("status", "published")
     .is("deleted_at", null)
     .returns<TagRow[]>();
-  return data ?? [];
+  const rows = data ?? [];
+  visibleTagsCache = { expiresAt: Date.now() + DICTIONARY_CACHE_TTL_MS, rows };
+  return rows;
 }
 
-async function getTaxonomyMatches(tokens: string[], normalizedQuery: string): Promise<TaxonomyMatch> {
+async function getTaxonomyRows() {
   const supabase = getSupabaseBrowserClient();
-  if (!supabase || !tokens.length) return { rubricIds: [], subrubricIds: [] };
-
-  const tokenFilters = tokens.map((token) => `name.ilike.%${token}%,slug.ilike.%${token}%`).join(",");
+  if (!supabase) return { rubrics: [], subrubrics: [] };
+  if (taxonomyCache && taxonomyCache.expiresAt > Date.now()) {
+    return { rubrics: taxonomyCache.rubrics, subrubrics: taxonomyCache.subrubrics };
+  }
   const [{ data: rubrics }, { data: subrubrics }] = await Promise.all([
     supabase
       .from("rubrics")
       .select("id,name,slug")
       .eq("status", "published")
       .is("deleted_at", null)
-      .or(tokenFilters)
-      .returns<Array<{ id: string; name: string; slug: string }>>(),
+      .returns<TaxonomyRow[]>(),
     supabase
       .from("subrubrics")
       .select("id,name,slug")
       .eq("status", "published")
       .is("deleted_at", null)
-      .or(tokenFilters)
-      .returns<Array<{ id: string; name: string; slug: string }>>(),
+      .returns<TaxonomyRow[]>(),
   ]);
+  const next = {
+    expiresAt: Date.now() + DICTIONARY_CACHE_TTL_MS,
+    rubrics: rubrics ?? [],
+    subrubrics: subrubrics ?? [],
+  };
+  taxonomyCache = next;
+  return { rubrics: next.rubrics, subrubrics: next.subrubrics };
+}
+
+async function getTaxonomyMatches(tokens: string[], normalizedQuery: string): Promise<TaxonomyMatch> {
+  if (!tokens.length) return { rubricIds: [], subrubricIds: [] };
+  const { rubrics, subrubrics } = await getTaxonomyRows();
 
   return {
-    rubricIds: unique((rubrics ?? [])
+    rubricIds: unique(rubrics
       .filter((rubric) => {
         const normalized = normalizeSearchText(`${rubric.name} ${rubric.slug}`);
         return normalized.includes(normalizedQuery) || tokens.some((token) => tokenMatchesText(normalized, token));
       })
       .map((rubric) => rubric.id)),
-    subrubricIds: unique((subrubrics ?? [])
+    subrubricIds: unique(subrubrics
       .filter((subrubric) => {
         const normalized = normalizeSearchText(`${subrubric.name} ${subrubric.slug}`);
         return normalized.includes(normalizedQuery) || tokens.some((token) => tokenMatchesText(normalized, token));
       })
       .map((subrubric) => subrubric.id)),
   };
-}
-
-async function getPhotoMap(ids: string[]) {
-  const supabase = getSupabaseBrowserClient();
-  const map = new Map<string, string>();
-  if (!supabase || !ids.length) return map;
-  const { data } = await supabase
-    .from("photos")
-    .select("entity_id,url,display_order")
-    .eq("entity_type", "establishment")
-    .in("entity_id", ids)
-    .order("display_order", { ascending: true })
-    .returns<PhotoRow[]>();
-  (data ?? []).forEach((photo) => {
-    if (!map.has(photo.entity_id)) map.set(photo.entity_id, photo.url);
-  });
-  return map;
 }
 
 function fallbackSearch(query: string): EstablishmentSearchResult[] {
@@ -401,7 +471,7 @@ function fallbackSearch(query: string): EstablishmentSearchResult[] {
   }));
 }
 
-export async function searchEstablishments(query: string): Promise<EstablishmentSearchResult[]> {
+export async function searchEstablishments(query: string, options: { signal?: AbortSignal; limit?: number } = {}): Promise<EstablishmentSearchResult[]> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return fallbackSearch(query);
 
@@ -425,7 +495,7 @@ export async function searchEstablishments(query: string): Promise<Establishment
     .eq("is_visible", true)
     .is("deleted_at", null)
     .order("display_order", { ascending: true })
-    .limit(normalizedQuery ? 120 : 12);
+    .limit(normalizedQuery ? 36 : 10);
 
   if (tokens.length) {
     const scalarFilters = tokens.flatMap((token) => searchableColumns.map((column) => `${column}.ilike.%${token}%`));
@@ -442,43 +512,30 @@ export async function searchEstablishments(query: string): Promise<Establishment
     request = request.or([...scalarFilters, ...arrayFilters, ...taxonomyFilters].join(","));
   }
 
-  const { data, error } = await request.returns<EstablishmentSearchRow[]>();
+  if (options.signal) request = request.abortSignal(options.signal);
 
-  let rows = error ? [] : data ?? [];
-  if (normalizedQuery) {
-    const { data: candidateRows, error: candidateError } = await supabase
-      .from("establishments")
-      .select(establishmentSelect)
-      .eq("status", "published")
-      .eq("is_visible", true)
-      .is("deleted_at", null)
-      .order("display_order", { ascending: true })
-      .limit(200)
-      .returns<EstablishmentSearchRow[]>();
-    if (error && candidateError) return fallbackSearch(query);
-    rows = mergeRows(rows, candidateRows ?? []);
-  } else if (error) {
-    return fallbackSearch(query);
-  }
+  const { data, error } = await request.returns<EstablishmentSearchRow[]>();
+  const rows = error ? [] : data ?? [];
+  if (error) return fallbackSearch(query);
+
   if (!normalizedQuery) {
-    const photos = await getPhotoMap(rows.map((row) => row.id));
-    const tagMap = await getTagMap();
+    const tagMap = tagRowsToMap(await getTagRows());
     return rows.map((row, index) => {
       const tags = resolveTagLabels(row.visible_tags, tagMap);
-      return rowToResult(row, photos.get(row.id) ?? "", tags, 1_000 - index, [], tokens);
+      return rowToResult(row, "/images/food/restaurants-khan.jpg", tags, 1_000 - index, [], tokens);
     });
   }
 
-  const [photos, tagMap] = await Promise.all([getPhotoMap(rows.map((row) => row.id)), getTagMap()]);
+  const tagMap = tagRowsToMap(tagRows);
   return rows
     .map((row) => {
       const tags = resolveTagLabels(row.visible_tags, tagMap);
       const matches = getMatches(row, tags, tokens, normalizedQuery);
       const score = scoreRow(row, tags, tokens, normalizedQuery);
-      return rowToResult(row, photos.get(row.id) ?? "", tags, score, matches, tokens);
+      return rowToResult(row, "/images/food/restaurants-khan.jpg", tags, score, matches, tokens);
     })
     .filter((result) => result.score > 12)
     .sort((a, b) => b.score - a.score)
     .filter((result, index, list) => list.findIndex((item) => item.href === result.href) === index)
-    .slice(0, 40);
+    .slice(0, options.limit ?? 10);
 }

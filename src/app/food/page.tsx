@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import {
   ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
 import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
-import { SubrubricEstablishmentResults } from "@/components/ui/subrubric-establishment-results";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -20,14 +18,14 @@ export const metadata: Metadata = buildPageMetadata({
 const addressTypes = [
   { label: "Restaurants", description: "Les tables incontournables", href: "/food/restaurants", icon: UtensilsCrossed, image: "/images/food/restaurants-khan.jpg" },
   { label: "Brunch", description: "Pour prendre le temps", href: "/food/brunch", icon: Coffee, image: "/images/food/brunch-marceau.jpg" },
-  { label: "Salons de thé", description: "Douceurs et conversations", href: "/food?type=salons-de-the", icon: Coffee, image: "/images/food/salon-de-the.webp" },
-  { label: "Pâtisseries", description: "Créations gourmandes", href: "/food?type=patisseries", icon: CakeSlice, image: "/images/food/patisserie.webp" },
-  { label: "Traiteurs", description: "Pour recevoir sans compromis", href: "/food?type=traiteurs", icon: ChefHat, image: "/images/food/traiteur.jpg" },
-  { label: "Traiteur Shabbat", description: "Vos repas de Shabbat, prêts avec soin", href: "/food?type=traiteur-chabbat", icon: ChefHat, image: "/images/food/traiteur.jpg" },
-  { label: "Fast-food", description: "Rapide et généreux", href: "/food?type=fast-food", icon: Sandwich, image: "/images/food/fast-food.jpg" },
-  { label: "Street Food", description: "Saveurs sur le pouce", href: "/food?type=street-food", icon: Soup, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" },
-  { label: "Boulangeries", description: "Le goût du savoir-faire", href: "/food?type=boulangeries", icon: Croissant, image: "/images/food/boulangerie.jpg" },
-  { label: "Glaciers", description: "Fraîcheur et plaisir", href: "/food?type=glaciers", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
+  { label: "Salons de thé", description: "Douceurs et conversations", href: "/food/salons-de-the", icon: Coffee, image: "/images/food/salon-de-the.webp" },
+  { label: "Pâtisseries", description: "Créations gourmandes", href: "/food/patisseries", icon: CakeSlice, image: "/images/food/patisserie.webp" },
+  { label: "Traiteurs", description: "Pour recevoir sans compromis", href: "/food/traiteurs", icon: ChefHat, image: "/images/food/traiteur.jpg" },
+  { label: "Traiteur Shabbat", description: "Vos repas de Shabbat, prêts avec soin", href: "/food/traiteur-chabbat", icon: ChefHat, image: "/images/food/traiteur.jpg" },
+  { label: "Fast-food", description: "Rapide et généreux", href: "/food/fast-food", icon: Sandwich, image: "/images/food/fast-food.jpg" },
+  { label: "Street Food", description: "Saveurs sur le pouce", href: "/food/street-food", icon: Soup, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" },
+  { label: "Boulangeries", description: "Le goût du savoir-faire", href: "/food/boulangeries", icon: Croissant, image: "/images/food/boulangerie.jpg" },
+  { label: "Glaciers", description: "Fraîcheur et plaisir", href: "/food/glaciers", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
 ];
 
 const cuisines = [
@@ -72,10 +70,7 @@ export default function FoodPage() {
               <p className="eyebrow">Choisir une adresse</p>
               <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Où souhaitez-vous aller ?</h2>
             </div>
-            <FoodSubrubricGrid fallbackCards={addressTypes.map(({ icon: _icon, ...item }) => item)} />
-            <Suspense fallback={null}>
-              <SubrubricEstablishmentResults rubricSlug="food" excludedTypes={["restaurants", "brunch"]} />
-            </Suspense>
+            <FoodSubrubricGrid fallbackCards={addressTypes.map(({ label, description, href, image }) => ({ label, description, href, image }))} />
           </div>
 
           <div className="lg:sticky lg:top-28">

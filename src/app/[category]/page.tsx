@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Compass, MapPin } from "lucide-react";
 import { notFound } from "next/navigation";
 import { categories, categoryBySlug } from "@/data/categories";
 import { categoryCards } from "@/data/mock";
 import { GenericSubrubricGrid } from "@/components/ui/subrubric-grids";
-import { SubrubricEstablishmentResults } from "@/components/ui/subrubric-establishment-results";
 import { JsonLd } from "@/components/seo/json-ld";
 import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 import { CategorySearchRedirect } from "@/components/search/category-search-redirect";
@@ -62,9 +60,6 @@ export default async function CategoryPage({ params }: Props) {
       <section className="page-shell py-20">
         <p className="eyebrow">Explorer</p><h2 className="section-title">Que recherchez-vous ?</h2>
         <GenericSubrubricGrid rubricSlug={category.slug} />
-        <Suspense fallback={null}>
-          <SubrubricEstablishmentResults rubricSlug={category.slug} />
-        </Suspense>
       </section>
 
       <section className="page-shell py-8">

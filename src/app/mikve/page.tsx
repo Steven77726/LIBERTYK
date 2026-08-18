@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Droplets, Sparkles, UtensilsCrossed } from "lucide-react";
 import { CardSubrubricGrid } from "@/components/ui/subrubric-grids";
-import { SubrubricEstablishmentResults } from "@/components/ui/subrubric-establishment-results";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -16,6 +14,10 @@ const options = [
   { title: "Mikvé vaisselle", description: "Trouvez un mikvé pour la tévilat kélim près de chez vous.", icon: UtensilsCrossed, image: "https://images.unsplash.com/photo-1497250681960-ef046c08a56e?auto=format&fit=crop&w=1200&q=85" },
 ];
 
+function slugify(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 export default function MikvePage() {
   return (
     <>
@@ -25,7 +27,7 @@ export default function MikvePage() {
           <div className="relative"><span className="grid size-14 place-items-center rounded-2xl border border-white/15 bg-white/10"><Droplets size={25} /></span><p className="mt-7 text-xs font-semibold uppercase tracking-[.2em] text-white/45">Pureté & tradition</p><h1 className="mt-3 text-5xl font-semibold tracking-[-.06em] sm:text-7xl">Mikvé</h1><p className="mt-5 max-w-xl text-base leading-7 text-white/55">Les informations utiles, réunies dans un espace simple et respectueux.</p></div>
         </div>
       </section>
-      <section className="page-shell py-16 sm:py-24"><p className="eyebrow">Choisir une rubrique</p><h2 className="section-title">Que recherchez-vous ?</h2><CardSubrubricGrid rubricSlug="mikve" fallbackCards={options.map(({ title, icon: _icon, ...item }) => ({ ...item, label: title, href: `/mikve?type=${encodeURIComponent(title)}` }))} columns="md:grid-cols-2" /><Suspense fallback={null}><SubrubricEstablishmentResults rubricSlug="mikve" /></Suspense></section>
+      <section className="page-shell py-16 sm:py-24"><p className="eyebrow">Choisir une rubrique</p><h2 className="section-title">Que recherchez-vous ?</h2><CardSubrubricGrid rubricSlug="mikve" fallbackCards={options.map(({ title, description, image }) => ({ label: title, description, image, href: `/mikve/${slugify(title)}` }))} columns="md:grid-cols-2" /></section>
     </>
   );
 }

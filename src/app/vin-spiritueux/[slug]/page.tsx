@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink, Grape, MapPin, Wine } from "lucide-react";
 import { notFound } from "next/navigation";
 import { wineActivities, wineActivityBySlug } from "@/data/wine-activities";
+import { localSubrubrics } from "@/data/subrubrics";
+import { SubrubricPageView } from "@/components/ui/subrubric-page-view";
 import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
 import { assetPath } from "@/lib/assets";
 import { LikeButton } from "@/components/ui/entity-actions";
@@ -11,12 +13,28 @@ import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
+const wineSubrubrics = localSubrubrics.filter((item) => item.rubricId === "vin-spiritueux");
+
 export function generateStaticParams() {
-  return wineActivities.map(({ slug }) => ({ slug }));
+  return [
+    ...wineActivities.map(({ slug }) => ({ slug })),
+    ...wineSubrubrics.map(({ slug }) => ({ slug })),
+  ];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const activity = wineActivityBySlug[(await params).slug];
+  const slug = (await params).slug;
+  const subrubric = wineSubrubrics.find((item) => item.slug === slug);
+  if (subrubric) {
+    return buildPageMetadata({
+      title: `${subrubric.name} — Vin & Spiritueux`,
+      description: subrubric.description,
+      path: `/vin-spiritueux/${subrubric.slug}`,
+      image: subrubric.image,
+      imageAlt: subrubric.imageAlt,
+    });
+  }
+  const activity = wineActivityBySlug[slug];
   return activity
     ? buildPageMetadata({
         title: `${activity.title} — Vin & Spiritueux`,
@@ -29,7 +47,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function WineActivityPage({ params }: Props) {
-  const activity = wineActivityBySlug[(await params).slug];
+  const slug = (await params).slug;
+  const subrubric = wineSubrubrics.find((item) => item.slug === slug);
+  if (subrubric) {
+    return (
+      <SubrubricPageView
+        rubricSlug="vin-spiritueux"
+        subrubricSlug={subrubric.slug}
+        fallbackTitle={subrubric.name}
+        fallbackDescription={subrubric.description}
+        fallbackImage={subrubric.image}
+      />
+    );
+  }
+  const activity = wineActivityBySlug[slug];
   if (!activity) notFound();
   return (
     <section className="page-shell py-8 sm:py-12">

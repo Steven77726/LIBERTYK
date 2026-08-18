@@ -120,7 +120,7 @@ function dedupe(items: SubrubricPreview[]) {
 function subrubricHref(rubricSlug: string, subrubricSlug: string) {
   if (rubricSlug === "food" && subrubricSlug === "restaurants") return "/food/restaurants";
   if (rubricSlug === "food" && subrubricSlug === "brunch") return "/food/brunch";
-  return `/${rubricSlug}?type=${subrubricSlug}`;
+  return `/${rubricSlug}/${subrubricSlug}`;
 }
 
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {

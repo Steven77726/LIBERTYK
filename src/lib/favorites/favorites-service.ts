@@ -45,8 +45,6 @@ const FAVORITES_CHANGED_EVENT = "liberty-favorites-changed";
 const routeOverrides: Record<string, string> = {
   "food/restaurants": "/food/restaurants",
   "food/brunch": "/food/brunch",
-  "shopping/mode": "/shopping/vetements",
-  "vin-spiritueux/selections": "/vin-spiritueux",
 };
 
 function readLocalFavorites() {

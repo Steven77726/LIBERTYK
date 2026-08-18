@@ -74,8 +74,6 @@ const searchableColumns = [
 const routeOverrides: Record<string, string> = {
   "food/restaurants": "/food/restaurants",
   "food/brunch": "/food/brunch",
-  "shopping/mode": "/shopping/vetements",
-  "vin-spiritueux/selections": "/vin-spiritueux",
 };
 
 const establishmentSelect = `
@@ -168,7 +166,7 @@ function getHref(row: EstablishmentSearchRow) {
   const rubricSlug = row.rubrics?.slug ?? "food";
   const subrubricSlug = row.subrubrics?.slug ?? "";
   const routeKey = [rubricSlug, subrubricSlug].filter(Boolean).join("/");
-  const base = routeOverrides[routeKey] ?? `/${rubricSlug}${subrubricSlug ? `?type=${subrubricSlug}` : ""}`;
+  const base = routeOverrides[routeKey] ?? `/${[rubricSlug, subrubricSlug].filter(Boolean).join("/")}`;
   return `${base}#${row.slug}`;
 }
 

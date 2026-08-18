@@ -81,6 +81,11 @@ type VisibleTagLookupRow = {
   label: string;
 };
 
+type EstablishmentFilters = {
+  rubricSlug?: string;
+  subrubricSlug?: string;
+};
+
 const selectColumns = `
   id,external_id,rubric_id,subrubric_id,slug,name,short_description,description,address,city,postal_code,
   arrondissement,district,country,latitude,longitude,phone,whatsapp,email,instagram,website,reservation_url,
@@ -272,6 +277,50 @@ async function getVisibleTagMap() {
   return defaults;
 }
 
+async function resolvePublishedFilterIds(filters?: EstablishmentFilters) {
+  if (!filters?.rubricSlug && !filters?.subrubricSlug) {
+    return { rubricId: undefined, subrubricId: undefined, notFound: false };
+  }
+
+  const supabase = getClientOrThrow();
+  let rubricId: string | undefined;
+  let subrubricId: string | undefined;
+
+  if (filters.rubricSlug) {
+    const { data, error } = await supabase
+      .from("rubrics")
+      .select("id")
+      .eq("status", "published")
+      .eq("show_on_home", true)
+      .is("deleted_at", null)
+      .or(`slug.eq.${filters.rubricSlug},external_id.eq.${filters.rubricSlug}`)
+      .limit(1)
+      .maybeSingle<{ id: string }>();
+    if (error) throw new Error(readableError(error));
+    if (!data?.id) return { rubricId: undefined, subrubricId: undefined, notFound: true };
+    rubricId = data.id;
+  }
+
+  if (filters.subrubricSlug) {
+    let query = supabase
+      .from("subrubrics")
+      .select("id")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .or(`slug.eq.${filters.subrubricSlug},external_id.eq.${filters.subrubricSlug}`)
+      .limit(1);
+
+    if (rubricId) query = query.eq("rubric_id", rubricId);
+
+    const { data, error } = await query.maybeSingle<{ id: string }>();
+    if (error) throw new Error(readableError(error));
+    if (!data?.id) return { rubricId, subrubricId: undefined, notFound: true };
+    subrubricId = data.id;
+  }
+
+  return { rubricId, subrubricId, notFound: false };
+}
+
 function resolveVisibleTags(values: string[] | null | undefined, tagMap: Map<string, string>) {
   return [...new Set((values ?? []).map((value) => tagMap.get(value) ?? value).filter(Boolean))];
 }
@@ -434,25 +483,26 @@ async function upsertEstablishment(establishment: EstablishmentRecord, statusOve
   return rowToEstablishment(data, photos.get(data.id));
 }
 
-export async function listPublishedEstablishments(filters?: { rubricSlug?: string; subrubricSlug?: string }) {
+export async function listPublishedEstablishments(filters?: EstablishmentFilters) {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return null;
-  const { data, error } = await supabase
+  const { rubricId, subrubricId, notFound } = await resolvePublishedFilterIds(filters);
+  if (notFound) return [];
+
+  let query = supabase
     .from("establishments")
     .select(selectColumns)
     .eq("status", "published")
     .eq("is_visible", true)
     .is("deleted_at", null)
-    .order("display_order", { ascending: true })
-    .returns<EstablishmentRow[]>();
+    .order("display_order", { ascending: true });
+
+  if (rubricId) query = query.eq("rubric_id", rubricId);
+  if (subrubricId) query = query.eq("subrubric_id", subrubricId);
+
+  const { data, error } = await query.returns<EstablishmentRow[]>();
   if (error) throw new Error(readableError(error));
-  const rows = (data ?? []).filter((row) => {
-    const rubricSlug = row.rubrics?.slug ?? row.rubrics?.external_id;
-    const subrubricSlug = row.subrubrics?.slug ?? row.subrubrics?.external_id;
-    if (filters?.rubricSlug && rubricSlug !== filters.rubricSlug) return false;
-    if (filters?.subrubricSlug && subrubricSlug !== filters.subrubricSlug) return false;
-    return true;
-  });
+  const rows = data ?? [];
   const photos = await getPhotos(rows.map((row) => row.id));
   const tagMap = await getVisibleTagMap();
   return rows.map((row) => rowToEstablishment(row, photos.get(row.id), tagMap));

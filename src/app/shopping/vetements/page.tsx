@@ -14,8 +14,17 @@ export const metadata: Metadata = buildPageMetadata({
 export default function ClothesPage() {
   return (
     <section className="page-shell py-8 sm:py-12">
-      <div className="rounded-[2rem] bg-[#202320] px-7 py-12 text-white sm:px-12"><Shirt size={23} /><p className="mt-6 text-xs font-semibold uppercase tracking-[.18em] text-white/40">Shopping</p><h1 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Vêtements</h1></div>
-      <div className="mt-10 max-w-xl">
+      <div className="flex flex-col gap-4 rounded-[1.75rem] border border-black/[.06] bg-white/80 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex min-w-0 items-center gap-4">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cream text-moss shadow-sm"><Shirt size={22} /></span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-ink/35">Shopping · Sous-rubrique</p>
+            <h1 className="mt-1 truncate text-2xl font-semibold tracking-[-.045em] sm:text-3xl">Vêtements</h1>
+          </div>
+        </div>
+        <span className="w-fit rounded-full bg-cream px-3 py-1.5 text-[11px] font-semibold text-ink/45">Sous-rubrique</span>
+      </div>
+      <div className="mt-8 max-w-xl">
         <AzamraCard />
       </div>
     </section>

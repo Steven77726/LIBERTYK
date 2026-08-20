@@ -93,27 +93,26 @@ export function SubrubricPageView({
         <Link href={`/${rubricSlug}`} className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-ink/50 transition hover:text-ink">
           <ArrowLeft size={14} /> Retour à {backLabel}
         </Link>
-        <div className="relative overflow-hidden rounded-[2.25rem] px-7 py-16 sm:px-14 sm:py-24 lg:px-20" style={{ background: rubric?.softColor ?? "#f5efe7" }}>
-          <div className="absolute -right-24 -top-32 size-[440px] rounded-full opacity-20 blur-[100px]" style={{ background: rubric?.color ?? "#c49555" }} />
-          {fallbackImage && <img src={assetPath(fallbackImage)} alt="" className="absolute inset-0 size-full object-cover opacity-15" />}
-          <div className="relative max-w-3xl">
-            <span className="mb-7 grid size-14 place-items-center rounded-2xl bg-white/70 shadow-sm" style={{ color: rubric?.color ?? "#9b6b2d" }}>
+        <div className="relative flex flex-col gap-4 overflow-hidden rounded-[1.75rem] border border-black/[.06] bg-white/80 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cream shadow-sm" style={{ color: rubric?.color ?? "#9b6b2d" }}>
               <Icon size={25} />
             </span>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[.22em]" style={{ color: rubric?.color ?? "#9b6b2d" }}>
-              {backLabel}
-            </p>
-            <h1 className="text-5xl font-semibold tracking-[-.055em] sm:text-7xl">{title}</h1>
-            <p className="mt-6 max-w-2xl text-base leading-7 text-ink/60 sm:text-lg">{description}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-ink/35">{backLabel} · Sous-rubrique</p>
+              <h1 className="mt-1 truncate text-2xl font-semibold tracking-[-.045em] sm:text-3xl">{title}</h1>
+              <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-ink/50">{description}</p>
+            </div>
           </div>
+          <span className="w-fit rounded-full bg-cream px-3 py-1.5 text-[11px] font-semibold text-ink/45">{countLabel}</span>
         </div>
       </section>
 
-      <section className="page-shell py-16 sm:py-24">
+      <section className="page-shell py-10 sm:py-14">
         <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="eyebrow">Sous-rubrique</p>
-            <h2 className="section-title">{title}</h2>
+            <p className="eyebrow">{title}</p>
+            <h2 className="section-title">Les adresses</h2>
           </div>
           <p className="text-xs font-medium text-ink/40">{countLabel}</p>
         </div>

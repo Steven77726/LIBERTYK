@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  ArrowRight, CalendarDays, Car, ChevronDown, Coffee, Filter, List,
+  ArrowRight, CalendarDays, Car, ChevronDown, Filter, List,
   Map, MapPin, Package, Phone, Search, ShoppingBag, Store, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -231,7 +231,22 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
 
   return (
     <>
-      <section className="page-shell pt-6"><div className="relative overflow-hidden rounded-[2rem] bg-[#dfe9e2] px-6 py-10 sm:px-10"><Coffee className="text-moss" size={26} /><p className="mt-5 text-xs font-semibold uppercase tracking-[.18em] text-moss/55">Food · Paris</p><h1 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Brunch casher</h1><p className="mt-3 text-sm text-ink/45">8 adresses importées depuis votre catalogue</p><div className="mt-7 flex max-w-3xl items-center rounded-2xl bg-white p-2 shadow-soft"><Search size={18} className="ml-3 text-ink/30" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, arrondissement, cuisine…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />{query && <button onClick={() => setQuery("")} className="p-2"><X size={15} /></button>}</div></div></section>
+      <section className="page-shell pt-6">
+        <div className="rounded-[1.75rem] border border-black/[.06] bg-white/80 px-5 py-4 shadow-sm backdrop-blur sm:px-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-ink/35">Food · Sous-rubrique</p>
+          <div className="mt-1 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-[-.045em] sm:text-3xl">Brunch casher</h1>
+              <p className="mt-1 text-sm text-ink/45">8 adresses importées depuis votre catalogue</p>
+            </div>
+            <div className="flex w-full max-w-2xl items-center rounded-2xl bg-cream p-2">
+              <Search size={18} className="ml-3 shrink-0 text-ink/30" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, arrondissement, cuisine…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />
+              {query && <button onClick={() => setQuery("")} className="grid size-9 place-items-center rounded-full hover:bg-white"><X size={15} /></button>}
+            </div>
+          </div>
+        </div>
+      </section>
       <section className="page-shell py-6"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2"><button onClick={() => setFilterOpen(true)} className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-semibold lg:hidden"><Filter size={14} /> Filtres {filters.length ? `(${filters.length})` : ""}</button><div className="flex rounded-xl bg-white p-1"><button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs ${view === "list" ? "bg-ink text-white" : ""}`}><List size={14} /> Liste</button><button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs ${view === "map" ? "bg-ink text-white" : ""}`}><Map size={14} /> Carte</button></div></div><label className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs"><select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent outline-none">{["Les plus proches", "Les mieux notés", "Les plus populaires", "Les nouveautés", "Prix croissant", "Prix décroissant", "Ordre alphabétique"].map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13} /></label></div></section>
       <section className="page-shell pb-20"><div className="grid items-start gap-5 lg:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_430px]">
         <aside className={`${filterOpen ? "fixed inset-0 z-[70] overflow-y-auto bg-cream p-6" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-white lg:p-5`}><div className="flex items-center justify-between"><p className="font-semibold">Filtres</p><div className="flex gap-3">{filters.length > 0 && <button onClick={() => setFilters([])} className="text-[10px] font-semibold text-moss">Tout effacer</button>}<button onClick={() => setFilterOpen(false)} className="lg:hidden"><X size={18} /></button></div></div>{groups.map((group) => <div key={group.title} className="border-b border-black/[.06] py-5"><p className="mb-3 text-[10px] font-semibold uppercase tracking-[.14em] text-ink/40">{group.title}</p><div className="flex flex-wrap gap-2">{group.values.map((value) => <button key={value} onClick={() => toggleFilter(value)} className={`rounded-full border px-3 py-2 text-[11px] transition ${filters.includes(value) ? "border-ink bg-ink text-white" : "border-black/10"}`}>{value}</button>)}</div></div>)}<button onClick={() => setFilterOpen(false)} className="sticky bottom-2 mt-4 w-full rounded-xl bg-ink py-3 text-xs font-semibold text-white lg:hidden">Voir {results.length} résultats</button></aside>

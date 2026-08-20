@@ -564,14 +564,18 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   return (
     <>
       <section className="page-shell pt-6">
-        <div className="rounded-[2rem] bg-ink px-6 py-10 text-white sm:px-10">
-          <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">Food · Paris</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-.055em] sm:text-6xl">Restaurants casher</h1>
-          <p className="mt-3 text-sm text-white/45">{restaurantData.length} adresse{restaurantData.length > 1 ? "s" : ""} disponible{restaurantData.length > 1 ? "s" : ""} · Données Admin incluses</p>
-          <div className="mt-7 flex max-w-3xl items-center rounded-2xl bg-white p-2 text-ink shadow-2xl">
+        <div className="rounded-[1.75rem] border border-black/[.06] bg-white/80 px-5 py-4 shadow-sm backdrop-blur sm:px-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-ink/35">Food · Sous-rubrique</p>
+          <div className="mt-1 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-[-.045em] sm:text-3xl">Restaurants casher</h1>
+              <p className="mt-1 text-sm text-ink/45">{restaurantData.length} adresse{restaurantData.length > 1 ? "s" : ""} disponible{restaurantData.length > 1 ? "s" : ""} · Données Admin incluses</p>
+            </div>
+            <div className="flex w-full max-w-2xl items-center rounded-2xl bg-cream p-2 text-ink">
             <Search size={19} className="ml-3 shrink-0 text-ink/30" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, arrondissement, cuisine…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />
             {query && <button onClick={() => setQuery("")} className="grid size-9 place-items-center rounded-full hover:bg-cream"><X size={15} /></button>}
+            </div>
           </div>
         </div>
       </section>

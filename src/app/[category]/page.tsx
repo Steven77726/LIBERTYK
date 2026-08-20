@@ -6,7 +6,6 @@ import { categoryCards } from "@/data/mock";
 import { GenericSubrubricGrid } from "@/components/ui/subrubric-grids";
 import { JsonLd } from "@/components/seo/json-ld";
 import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
-import { CategorySearchRedirect } from "@/components/search/category-search-redirect";
 
 type Props = { params: Promise<{ category: string }> };
 
@@ -51,13 +50,20 @@ export default async function CategoryPage({ params }: Props) {
         }}
       />
       <section className="page-shell pt-8 sm:pt-12">
-        <div className="relative overflow-hidden rounded-4xl px-6 py-16 sm:px-12 lg:px-16 lg:py-24" style={{ background: category.softColor }}>
-          <div className="absolute -right-20 -top-32 size-96 rounded-full opacity-15 blur-3xl" style={{ background: category.color }} />
-          <div className="relative max-w-3xl"><span className="mb-7 grid size-14 place-items-center rounded-2xl bg-white/70 shadow-sm" style={{ color: category.color }}><Icon size={25} /></span><p className="mb-4 text-xs font-semibold uppercase tracking-[.22em]" style={{ color: category.color }}>{category.eyebrow}</p><h1 className="text-5xl font-semibold tracking-[-.055em] sm:text-7xl">{category.label}</h1><p className="mt-6 max-w-2xl text-base leading-7 text-ink/60 sm:text-lg">{category.description}</p><CategorySearchRedirect label={category.label} /></div>
+        <div className="flex flex-col gap-4 rounded-[1.75rem] border border-black/[.06] bg-white/80 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cream shadow-sm" style={{ color: category.color }}><Icon size={22} /></span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-ink/35">{category.eyebrow}</p>
+              <h1 className="mt-1 truncate text-2xl font-semibold tracking-[-.045em] sm:text-3xl">{category.label}</h1>
+              <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-ink/50">{category.description}</p>
+            </div>
+          </div>
+          <span className="w-fit rounded-full bg-cream px-3 py-1.5 text-[11px] font-semibold text-ink/45">Rubrique</span>
         </div>
       </section>
 
-      <section className="page-shell py-20">
+      <section className="page-shell py-10 sm:py-14">
         <p className="eyebrow">Explorer</p><h2 className="section-title">Que recherchez-vous ?</h2>
         <GenericSubrubricGrid rubricSlug={category.slug} />
       </section>

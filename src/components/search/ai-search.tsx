@@ -1,6 +1,7 @@
 "use client";
 
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Search, X } from "lucide-react";
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
@@ -22,6 +23,7 @@ const SEARCH_CACHE_TTL_MS = 45_000;
 const MAX_RESULTS = 10;
 
 export function AiSearch() {
+  const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [exampleIndex, setExampleIndex] = useState(0);
@@ -30,13 +32,27 @@ export function AiSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedResult, setSelectedResult] = useState<EstablishmentSearchResult | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const requestRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const lastQueryRef = useRef<string | null>(null);
   const cacheRef = useRef(new Map<string, { expiresAt: number; results: EstablishmentSearchResult[] }>());
   const open = focused && (query.trim().length >= 2 || results.length > 0 || loading);
+
+  const updateDropdownPosition = useCallback(() => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const viewportPadding = 16;
+    setDropdownRect({
+      left: Math.max(viewportPadding, rect.left),
+      top: rect.bottom + 10,
+      width: Math.min(rect.width, window.innerWidth - viewportPadding * 2),
+    });
+  }, []);
 
   const runSearch = useCallback(async (rawQuery: string, force = false) => {
     const searchQuery = rawQuery.trim();
@@ -108,12 +124,31 @@ export function AiSearch() {
   }, []);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setFocused(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setFocused(false);
     }
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    updateDropdownPosition();
+    window.addEventListener("resize", updateDropdownPosition);
+    window.addEventListener("scroll", updateDropdownPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateDropdownPosition);
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+    };
+  }, [open, updateDropdownPosition]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -214,60 +249,66 @@ export function AiSearch() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 14, scale: 0.985, filter: "blur(8px)" }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, scale: 0.99, filter: "blur(6px)" }}
-            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute inset-x-0 top-[calc(100%+.55rem)] overflow-hidden rounded-[1.45rem] border border-white/70 bg-white/96 p-1.5 text-left text-ink shadow-[0_24px_70px_rgba(0,0,0,.22)] backdrop-blur-2xl"
-          >
-            {loading ? (
-              <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
-                <Search size={18} className="animate-pulse text-ink/20" />
-                <p className="text-sm font-medium text-ink/55">Recherche…</p>
-              </div>
-            ) : results.length > 0 ? (
-              <div className="grid max-h-[380px] gap-1 overflow-y-auto">
-                {results.map((result, index) => (
-                  <button
-                    key={result.id}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => openResult(result)}
-                    className={`group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition duration-300 hover:-translate-y-0.5 hover:bg-cream hover:shadow-sm ${activeIndex === index ? "bg-cream" : ""}`}
-                  >
-                    <img src={assetPath(result.image)} alt="" className="liberty-image-grade size-12 shrink-0 rounded-2xl object-cover transition duration-500 group-hover:scale-105" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold [&_mark]:rounded [&_mark]:bg-[#f6ecd9] [&_mark]:px-0.5 [&_mark]:text-ink" dangerouslySetInnerHTML={{ __html: result.highlight }} />
-                        {result.ranking?.sponsored && <span className="rounded-full bg-[#f6ecd9] px-2 py-0.5 text-[9px] font-semibold text-[#9b6b2d]">Sponsorisé pertinent</span>}
-                        {result.filters?.openNow === false && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-semibold text-zinc-500">Fermé</span>}
-                        {result.filters?.openNow === true && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">Ouvert</span>}
-                      </div>
-                      <p className={`mt-0.5 truncate text-[11px] ${result.filters?.openNow === false ? "text-ink/25" : "text-ink/42"}`}>{[result.subcategory ?? result.category, result.location?.city].filter(Boolean).join(" · ")}</p>
-                      {result.matches.length > 0 && (
-                        <p className="mt-1 truncate text-[10px] font-medium text-moss/75">
-                          Correspond : {result.matches.slice(0, 3).map((match) => match.label).join(" · ")}
-                        </p>
-                      )}
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {open && dropdownRect && (
+              <motion.div
+                ref={dropdownRef}
+                style={{ left: dropdownRect.left, top: dropdownRect.top, width: dropdownRect.width }}
+                initial={{ opacity: 0, y: 14, scale: 0.985, filter: "blur(8px)" }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: 10, scale: 0.99, filter: "blur(6px)" }}
+                transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                className="fixed z-[130] overflow-hidden rounded-[1.45rem] border border-white/70 bg-white/96 p-1.5 text-left text-ink shadow-[0_24px_70px_rgba(0,0,0,.22)] backdrop-blur-2xl"
+              >
+                {loading ? (
+                  <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
+                    <Search size={18} className="animate-pulse text-ink/20" />
+                    <p className="text-sm font-medium text-ink/55">Recherche…</p>
+                  </div>
+                ) : results.length > 0 ? (
+                  <div className="grid max-h-[380px] gap-1 overflow-y-auto">
+                    {results.map((result, index) => (
+                      <button
+                        key={result.id}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => openResult(result)}
+                        className={`group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition duration-300 hover:-translate-y-0.5 hover:bg-cream hover:shadow-sm ${activeIndex === index ? "bg-cream" : ""}`}
+                      >
+                        <img src={assetPath(result.image)} alt="" className="liberty-image-grade size-12 shrink-0 rounded-2xl object-cover transition duration-500 group-hover:scale-105" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold [&_mark]:rounded [&_mark]:bg-[#f6ecd9] [&_mark]:px-0.5 [&_mark]:text-ink" dangerouslySetInnerHTML={{ __html: result.highlight }} />
+                            {result.ranking?.sponsored && <span className="rounded-full bg-[#f6ecd9] px-2 py-0.5 text-[9px] font-semibold text-[#9b6b2d]">Sponsorisé pertinent</span>}
+                            {result.filters?.openNow === false && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-semibold text-zinc-500">Fermé</span>}
+                            {result.filters?.openNow === true && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">Ouvert</span>}
+                          </div>
+                          <p className={`mt-0.5 truncate text-[11px] ${result.filters?.openNow === false ? "text-ink/25" : "text-ink/42"}`}>{[result.subcategory ?? result.category, result.location?.city].filter(Boolean).join(" · ")}</p>
+                          {result.matches.length > 0 && (
+                            <p className="mt-1 truncate text-[10px] font-medium text-moss/75">
+                              Correspond : {result.matches.slice(0, 3).map((match) => match.label).join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                        <ArrowUpRight size={15} className="shrink-0 text-ink/25 transition group-hover:text-ink" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
+                    <Search size={18} className="text-ink/15" />
+                    <div>
+                      <p className="text-sm font-medium">{error || "Aucun résultat"}</p>
+                      <p className="mt-0.5 text-xs text-ink/35">Essayez une envie, un lieu ou une catégorie.</p>
                     </div>
-                    <ArrowUpRight size={15} className="shrink-0 text-ink/25 transition group-hover:text-ink" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
-                <Search size={18} className="text-ink/15" />
-                <div>
-                  <p className="text-sm font-medium">{error || "Aucun résultat"}</p>
-                  <p className="mt-0.5 text-xs text-ink/35">Essayez une envie, un lieu ou une catégorie.</p>
-                </div>
-              </div>
+                  </div>
+                )}
+              </motion.div>
             )}
-          </motion.div>
+          </AnimatePresence>,
+          document.body,
         )}
-      </AnimatePresence>
 
       <EstablishmentDetailDrawer
         establishment={selectedResult?.establishment ?? null}

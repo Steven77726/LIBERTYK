@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 const drawerStack: string[] = [];
 
 export function EntityDrawer({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   const idRef = useRef(`drawer-${Math.random().toString(36).slice(2)}`);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -29,9 +35,11 @@ export function EntityDrawer({ open, onClose, title, children }: { open: boolean
     };
   }, [open, onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className={`fixed inset-0 z-[80] transition ${open ? "visible" : "invisible"}`}
+      className={`fixed inset-0 z-[140] transition ${open ? "visible" : "invisible"}`}
       aria-hidden={!open}
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
       onTouchStart={(event) => { if (event.target === event.currentTarget) onClose(); }}
@@ -56,6 +64,7 @@ export function EntityDrawer({ open, onClose, title, children }: { open: boolean
         </div>
         {children}
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }

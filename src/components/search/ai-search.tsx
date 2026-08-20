@@ -1,8 +1,8 @@
 "use client";
 
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUpRight, Search, Sparkles, WandSparkles, X } from "lucide-react";
+import { ArrowUpRight, Search, X } from "lucide-react";
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
 import { assetPath } from "@/lib/assets";
 import { trackEvent } from "@/lib/client-store";
@@ -36,15 +36,6 @@ export function AiSearch() {
   const abortRef = useRef<AbortController | null>(null);
   const lastQueryRef = useRef<string | null>(null);
   const cacheRef = useRef(new Map<string, { expiresAt: number; results: EstablishmentSearchResult[] }>());
-  const suggestions = useMemo(() => {
-    if (query.trim().length < 2) return [];
-    return [...new Set(results.flatMap((result) => [
-      ...result.matches.map((match) => match.label),
-      result.subcategory,
-      result.category,
-      result.location?.city,
-    ].filter(Boolean) as string[]))].slice(0, 6);
-  }, [query, results]);
   const open = focused && (query.trim().length >= 2 || results.length > 0 || loading);
 
   const runSearch = useCallback(async (rawQuery: string, force = false) => {
@@ -230,30 +221,15 @@ export function AiSearch() {
             animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: 10, scale: 0.99, filter: "blur(6px)" }}
             transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute inset-x-0 top-[calc(100%+.7rem)] overflow-hidden rounded-[1.6rem] border border-white/70 bg-white/95 p-2 text-left text-ink shadow-[0_30px_90px_rgba(0,0,0,.28)] backdrop-blur-2xl"
+            className="absolute inset-x-0 top-[calc(100%+.55rem)] overflow-hidden rounded-[1.45rem] border border-white/70 bg-white/96 p-1.5 text-left text-ink shadow-[0_24px_70px_rgba(0,0,0,.22)] backdrop-blur-2xl"
           >
-            <div className="flex items-center justify-between px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[.15em] text-ink/35">Suggestions automatiques</p>
-              <p className="text-[10px] text-ink/30">{loading ? "Recherche…" : error ? "Erreur" : `${results.length} résultat${results.length > 1 ? "s" : ""}`}</p>
-            </div>
-
-            {suggestions.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 border-b border-black/[.06] px-3 pb-3">
-                {suggestions.map((suggestion) => (
-                  <button key={suggestion} onClick={() => { setQuery(suggestion); setFocused(true); }} className="inline-flex items-center gap-1.5 rounded-full bg-sage px-3 py-1.5 text-[10px] font-semibold text-moss transition hover:-translate-y-0.5 hover:bg-[#dfe9e2]">
-                    <WandSparkles size={11} /> {suggestion}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {loading ? (
-              <div className="px-4 py-8 text-center" role="status" aria-live="polite">
-                <Search size={22} className="mx-auto animate-pulse text-ink/15" />
-                <p className="mt-3 text-sm font-medium">Recherche…</p>
+              <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
+                <Search size={18} className="animate-pulse text-ink/20" />
+                <p className="text-sm font-medium text-ink/55">Recherche…</p>
               </div>
             ) : results.length > 0 ? (
-              <div className="grid max-h-[420px] gap-1 overflow-y-auto pt-2">
+              <div className="grid max-h-[380px] gap-1 overflow-y-auto">
                 {results.map((result, index) => (
                   <button
                     key={result.id}
@@ -281,21 +257,18 @@ export function AiSearch() {
                 ))}
               </div>
             ) : (
-              <div className="px-4 py-8 text-center" role="status" aria-live="polite">
-                <Search size={22} className="mx-auto text-ink/15" />
-                <p className="mt-3 text-sm font-medium">{error || "Aucun résultat"}</p>
-                <p className="mt-1 text-xs text-ink/35">Essayez une envie, un lieu ou une catégorie.</p>
+              <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
+                <Search size={18} className="text-ink/15" />
+                <div>
+                  <p className="text-sm font-medium">{error || "Aucun résultat"}</p>
+                  <p className="mt-0.5 text-xs text-ink/35">Essayez une envie, un lieu ou une catégorie.</p>
+                </div>
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="mx-auto mt-2 flex max-w-4xl justify-center">
-        <p className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[.07] px-3 py-1.5 text-[10px] text-white/58 shadow-[0_10px_30px_rgba(0,0,0,.12)] backdrop-blur">
-          <Sparkles size={11} /> Exemple : Où trouver un avocado toast dans le 17e ouvert dimanche ?
-        </p>
-      </div>
       <EstablishmentDetailDrawer
         establishment={selectedResult?.establishment ?? null}
         open={Boolean(selectedResult?.establishment)}

@@ -126,7 +126,37 @@ const synonymMap: Record<string, string[]> = {
   tequila: ["spiritueux", "vin", "caviste"],
   tequilla: ["tequila", "spiritueux", "vin", "caviste"],
   avocato: ["avocado"],
+  "1ee": ["17e", "17", "75017"],
 };
+
+const queryStopWords = new Set([
+  "a",
+  "au",
+  "aux",
+  "avec",
+  "dans",
+  "de",
+  "des",
+  "du",
+  "en",
+  "et",
+  "je",
+  "la",
+  "le",
+  "les",
+  "me",
+  "mon",
+  "ou",
+  "pour",
+  "pres",
+  "proche",
+  "qui",
+  "sur",
+  "trouve",
+  "trouver",
+  "un",
+  "une",
+]);
 
 let visibleTagsCache: { expiresAt: number; rows: TagRow[] } | null = null;
 let taxonomyCache: { expiresAt: number; rubrics: TaxonomyRow[]; subrubrics: TaxonomyRow[] } | null = null;
@@ -140,6 +170,25 @@ function getQueryTokens(query: string) {
   const normalized = normalizeSearchText(query);
   const tokens = normalized.split(" ").filter((token) => token.length > 1);
   return unique(tokens.flatMap((token) => [token, ...(synonymMap[token] ?? [])])).slice(0, 10);
+}
+
+function expandDistrictToken(token: string) {
+  if (token === "1ee") return ["17e", "17", "75017", "paris 17"];
+
+  const postal = token.match(/^750([0-2][0-9])$/)?.[1];
+  const ordinal = token.match(/^(\d{1,2})(e|eme|er)?$/)?.[1];
+  const district = postal ? String(Number(postal)) : ordinal;
+  if (!district) return [];
+
+  const padded = district.padStart(2, "0");
+  return unique([district, `${district}e`, `${district}eme`, `750${padded}`, `paris ${district}`]);
+}
+
+function getRequiredTokenGroups(query: string) {
+  const normalized = normalizeSearchText(query);
+  return unique(normalized.split(" ").filter((token) => token.length > 1 && !queryStopWords.has(token)))
+    .map((token) => unique([token, ...(synonymMap[token] ?? []), ...expandDistrictToken(token)]))
+    .slice(0, 6);
 }
 
 function toPostgrestArray(values: string[]) {
@@ -292,6 +341,37 @@ function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: stri
   if (score > 35 && row.sponsorship !== "standard") score += row.sponsorship === "partner" || row.sponsorship === "liberty_favorite" ? 8 : 5;
   score += Math.max(0, 8 - (row.display_order ?? 99) * 0.05);
   return score;
+}
+
+function getRowCorpus(row: EstablishmentSearchRow, tagLabels: string[]) {
+  return normalizeSearchText([
+    row.slug,
+    row.name,
+    row.short_description ?? "",
+    row.description ?? "",
+    row.address ?? "",
+    row.city ?? "",
+    row.district ?? "",
+    row.arrondissement ?? "",
+    row.postal_code ?? "",
+    row.rubrics?.name ?? "",
+    row.rubrics?.slug ?? "",
+    row.subrubrics?.name ?? "",
+    row.subrubrics?.slug ?? "",
+    tagLabels.join(" "),
+    (row.customer_searches ?? []).join(" "),
+  ].join(" "));
+}
+
+function requiredTokenMatchesCorpus(corpus: string, token: string) {
+  if (!/\d/.test(token)) return tokenMatchesText(corpus, token);
+
+  const words = corpus.split(" ").filter(Boolean);
+  return words.some((word) => word === token);
+}
+
+function countMatchedRequiredGroups(corpus: string, requiredGroups: string[][]) {
+  return requiredGroups.filter((group) => group.some((token) => requiredTokenMatchesCorpus(corpus, token))).length;
 }
 
 function rowToEstablishment(row: EstablishmentSearchRow, image: string, tagLabels: string[]): EstablishmentRecord {
@@ -477,6 +557,7 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
 
   const normalizedQuery = normalizeSearchText(query);
   const tokens = getQueryTokens(query);
+  const requiredGroups = getRequiredTokenGroups(query);
   const [tagRows, taxonomyMatches] = tokens.length
     ? await Promise.all([getTagRows(), getTaxonomyMatches(tokens, normalizedQuery)])
     : [[], { rubricIds: [], subrubricIds: [] } satisfies TaxonomyMatch];
@@ -495,7 +576,7 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
     .eq("is_visible", true)
     .is("deleted_at", null)
     .order("display_order", { ascending: true })
-    .limit(normalizedQuery ? 36 : 10);
+    .limit(normalizedQuery ? 80 : 10);
 
   if (tokens.length) {
     const scalarFilters = tokens.flatMap((token) => searchableColumns.map((column) => `${column}.ilike.%${token}%`));
@@ -527,15 +608,28 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
   }
 
   const tagMap = tagRowsToMap(tagRows);
-  return rows
+  const scoredResults = rows
     .map((row) => {
       const tags = resolveTagLabels(row.visible_tags, tagMap);
       const matches = getMatches(row, tags, tokens, normalizedQuery);
-      const score = scoreRow(row, tags, tokens, normalizedQuery);
-      return rowToResult(row, "/images/food/restaurants-khan.jpg", tags, score, matches, tokens);
+      const corpus = getRowCorpus(row, tags);
+      const matchedRequiredGroups = countMatchedRequiredGroups(corpus, requiredGroups);
+      const allRequiredGroupsMatched = requiredGroups.length > 1 && matchedRequiredGroups === requiredGroups.length;
+      const score = scoreRow(row, tags, tokens, normalizedQuery)
+        + matchedRequiredGroups * 30
+        + (allRequiredGroupsMatched ? 90 : 0);
+      return {
+        result: rowToResult(row, "/images/food/restaurants-khan.jpg", tags, score, matches, tokens),
+        allRequiredGroupsMatched,
+      };
     })
-    .filter((result) => result.score > 12)
-    .sort((a, b) => b.score - a.score)
-    .filter((result, index, list) => list.findIndex((item) => item.href === result.href) === index)
+    .filter(({ result }) => result.score > 12)
+    .sort((a, b) => b.result.score - a.result.score)
+    .filter((entry, index, list) => list.findIndex((item) => item.result.href === entry.result.href) === index);
+
+  const shouldRequireAllGroups = requiredGroups.length > 1 && scoredResults.some((entry) => entry.allRequiredGroupsMatched);
+  return scoredResults
+    .filter((entry) => !shouldRequireAllGroups || entry.allRequiredGroupsMatched)
+    .map((entry) => entry.result)
     .slice(0, options.limit ?? 10);
 }

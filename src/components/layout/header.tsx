@@ -46,6 +46,16 @@ export function Header() {
                 {pathname === `/${item.slug}` && <span className="absolute inset-x-4 -bottom-px h-px rounded-full bg-gradient-to-r from-transparent via-[#c99b42] to-transparent" />}
               </Link>
             ))}
+            <Link
+              href="/calendrier-juif"
+              className={cn(
+                "relative rounded-full px-3 py-2 text-[13px] font-semibold text-ink/56 transition duration-300 hover:bg-white/70 hover:text-ink",
+                (pathname === "/calendrier-juif" || pathname === "/calendrier") && "bg-white text-ink shadow-[0_10px_28px_rgba(27,35,30,.08)]",
+              )}
+            >
+              Calendrier
+              {(pathname === "/calendrier-juif" || pathname === "/calendrier") && <span className="absolute inset-x-4 -bottom-px h-px rounded-full bg-gradient-to-r from-transparent via-[#c99b42] to-transparent" />}
+            </Link>
             <button onClick={() => setOpen(true)} className="rounded-full px-3 py-2 text-[13px] font-semibold text-ink/56 transition duration-300 hover:bg-white/70 hover:text-ink">Plus</button>
           </nav>
           <div className="flex items-center gap-2">

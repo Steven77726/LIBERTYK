@@ -9,7 +9,7 @@ import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
 type Props = { params: Promise<{ category: string }> };
 
-const dedicatedCategoryPages = new Set(["food", "shopping", "vin-spiritueux", "mikve"]);
+const dedicatedCategoryPages = new Set(["food", "shopping", "vin-spiritueux", "mikve", "calendrier-juif"]);
 
 export function generateStaticParams() {
   return categories

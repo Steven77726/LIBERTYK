@@ -49,7 +49,20 @@ export function Header() {
             <button onClick={() => setOpen(true)} className="rounded-full px-3 py-2 text-[13px] font-semibold text-ink/56 transition duration-300 hover:bg-white/70 hover:text-ink">Plus</button>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/#recherche" className="hidden size-10 place-items-center rounded-full border border-black/[.08] bg-white/75 text-ink shadow-[0_10px_24px_rgba(27,35,30,.06)] transition duration-300 hover:-translate-y-0.5 hover:border-[#c99b42]/35 hover:bg-white sm:grid" aria-label="Rechercher"><Search size={17} /></Link>
+            <Link
+              href="/#recherche"
+              onClick={(e) => {
+                if (pathname === "/") {
+                  e.preventDefault();
+                  window.dispatchEvent(new CustomEvent("liberty:open-search"));
+                }
+              }}
+              className="hidden size-10 place-items-center rounded-full border border-black/[.08] bg-white/75 text-ink shadow-[0_10px_24px_rgba(27,35,30,.06)] transition duration-300 hover:-translate-y-0.5 hover:border-[#c99b42]/35 hover:bg-white sm:grid"
+              aria-label="Rechercher (⌘K)"
+              title="Rechercher (⌘K)"
+            >
+              <Search size={17} />
+            </Link>
             <Link href="/mon-compte" className="hidden items-center gap-2 rounded-full bg-[linear-gradient(135deg,#101a15,#2a4638)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_14px_34px_rgba(16,26,21,.18)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_44px_rgba(16,26,21,.25)] sm:flex"><UserRound size={15} /> Mon compte</Link>
             <button onClick={() => setOpen(true)} className="grid size-10 place-items-center rounded-full border border-black/[.08] bg-white/80 shadow-[0_10px_24px_rgba(27,35,30,.06)] lg:hidden" aria-label="Ouvrir le menu"><Menu size={19} /></button>
           </div>

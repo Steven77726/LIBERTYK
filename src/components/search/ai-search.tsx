@@ -15,14 +15,23 @@ const rotatingExamples = [
   "Brunch avocado toast 17e",
   "Tequila casher",
   "DJ mariage Paris",
-  "Mikvé homme proche de moi",
+  "Mikvé femme proche de moi",
+];
+
+export const quickSuggestions = [
+  { label: "🥐 Brunch dimanche", query: "Brunch dimanche" },
+  { label: "🥩 Bassari 17e", query: "Bassari 17e" },
+  { label: "🍕 Halavi", query: "Halavi" },
+  { label: "🍷 Vins casher", query: "Vin spiritueux" },
+  { label: "💍 Mariage & DJ", query: "Mariage" },
+  { label: "🕊️ Mikvé", query: "Mikvé" },
 ];
 
 const SEARCH_DEBOUNCE_MS = 150;
 const SEARCH_CACHE_TTL_MS = 45_000;
 const MAX_RESULTS = 10;
 
-export function AiSearch() {
+export function AiSearch({ showChips = true }: { showChips?: boolean }) {
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
@@ -118,6 +127,13 @@ export function AiSearch() {
     }
   };
 
+  const handleChipClick = (chipQuery: string) => {
+    setQuery(chipQuery);
+    setFocused(true);
+    inputRef.current?.focus();
+    void runSearch(chipQuery, true);
+  };
+
   useEffect(() => {
     const timer = window.setInterval(() => setExampleIndex((index) => (index + 1) % rotatingExamples.length), 3200);
     return () => window.clearInterval(timer);
@@ -135,6 +151,31 @@ export function AiSearch() {
     }
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+        setFocused(true);
+        rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+
+    function handleGlobalOpen() {
+      inputRef.current?.focus();
+      setFocused(true);
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("liberty:open-search", handleGlobalOpen);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("liberty:open-search", handleGlobalOpen);
+    };
   }, []);
 
   useEffect(() => {
@@ -225,6 +266,11 @@ export function AiSearch() {
             autoComplete="off"
             className="h-full min-w-0 flex-1 truncate bg-transparent px-1 text-[15px] font-semibold leading-none text-ink outline-none placeholder:truncate placeholder:font-medium placeholder:text-ink/32 sm:px-3 sm:text-base"
           />
+
+          <span className="hidden items-center rounded-lg border border-black/10 bg-cream/80 px-2 py-1 text-[11px] font-semibold text-ink/40 sm:flex">
+            ⌘ K
+          </span>
+
           {query && (
             <button
               type="button"
@@ -249,6 +295,21 @@ export function AiSearch() {
         </div>
       </div>
 
+      {showChips && (
+        <div className="no-scrollbar mt-3 flex items-center justify-center gap-1.5 overflow-x-auto px-1 py-1 sm:gap-2">
+          {quickSuggestions.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => handleChipClick(item.query)}
+              className="group shrink-0 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/85 backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-[#d5bb7d]/50 hover:bg-white/20 hover:text-white"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {mounted &&
         createPortal(
           <AnimatePresence>
@@ -260,12 +321,12 @@ export function AiSearch() {
                 animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
                 exit={{ opacity: 0, y: 10, scale: 0.99, filter: "blur(6px)" }}
                 transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-                className="fixed z-[130] overflow-hidden rounded-[1.45rem] border border-white/70 bg-white/96 p-1.5 text-left text-ink shadow-[0_24px_70px_rgba(0,0,0,.22)] backdrop-blur-2xl"
+                className="fixed z-[130] overflow-hidden rounded-[1.45rem] border border-white/70 bg-white/96 p-2 text-left text-ink shadow-[0_24px_70px_rgba(0,0,0,.22)] backdrop-blur-2xl"
               >
                 {loading ? (
                   <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
                     <Search size={18} className="animate-pulse text-ink/20" />
-                    <p className="text-sm font-medium text-ink/55">Recherche…</p>
+                    <p className="text-sm font-medium text-ink/55">Recherche en cours…</p>
                   </div>
                 ) : results.length > 0 ? (
                   <div className="grid max-h-[380px] gap-1 overflow-y-auto">
@@ -280,14 +341,14 @@ export function AiSearch() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-sm font-semibold [&_mark]:rounded [&_mark]:bg-[#f6ecd9] [&_mark]:px-0.5 [&_mark]:text-ink" dangerouslySetInnerHTML={{ __html: result.highlight }} />
-                            {result.ranking?.sponsored && <span className="rounded-full bg-[#f6ecd9] px-2 py-0.5 text-[9px] font-semibold text-[#9b6b2d]">Sponsorisé pertinent</span>}
+                            {result.ranking?.sponsored && <span className="rounded-full bg-[#f6ecd9] px-2 py-0.5 text-[9px] font-semibold text-[#9b6b2d]">Sponsorisé</span>}
                             {result.filters?.openNow === false && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-semibold text-zinc-500">Fermé</span>}
                             {result.filters?.openNow === true && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">Ouvert</span>}
                           </div>
                           <p className={`mt-0.5 truncate text-[11px] ${result.filters?.openNow === false ? "text-ink/25" : "text-ink/42"}`}>{[result.subcategory ?? result.category, result.location?.city].filter(Boolean).join(" · ")}</p>
                           {result.matches.length > 0 && (
                             <p className="mt-1 truncate text-[10px] font-medium text-moss/75">
-                              Correspond : {result.matches.slice(0, 3).map((match) => match.label).join(" · ")}
+                              Correspondance : {result.matches.slice(0, 3).map((match) => match.label).join(" · ")}
                             </p>
                           )}
                         </div>
@@ -296,11 +357,25 @@ export function AiSearch() {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 px-4 py-4" role="status" aria-live="polite">
-                    <Search size={18} className="text-ink/15" />
-                    <div>
-                      <p className="text-sm font-medium">{error || "Aucun résultat"}</p>
-                      <p className="mt-0.5 text-xs text-ink/35">Essayez une envie, un lieu ou une catégorie.</p>
+                  <div className="p-4" role="status" aria-live="polite">
+                    <div className="flex items-center gap-3">
+                      <Search size={18} className="text-ink/20" />
+                      <div>
+                        <p className="text-sm font-semibold">{error || "Aucun résultat pour cette recherche"}</p>
+                        <p className="mt-0.5 text-xs text-ink/45">Essayez une de nos suggestions populaires :</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {quickSuggestions.map((item) => (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => handleChipClick(item.query)}
+                          className="rounded-full bg-cream px-3 py-1.5 text-xs font-semibold text-ink/70 transition hover:bg-moss hover:text-white"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

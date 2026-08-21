@@ -2,6 +2,7 @@
 
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Search, X } from "lucide-react";
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
@@ -12,6 +13,7 @@ import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-
 const rotatingExamples = [
   "Où trouver un avocado toast dans le 17e ouvert dimanche ?",
   "Restaurant entrecôte Paris 17",
+  "David Abitbol trompe l'oeil",
   "Brunch avocado toast 17e",
   "Tequila casher",
   "DJ mariage Paris",
@@ -20,6 +22,7 @@ const rotatingExamples = [
 
 export const quickSuggestions = [
   { label: "🥐 Brunch dimanche", query: "Brunch dimanche" },
+  { label: "🍰 David Abitbol (Trompe-l'œil)", query: "David Abitbol" },
   { label: "🥩 Bassari 17e", query: "Bassari 17e" },
   { label: "🍕 Halavi", query: "Halavi" },
   { label: "🍷 Vins casher", query: "Vin spiritueux" },
@@ -32,6 +35,7 @@ const SEARCH_CACHE_TTL_MS = 45_000;
 const MAX_RESULTS = 10;
 
 export function AiSearch({ showChips = true }: { showChips?: boolean }) {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
@@ -218,7 +222,12 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     if (!result) return;
     if (query.trim().length >= 2) trackEvent("ai_search", query.trim(), result.id);
     setFocused(false);
-    setSelectedResult(result);
+
+    if (result.establishment) {
+      setSelectedResult(result);
+    } else if (result.href) {
+      router.push(result.href);
+    }
   };
 
   const submit = async () => {
@@ -301,6 +310,10 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             <button
               key={item.label}
               type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleChipClick(item.query);
+              }}
               onClick={() => handleChipClick(item.query)}
               className="group shrink-0 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/85 backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-[#d5bb7d]/50 hover:bg-white/20 hover:text-white"
             >
@@ -334,6 +347,10 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                       <button
                         key={result.id}
                         onMouseEnter={() => setActiveIndex(index)}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          openResult(result);
+                        }}
                         onClick={() => openResult(result)}
                         className={`group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition duration-300 hover:-translate-y-0.5 hover:bg-cream hover:shadow-sm ${activeIndex === index ? "bg-cream" : ""}`}
                       >
@@ -370,6 +387,10 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                         <button
                           key={item.label}
                           type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleChipClick(item.query);
+                          }}
                           onClick={() => handleChipClick(item.query)}
                           className="rounded-full bg-cream px-3 py-1.5 text-xs font-semibold text-ink/70 transition hover:bg-moss hover:text-white"
                         >

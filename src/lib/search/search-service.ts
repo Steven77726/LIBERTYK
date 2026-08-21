@@ -108,16 +108,19 @@ const establishmentSelect = `
 `;
 
 const synonymMap: Record<string, string[]> = {
-  abitol: ["abitbol"],
-  abitbol: ["abitol"],
+  abitol: ["abitbol", "david abitbol", "trompe", "oeil"],
+  abitbol: ["abitol", "david abitbol", "trompe", "oeil", "patisserie"],
+  trompe: ["trompe l'oeil", "trompe oeil", "trompe-l'œil", "abitbol", "david abitbol", "patisserie"],
+  oeil: ["trompe l'oeil", "trompe oeil", "trompe-l'œil", "abitbol", "david abitbol"],
+  trompeloeil: ["trompe l'oeil", "trompe oeil", "abitbol", "david abitbol", "patisserie"],
   resto: ["restaurant"],
   restaurant: ["resto", "restaurants"],
   bakery: ["boulangerie", "boulangeries", "pain"],
   boulangerie: ["bakery", "boulangeries", "pain"],
   boulangeries: ["bakery", "boulangerie", "pain"],
   pastry: ["patisserie", "patisseries", "gateau", "gateaux"],
-  patisserie: ["pastry", "patisseries", "gateau", "gateaux"],
-  patisseries: ["pastry", "patisserie", "gateau", "gateaux"],
+  patisserie: ["pastry", "patisseries", "gateau", "gateaux", "trompe oeil", "abitbol"],
+  patisseries: ["pastry", "patisserie", "gateau", "gateaux", "trompe oeil", "abitbol"],
   wine: ["vin", "caviste", "spiritueux"],
   vin: ["wine", "caviste", "spiritueux"],
   bar: ["cocktail", "cocktails", "vin", "spiritueux", "caviste"],
@@ -666,8 +669,20 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
     .filter((entry, index, list) => list.findIndex((item) => item.result.href === entry.result.href) === index);
 
   const shouldRequireAllGroups = requiredGroups.length > 1 && scoredResults.some((entry) => entry.allRequiredGroupsMatched);
-  return scoredResults
+  const primaryResults = scoredResults
     .filter((entry) => !shouldRequireAllGroups || entry.allRequiredGroupsMatched)
-    .map((entry) => entry.result)
-    .slice(0, options.limit ?? 10);
+    .map((entry) => entry.result);
+
+  const fallbackItems = fallbackSearch(query);
+  if (primaryResults.length === 0) {
+    return fallbackItems.slice(0, options.limit ?? 10);
+  }
+
+  const combined = [...primaryResults];
+  for (const fallback of fallbackItems) {
+    if (!combined.some((item) => item.href === fallback.href || item.title.toLowerCase() === fallback.title.toLowerCase())) {
+      combined.push(fallback);
+    }
+  }
+  return combined.slice(0, options.limit ?? 10);
 }

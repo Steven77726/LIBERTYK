@@ -176,4 +176,25 @@ const shopItems: SearchItem[] = [{
   ranking: { sponsored: false, popularity: 64, favorites: azamra.reviewCount, reviewCount: azamra.reviewCount },
 }];
 
-export const searchIndex: SearchItem[] = [...restaurantItems, ...brunchItems, ...wineItems, ...shopItems, ...categoryItems];
+const patisserieItems: SearchItem[] = [{
+  id: "patisserie-david-abitbol",
+  title: "David Abitbol — Trompe-l'œil",
+  subtitle: "Pâtisserie & Trompe-l'œil · Paris",
+  category: "Pâtisserie",
+  subcategory: "Trompe-l'œil",
+  href: "/food/patisseries",
+  image: "/images/food/patisserie.webp",
+  customerSearches: [
+    "David Abitbol", "Abitbol", "Abitol", "Trompe l'oeil", "Trompe oeil", "Trompe-l'œil", "Trompeloeil",
+    "Pâtisserie David Abitbol", "Pâtisserie casher", "Gâteau trompe l'oeil", "Dessert casher", "Paris", "Pâtisserie", "Gâteau",
+  ],
+  keywords: buildInvisibleKeywords([
+    "David Abitbol", "Abitbol", "Abitol", "Trompe l'oeil", "Trompe oeil", "Trompe-l'œil", "trompeloeil",
+    "Pâtisserie", "Pâtisserie casher", "Gâteaux", "Trompe l'œil", "Dessert", "Paris",
+  ], { category: "food patisserie dessert", location: "Paris" }),
+  location: { city: "Paris" },
+  filters: { kosherType: "Halavi", openNow: null, price: "€€" },
+  ranking: { sponsored: true, popularity: 95, favorites: 42, reviewCount: 28 },
+}];
+
+export const searchIndex: SearchItem[] = [...restaurantItems, ...brunchItems, ...wineItems, ...shopItems, ...patisserieItems, ...categoryItems];

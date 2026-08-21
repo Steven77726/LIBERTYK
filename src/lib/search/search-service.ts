@@ -55,6 +55,13 @@ type EstablishmentSearchRow = {
   subrubrics?: { name: string; slug: string } | null;
 };
 
+type PhotoRow = {
+  entity_id: string;
+  url: string;
+  alt: string | null;
+  display_order: number;
+};
+
 type TagRow = {
   id: string;
   external_id: string | null;
@@ -374,20 +381,45 @@ function countMatchedRequiredGroups(corpus: string, requiredGroups: string[][]) 
   return requiredGroups.filter((group) => group.some((token) => requiredTokenMatchesCorpus(corpus, token))).length;
 }
 
-function rowToEstablishment(row: EstablishmentSearchRow, image: string, tagLabels: string[]): EstablishmentRecord {
+async function getPhotoMap(entityIds: string[]) {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !entityIds.length) return new Map<string, PhotoRow[]>();
+
+  const { data, error } = await supabase
+    .from("photos")
+    .select("entity_id,url,alt,display_order")
+    .eq("entity_type", "establishment")
+    .in("entity_id", entityIds)
+    .order("display_order", { ascending: true })
+    .returns<PhotoRow[]>();
+
+  if (error) return new Map<string, PhotoRow[]>();
+
+  const map = new Map<string, PhotoRow[]>();
+  (data ?? []).forEach((photo) => {
+    const list = map.get(photo.entity_id) ?? [];
+    list.push(photo);
+    map.set(photo.entity_id, list);
+  });
+  return map;
+}
+
+function rowToEstablishment(row: EstablishmentSearchRow, image: string, tagLabels: string[], photos: PhotoRow[] = []): EstablishmentRecord {
   const sponsorshipLevel = row.sponsorship === "partner" || row.sponsorship === "liberty_favorite"
     ? "Premium"
     : row.sponsorship === "sponsored"
       ? "Featured"
       : "Standard";
+  const gallery = [...photos].sort((a, b) => a.display_order - b.display_order);
+  const galleryUrls = gallery.map((photo) => photo.url).filter(Boolean);
 
   return {
     id: row.id,
     rubricId: row.rubrics?.slug ?? "food",
     subrubricId: row.subrubrics?.slug ?? "",
     mainPhoto: image,
-    photos: [],
-    photoAlts: [],
+    photos: galleryUrls.slice(1),
+    photoAlts: gallery.slice(1).map((photo) => photo.alt ?? row.name),
     name: row.name,
     slug: row.slug,
     shortDescription: row.short_description ?? "",
@@ -428,7 +460,7 @@ function rowToEstablishment(row: EstablishmentSearchRow, image: string, tagLabel
   };
 }
 
-function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: string[], score: number, matches: SearchMatch[], tokens: string[]): EstablishmentSearchResult {
+function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: string[], score: number, matches: SearchMatch[], tokens: string[], photos: PhotoRow[] = []): EstablishmentSearchResult {
   const category = row.rubrics?.name ?? "Établissement";
   const subcategory = row.subrubrics?.name ?? undefined;
   return {
@@ -474,7 +506,7 @@ function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: stri
     score,
     matches,
     highlight: highlightText(row.name, tokens),
-    establishment: rowToEstablishment(row, image || "/images/food/restaurants-khan.jpg", tagLabels),
+    establishment: rowToEstablishment(row, image || "/images/food/restaurants-khan.jpg", tagLabels, photos),
   };
 }
 
@@ -601,16 +633,22 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
 
   if (!normalizedQuery) {
     const tagMap = tagRowsToMap(await getTagRows());
+    const photoMap = await getPhotoMap(rows.map((row) => row.id));
     return rows.map((row, index) => {
       const tags = resolveTagLabels(row.visible_tags, tagMap);
-      return rowToResult(row, "/images/food/restaurants-khan.jpg", tags, 1_000 - index, [], tokens);
+      const photos = photoMap.get(row.id) ?? [];
+      const image = photos[0]?.url || "/images/food/restaurants-khan.jpg";
+      return rowToResult(row, image, tags, 1_000 - index, [], tokens, photos);
     });
   }
 
   const tagMap = tagRowsToMap(tagRows);
+  const photoMap = await getPhotoMap(rows.map((row) => row.id));
   const scoredResults = rows
     .map((row) => {
       const tags = resolveTagLabels(row.visible_tags, tagMap);
+      const photos = photoMap.get(row.id) ?? [];
+      const image = photos[0]?.url || "/images/food/restaurants-khan.jpg";
       const matches = getMatches(row, tags, tokens, normalizedQuery);
       const corpus = getRowCorpus(row, tags);
       const matchedRequiredGroups = countMatchedRequiredGroups(corpus, requiredGroups);
@@ -619,7 +657,7 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
         + matchedRequiredGroups * 30
         + (allRequiredGroupsMatched ? 90 : 0);
       return {
-        result: rowToResult(row, "/images/food/restaurants-khan.jpg", tags, score, matches, tokens),
+        result: rowToResult(row, image, tags, score, matches, tokens, photos),
         allRequiredGroupsMatched,
       };
     })

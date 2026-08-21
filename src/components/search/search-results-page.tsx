@@ -412,9 +412,21 @@ export function SearchResultsPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="grid size-9 place-items-center rounded-xl bg-cream text-ink/75 transition hover:bg-moss/10 hover:text-moss"
-                        title="Itinéraire Google Maps"
+                        title="Google Maps"
                       >
-                        <Navigation size={15} />
+                        <Navigation size={14} className="text-[#4285F4]" />
+                      </a>
+                      <a
+                        href={result.location?.latitude && result.location?.longitude
+                          ? `https://waze.com/ul?ll=${result.location.latitude},${result.location.longitude}&navigate=yes`
+                          : `https://waze.com/ul?q=${encodeURIComponent(result.subtitle || result.title)}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="grid size-9 place-items-center rounded-xl bg-cream text-ink/75 transition hover:bg-moss/10 hover:text-moss"
+                        title="Waze"
+                      >
+                        <span className="text-xs font-bold text-[#33CCFF]">W</span>
                       </a>
                       {result.establishment?.phone && (
                         <a
@@ -422,7 +434,7 @@ export function SearchResultsPage() {
                           className="grid size-9 place-items-center rounded-xl bg-cream text-ink/75 transition hover:bg-moss/10 hover:text-moss"
                           title="Appeler"
                         >
-                          <Phone size={15} />
+                          <Phone size={14} />
                         </a>
                       )}
                     </div>

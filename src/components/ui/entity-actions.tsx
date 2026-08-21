@@ -189,10 +189,9 @@ export function ReviewButton({ entity, compact = false }: { entity: EntityAction
 
 export function EntityActions({ entity }: { entity: EntityActionTarget }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       <LikeButton entity={entity} className="flex items-center justify-center gap-2 rounded-xl bg-cream px-4 py-3 text-xs font-semibold" />
       <ShareButton entity={entity} />
-      <ReviewButton entity={entity} />
     </div>
   );
 }

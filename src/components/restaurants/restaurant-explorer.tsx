@@ -434,7 +434,6 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
           {visibility.website !== false && restaurant.website && <a href={restaurant.website} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Site internet"><Globe2 size={14} /></a>}
           {visibility.instagram !== false && restaurant.instagram && <a href={restaurant.instagram} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Instagram"><Instagram size={14} /></a>}
           <ShareButton entity={entity} compact />
-          <ReviewButton entity={entity} compact />
         </div>
       </div>
     </article>

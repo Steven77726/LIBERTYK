@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Clock, Globe, MapPin, Phone, Search, Sparkles, Star, X } from "lucide-react";
 import { searchGooglePlaces, type GooglePlaceDetails } from "@/lib/google-places";
 
@@ -11,19 +11,31 @@ type Props = {
   onApply: (data: GooglePlaceDetails) => void;
 };
 
+const SUGGESTIONS = [
+  "Khan",
+  "Le Marceau 17e",
+  "Doron Niel",
+  "Bloomy Brunch",
+  "Chez Isaac",
+  "Kavod",
+  "Chlew",
+  "Benson Kfé",
+  "Flavio",
+  "Gabrielli",
+  "Azamra",
+  "Winess",
+];
+
 export function GoogleSyncModal({ isOpen, onClose, initialQuery, onApply }: Props) {
   const [query, setQuery] = useState(initialQuery || "");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<GooglePlaceDetails[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<GooglePlaceDetails | null>(null);
 
-  if (!isOpen) return null;
-
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const runSearch = async (searchTerm: string) => {
     setLoading(true);
     try {
-      const places = await searchGooglePlaces(query);
+      const places = await searchGooglePlaces(searchTerm);
       setResults(places);
       if (places.length > 0) {
         setSelectedPlace(places[0]);
@@ -31,6 +43,20 @@ export function GoogleSyncModal({ isOpen, onClose, initialQuery, onApply }: Prop
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      const targetQuery = initialQuery || "";
+      setQuery(targetQuery);
+      runSearch(targetQuery);
+    }
+  }, [isOpen, initialQuery]);
+
+  if (!isOpen) return null;
+
+  const handleSearch = () => {
+    runSearch(query);
   };
 
   const handleApply = (place: GooglePlaceDetails) => {
@@ -70,8 +96,8 @@ export function GoogleSyncModal({ isOpen, onClose, initialQuery, onApply }: Prop
           </button>
         </div>
 
-        {/* Barre de recherche Google */}
-        <div className="border-b border-black/[.06] bg-white/70 p-5">
+        {/* Barre de recherche Google & Suggestions rapides */}
+        <div className="border-b border-black/[.06] bg-white/70 p-5 space-y-3">
           <div className="flex gap-2">
             <div className="flex flex-1 items-center rounded-2xl border border-black/10 bg-white px-4 py-2.5 shadow-sm">
               <Search size={18} className="text-ink/30" />
@@ -80,7 +106,7 @@ export function GoogleSyncModal({ isOpen, onClose, initialQuery, onApply }: Prop
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="Nom du restaurant ou commerce (ex: Le Marceau 17e, Bloomy Brunch...)"
+                placeholder="Nom du restaurant ou commerce (ex: Le Marceau 17e, Bloomy Brunch, Doron Niel...)"
                 className="ml-2 w-full bg-transparent text-sm font-semibold text-ink outline-none placeholder:font-normal placeholder:text-ink/35"
               />
             </div>
@@ -88,10 +114,27 @@ export function GoogleSyncModal({ isOpen, onClose, initialQuery, onApply }: Prop
               type="button"
               onClick={handleSearch}
               disabled={loading}
-              className="flex items-center gap-2 rounded-2xl bg-ink px-6 py-2.5 text-xs font-semibold text-white shadow-md transition hover:bg-ink/90 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-2xl bg-ink px-6 py-2.5 text-xs font-semibold text-white shadow-md transition hover:bg-moss disabled:opacity-50"
             >
               {loading ? "Recherche…" : "Rechercher sur Google"}
             </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-ink/40 mr-1">Raccourcis :</span>
+            {SUGGESTIONS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setQuery(item);
+                  runSearch(item);
+                }}
+                className="rounded-full bg-white border border-black/5 px-2.5 py-1 text-[11px] font-medium text-ink/75 shadow-2xs transition hover:bg-moss hover:text-white"
+              >
+                {item}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -103,7 +146,7 @@ export function GoogleSyncModal({ isOpen, onClose, initialQuery, onApply }: Prop
                 <Sparkles size={32} className="mx-auto text-moss/40" />
                 <p className="mt-3 font-semibold text-ink">Recherchez un établissement</p>
                 <p className="mt-1 max-w-md text-xs text-ink/45">
-                  Tapez le nom de l’établissement ci-dessus pour prévisualiser et importer toutes les informations de sa fiche Google Maps.
+                  Tapez le nom de l’établissement ci-dessus ou cliquez sur un raccourci pour prévisualiser et importer toutes les informations de sa fiche Google Maps.
                 </p>
               </div>
             </div>
@@ -119,19 +162,28 @@ export function GoogleSyncModal({ isOpen, onClose, initialQuery, onApply }: Prop
                     key={place.placeId}
                     type="button"
                     onClick={() => setSelectedPlace(place)}
-                    className={`flex w-full flex-col items-start gap-1 rounded-2xl p-4 text-left transition ${
+                    className={`flex w-full items-center gap-3 rounded-2xl p-3.5 text-left transition ${
                       selectedPlace?.placeId === place.placeId
                         ? "border-2 border-moss bg-white shadow-md"
                         : "border border-black/5 bg-white/70 hover:bg-white"
                     }`}
                   >
-                    <div className="flex w-full items-center justify-between">
-                      <span className="font-semibold text-ink">{place.name}</span>
-                      <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">
-                        <Star size={11} className="fill-amber-500 text-amber-500" /> {place.rating} ({place.userRatingsTotal})
-                      </span>
+                    {place.photos && place.photos.length > 0 && (
+                      <img
+                        src={place.photos[0]}
+                        alt=""
+                        className="size-12 shrink-0 rounded-xl object-cover shadow-2xs"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="truncate font-bold text-ink">{place.name}</span>
+                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">
+                          <Star size={11} className="fill-amber-500 text-amber-500" /> {place.rating}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-ink/50">{place.formattedAddress}</p>
                     </div>
-                    <p className="text-xs text-ink/50">{place.formattedAddress}</p>
                   </button>
                 ))}
               </div>

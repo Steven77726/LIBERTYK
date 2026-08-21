@@ -233,8 +233,9 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
   const submit = async () => {
     const searchQuery = query.trim();
     if (searchQuery.length < 2) return;
-    const currentResults = results.length ? results : await runSearch(searchQuery, true);
-    openResult(currentResults[activeIndex] ?? currentResults[0]);
+    setFocused(false);
+    trackEvent("ai_search_submit", searchQuery, searchQuery);
+    router.push(`/recherche?q=${encodeURIComponent(searchQuery)}`);
   };
 
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
@@ -377,6 +378,19 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                         <ArrowUpRight size={15} className="shrink-0 text-ink/25 transition group-hover:text-ink" />
                       </button>
                     ))}
+                    </div>
+                    <div className="border-t border-black/5 p-2 pt-2">
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          void submit();
+                        }}
+                        onClick={() => void submit()}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-moss"
+                      >
+                        <Search size={14} /> Voir tous les {results.length} résultats sur la page complète →
+                      </button>
                     </div>
                   </div>
                 ) : (

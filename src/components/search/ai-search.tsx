@@ -32,7 +32,7 @@ export const quickSuggestions = [
 
 const SEARCH_DEBOUNCE_MS = 150;
 const SEARCH_CACHE_TTL_MS = 45_000;
-const MAX_RESULTS = 10;
+const MAX_RESULTS = 50;
 
 export function AiSearch({ showChips = true }: { showChips?: boolean }) {
   const router = useRouter();
@@ -342,8 +342,13 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                     <p className="text-sm font-medium text-ink/55">Recherche en cours…</p>
                   </div>
                 ) : results.length > 0 ? (
-                  <div className="grid max-h-[380px] gap-1 overflow-y-auto">
-                    {results.map((result, index) => (
+                  <div>
+                    <div className="flex items-center justify-between border-b border-black/[.06] px-3.5 py-2 text-[11px] font-semibold text-ink/45">
+                      <span>{results.length} résultat{results.length > 1 ? "s" : ""} trouvé{results.length > 1 ? "s" : ""}</span>
+                      {query && <span className="font-medium text-moss">« {query} »</span>}
+                    </div>
+                    <div className="grid max-h-[440px] gap-1 overflow-y-auto pt-1">
+                      {results.map((result, index) => (
                       <button
                         key={result.id}
                         onMouseEnter={() => setActiveIndex(index)}
@@ -372,6 +377,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                         <ArrowUpRight size={15} className="shrink-0 text-ink/25 transition group-hover:text-ink" />
                       </button>
                     ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="p-4" role="status" aria-live="polite">

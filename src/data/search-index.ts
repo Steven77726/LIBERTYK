@@ -35,18 +35,40 @@ const categoryItems: SearchItem[] = categories.map((category) => ({
 
 const restaurantItems: SearchItem[] = restaurants.map((restaurant) => {
   const services = [
-    restaurant.services.dineIn && "sur place", restaurant.services.takeaway && "à emporter",
-    restaurant.services.delivery && "livraison", restaurant.services.reservation && "réservation",
+    restaurant.services.dineIn && "sur place",
+    restaurant.services.takeaway && "à emporter",
+    restaurant.services.delivery && "livraison",
+    restaurant.services.reservation && "réservation",
     restaurant.amenities.familyFriendly && "restaurant familial",
   ].filter(Boolean) as string[];
-  const khanKeywords = restaurant.name === "Khan" ? [
-    "Restaurant", "Restaurant casher", "Bassari", "Viande", "Grill", "Paris", "75017",
-    "17e arrondissement", "Paris 17", "Shabbat", "Livraison", "Sur place", "À emporter",
-    "Dîner", "Déjeuner", "Restaurant familial", "Restaurant romantique", "Viande grillée",
-    "Kasher", "Cacher", "Restaurant cacher Paris", "Restaurant viande Paris",
-    "Restaurant bassari Paris", "Restaurant casher 17", "Restaurant casher Paris 17",
-    "Cuisine israélienne", "Cuisine orientale",
-  ] : [];
+
+  const isViande = restaurant.type === "Viande" || /grill|viande|steak|burger|boucher|viandes/i.test(`${restaurant.specialty} ${restaurant.cuisine}`);
+  const isLait = restaurant.type === "Lait" || /lait|pizza|fromage|halavi/i.test(`${restaurant.specialty} ${restaurant.cuisine}`);
+  const isParve = restaurant.type === "Parvé" || /parve|sushi|asiatique/i.test(`${restaurant.specialty} ${restaurant.cuisine}`);
+
+  const kosherKeywords = [
+    ...(isViande ? ["Bassari", "Viande", "Restaurant bassari", "Restaurant viande", "Grill", "Grillades", "Meat", "Carné"] : []),
+    ...(isLait ? ["Halavi", "Lait", "Restaurant halavi", "Restaurant lait", "Pizza", "Fromage", "Dairy"] : []),
+    ...(isParve ? ["Parvé", "Parve", "Restaurant parvé"] : []),
+  ];
+
+  const allSearches = [
+    restaurant.name,
+    restaurant.fullAddress,
+    restaurant.postalCode,
+    restaurant.arrondissement ? `${restaurant.arrondissement}e arrondissement` : "",
+    restaurant.arrondissement ? `Paris ${restaurant.arrondissement}` : "",
+    restaurant.specialty,
+    restaurant.cuisine,
+    restaurant.type,
+    restaurant.certification,
+    "restaurant casher",
+    "restaurant cacher",
+    "restaurant kasher",
+    ...services,
+    ...kosherKeywords,
+  ].filter(Boolean) as string[];
+
   return {
     id: `restaurant-${restaurant.id}`,
     title: restaurant.name,
@@ -55,16 +77,11 @@ const restaurantItems: SearchItem[] = restaurants.map((restaurant) => {
     subcategory: "Restaurants",
     href: `/food/restaurants#${restaurant.id}`,
     image: restaurant.image,
-    customerSearches: [
-      restaurant.name, restaurant.fullAddress, restaurant.postalCode, `${restaurant.arrondissement}e arrondissement`,
-      `Paris ${restaurant.arrondissement}`, restaurant.specialty, restaurant.cuisine, restaurant.type,
-      restaurant.certification, "restaurant casher", "restaurant cacher", "restaurant kasher", ...services, ...khanKeywords,
-    ].filter(Boolean) as string[],
-    keywords: buildInvisibleKeywords([
-      restaurant.name, restaurant.fullAddress, restaurant.postalCode, `${restaurant.arrondissement}e arrondissement`,
-      `Paris ${restaurant.arrondissement}`, restaurant.specialty, restaurant.cuisine, restaurant.type,
-      restaurant.certification, "restaurant casher", "restaurant cacher", "restaurant kasher", ...services, ...khanKeywords,
-    ], { category: "restaurant food", location: `Paris ${restaurant.arrondissement} ${restaurant.postalCode}` }),
+    customerSearches: allSearches,
+    keywords: buildInvisibleKeywords(allSearches, {
+      category: "restaurant food",
+      location: `Paris ${restaurant.arrondissement} ${restaurant.postalCode}`,
+    }),
     location: {
       city: "Paris",
       arrondissement: String(restaurant.arrondissement || ""),
@@ -74,7 +91,7 @@ const restaurantItems: SearchItem[] = restaurants.map((restaurant) => {
     },
     filters: {
       certification: restaurant.certification,
-      kosherType: restaurant.type === "Viande" ? "Bassari" : restaurant.type === "Lait" ? "Halavi" : restaurant.type,
+      kosherType: isViande ? "Bassari" : isLait ? "Halavi" : isParve ? "Parvé" : restaurant.type,
       terrace: restaurant.amenities.terrace === true,
       openNow: restaurant.isOpenNow,
       delivery: restaurant.services.delivery === true,
@@ -91,48 +108,76 @@ const restaurantItems: SearchItem[] = restaurants.map((restaurant) => {
   };
 });
 
-const brunchItems: SearchItem[] = brunches.map((brunch) => ({
-  id: `brunch-${brunch.slug}`,
-  title: brunch.name,
-  subtitle: `${brunch.cuisine}${brunch.address ? ` · ${brunch.address}` : ""}`,
-  category: "Brunch",
-  subcategory: "Brunch",
-  href: `/food/brunch/${brunch.slug}`,
-  image: brunch.images[0],
-  customerSearches: [
-    brunch.name, brunch.address ?? "Paris", brunch.postalCode ?? "", `${brunch.arrondissement ?? ""}e arrondissement`,
-    brunch.specialty, brunch.cuisine, brunch.kosherType, brunch.certification ?? "", ...brunch.tags,
-    "brunch casher", "petit déjeuner casher", "brunch Paris", "avocado toast", "pancakes", "healthy",
-  ].filter(Boolean),
-  keywords: buildInvisibleKeywords([
-    brunch.name, brunch.address ?? "Paris", brunch.postalCode ?? "", `${brunch.arrondissement ?? ""}e arrondissement`,
-    brunch.specialty, brunch.cuisine, brunch.kosherType, brunch.certification ?? "", ...brunch.tags,
-    "brunch casher", "petit déjeuner casher", "brunch Paris",
-  ], { category: "brunch food", location: `Paris ${brunch.arrondissement ?? ""}` }),
-  location: {
-    city: "Paris",
-    arrondissement: String(brunch.arrondissement ?? ""),
-    postalCode: brunch.postalCode,
-    latitude: brunch.latitude,
-    longitude: brunch.longitude,
-  },
-  filters: {
-    certification: brunch.certification,
-    kosherType: brunch.kosherType === "Lait" ? "Halavi" : brunch.kosherType === "Viande" ? "Bassari" : brunch.kosherType,
-    terrace: brunch.amenities.terrace === true,
-    openNow: null,
-    delivery: brunch.services.delivery === true,
-    takeaway: brunch.services.takeaway === true,
-    reservation: brunch.services.reservation === true,
-    price: brunch.price,
-  },
-  ranking: {
-    sponsored: false,
-    popularity: 55 + (brunch.arrondissement ?? 1),
-    favorites: brunch.reviewCount,
-    reviewCount: brunch.reviewCount,
-  },
-}));
+const brunchItems: SearchItem[] = brunches.map((brunch) => {
+  const isViande = brunch.kosherType === "Viande";
+  const isLait = brunch.kosherType === "Lait";
+  const isParve = brunch.kosherType === "Parvé";
+
+  const kosherKeywords = [
+    ...(isViande ? ["Bassari", "Viande", "Brunch bassari"] : []),
+    ...(isLait ? ["Halavi", "Lait", "Brunch halavi"] : []),
+    ...(isParve ? ["Parvé", "Parve", "Brunch parvé"] : []),
+  ];
+
+  const allSearches = [
+    brunch.name,
+    brunch.address ?? "Paris",
+    brunch.postalCode ?? "",
+    brunch.arrondissement ? `${brunch.arrondissement}e arrondissement` : "",
+    brunch.arrondissement ? `Paris ${brunch.arrondissement}` : "",
+    brunch.specialty,
+    brunch.cuisine,
+    brunch.kosherType,
+    brunch.certification ?? "",
+    ...brunch.tags,
+    ...kosherKeywords,
+    "brunch casher",
+    "brunch cacher",
+    "petit déjeuner casher",
+    "brunch Paris",
+    "avocado toast",
+    "pancakes",
+    "healthy",
+  ].filter(Boolean) as string[];
+
+  return {
+    id: `brunch-${brunch.slug}`,
+    title: brunch.name,
+    subtitle: `${brunch.cuisine}${brunch.address ? ` · ${brunch.address}` : ""}`,
+    category: "Brunch",
+    subcategory: "Brunch",
+    href: `/food/brunch/${brunch.slug}`,
+    image: brunch.images[0],
+    customerSearches: allSearches,
+    keywords: buildInvisibleKeywords(allSearches, {
+      category: "brunch food",
+      location: `Paris ${brunch.arrondissement ?? ""} ${brunch.postalCode ?? ""}`,
+    }),
+    location: {
+      city: "Paris",
+      arrondissement: String(brunch.arrondissement ?? ""),
+      postalCode: brunch.postalCode,
+      latitude: brunch.latitude,
+      longitude: brunch.longitude,
+    },
+    filters: {
+      certification: brunch.certification,
+      kosherType: isViande ? "Bassari" : isLait ? "Halavi" : isParve ? "Parvé" : brunch.kosherType,
+      terrace: brunch.amenities.terrace === true,
+      openNow: null,
+      delivery: brunch.services.delivery === true,
+      takeaway: brunch.services.takeaway === true,
+      reservation: brunch.services.reservation === true,
+      price: brunch.price,
+    },
+    ranking: {
+      sponsored: false,
+      popularity: 70,
+      favorites: 18,
+      reviewCount: brunch.reviewCount,
+    },
+  };
+});
 
 const wineItems: SearchItem[] = wineActivities.map((activity) => ({
   id: `wine-${activity.slug}`,

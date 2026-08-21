@@ -127,12 +127,22 @@ const synonymMap: Record<string, string[]> = {
   travel: ["voyage"],
   voyage: ["travel"],
   hotel: ["hotels", "voyage", "sejour"],
-  hotels: ["hotel", "voyage", "sejour"],
   kosher: ["casher", "cacher", "kasher"],
   casher: ["kosher", "cacher", "kasher"],
-  viande: ["bassari", "steak", "grill"],
-  steak: ["grill", "viande", "bassari"],
-  brunch: ["avocado", "pancakes"],
+  cacher: ["casher", "kosher", "kasher"],
+  kasher: ["casher", "cacher", "kosher"],
+  bassari: ["viande", "bassari", "steak", "grill", "grillades", "meat", "carné", "carne", "burger", "burgers", "boucher"],
+  viande: ["bassari", "viande", "steak", "grill", "grillades", "meat", "carné", "carne", "burger", "burgers", "boucher"],
+  halavi: ["lait", "halavi", "fromage", "pizza", "pizzas", "dairy", "pates", "pâtes"],
+  lait: ["halavi", "lait", "fromage", "pizza", "pizzas", "dairy"],
+  parve: ["parve", "parvé"],
+  parvé: ["parve", "parvé"],
+  steak: ["grill", "viande", "bassari", "grillades"],
+  grill: ["grillades", "viande", "bassari", "steak"],
+  grillades: ["grill", "viande", "bassari", "steak"],
+  burger: ["burgers", "viande", "bassari"],
+  burgers: ["burger", "viande", "bassari"],
+  brunch: ["avocado", "pancakes", "petit dejeuner"],
   tequila: ["spiritueux", "vin", "caviste"],
   tequilla: ["tequila", "spiritueux", "vin", "caviste"],
   avocato: ["avocado"],
@@ -578,7 +588,7 @@ async function getTaxonomyMatches(tokens: string[], normalizedQuery: string): Pr
 }
 
 function fallbackSearch(query: string): EstablishmentSearchResult[] {
-  return searchItems(searchIndex, query).slice(0, 8).map((item, index) => ({
+  return searchItems(searchIndex, query).map((item, index) => ({
     ...item,
     score: 1_000 - index,
     matches: [],
@@ -611,7 +621,7 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
     .eq("is_visible", true)
     .is("deleted_at", null)
     .order("display_order", { ascending: true })
-    .limit(normalizedQuery ? 80 : 10);
+    .limit(normalizedQuery ? 100 : 20);
 
   if (tokens.length) {
     const scalarFilters = tokens.flatMap((token) => searchableColumns.map((column) => `${column}.ilike.%${token}%`));
@@ -675,7 +685,7 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
 
   const fallbackItems = fallbackSearch(query);
   if (primaryResults.length === 0) {
-    return fallbackItems.slice(0, options.limit ?? 10);
+    return fallbackItems.slice(0, options.limit ?? 50);
   }
 
   const combined = [...primaryResults];
@@ -684,5 +694,5 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
       combined.push(fallback);
     }
   }
-  return combined.slice(0, options.limit ?? 10);
+  return combined.slice(0, options.limit ?? 50);
 }

@@ -59,7 +59,7 @@ import {
   updateRubricOrder,
 } from "@/lib/supabase/rubrics-repository";
 import { GoogleSyncModal } from "./google-sync-modal";
-import type { GooglePlaceDetails } from "@/lib/google-places";
+import { getEstablishmentGoogleBusiness, type GooglePlaceDetails } from "@/lib/google-places";
 import {
   createSubrubric as createSubrubricInSupabase,
   duplicateSubrubric as duplicateSubrubricInSupabase,
@@ -2978,6 +2978,41 @@ export function AdminDashboard() {
     setAdminMessage(message);
   };
 
+  const syncAllEstablishmentPhotosWithGoogle = () => {
+    let count = 0;
+    setState((current) => {
+      const nextEstablishments = current.establishments.map((est) => {
+        const googleData = getEstablishmentGoogleBusiness(est.name);
+        if (googleData && googleData.photos && googleData.photos.length > 0) {
+          count++;
+          return {
+            ...est,
+            mainPhoto: googleData.photos[0] || est.mainPhoto,
+            photos: googleData.photos.slice(1, 5).concat(est.photos || []).slice(0, 4),
+          };
+        }
+        return est;
+      });
+      return normalizeAdminState({ ...current, establishments: nextEstablishments });
+    });
+    window.dispatchEvent(new Event("liberty-admin-published"));
+    setAdminMessage(`✅ ${count} fiches synchronisées avec leurs photos Google Business officielles !`);
+  };
+
+  const syncSingleEstablishmentPhotos = (establishmentId: string) => {
+    const target = state.establishments.find((e) => e.id === establishmentId);
+    if (!target) return;
+    const googleData = getEstablishmentGoogleBusiness(target.name);
+    if (googleData && googleData.photos && googleData.photos.length > 0) {
+      updateEstablishment(target.id, {
+        mainPhoto: googleData.photos[0] || target.mainPhoto,
+        photos: googleData.photos.slice(1, 5).concat(target.photos || []).slice(0, 4),
+      });
+      window.dispatchEvent(new Event("liberty-admin-published"));
+      setAdminMessage(`✅ Photos Google synchronisées pour « ${target.name} » !`);
+    }
+  };
+
   const saveEstablishmentDraft = async (establishment: AdminEstablishment) => {
     if (savingAction || rubricsOperation) return;
     const slug = establishment.slug || slugify(establishment.name);
@@ -3794,6 +3829,16 @@ export function AdminDashboard() {
                         </div>
                       );
                     })()}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Visuels & Galerie photos</p>
+                      <button
+                        type="button"
+                        onClick={() => syncSingleEstablishmentPhotos(selectedEstablishment.id)}
+                        className="flex items-center gap-1.5 rounded-full bg-[#f6ecd9] px-3.5 py-1.5 text-xs font-bold text-[#8f6424] shadow-xs transition hover:bg-[#8f6424] hover:text-white"
+                      >
+                        🪄 Remplir avec les photos Google Business
+                      </button>
+                    </div>
                     <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
                       <PreviewImage src={selectedEstablishment.mainPhoto} alt={selectedEstablishment.name} />
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -4299,7 +4344,21 @@ export function AdminDashboard() {
                   </div>
 
                   <div className="rounded-3xl bg-white p-5">
-                    <p className="font-semibold">Photos des fiches</p>
+                    <div className="flex flex-col gap-3 rounded-2xl bg-[#f6ecd9] p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-bold text-[#8f6424]">🪄 Synchronisation magique des photos Google Business</p>
+                        <p className="mt-0.5 text-xs text-[#8f6424]/80">Synchronise et injecte automatiquement les photos officielles de chaque fiche depuis Google en 1 clic.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={syncAllEstablishmentPhotosWithGoogle}
+                        className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-ink px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-moss"
+                      >
+                        ⚡ Synchroniser toutes les photos
+                      </button>
+                    </div>
+
+                    <p className="mt-6 font-semibold">Photos des fiches</p>
                     <div className="mt-4 grid gap-4">
                       {filteredEstablishments.map((item) => (
                         <article key={item.id} className="rounded-2xl bg-cream p-4">
@@ -4311,7 +4370,16 @@ export function AdminDashboard() {
                                 <p className="text-xs text-ink/40">{item.status}</p>
                               </div>
                             </div>
-                            <button onClick={() => void publishEstablishment(item)} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white">Valider les photos</button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => syncSingleEstablishmentPhotos(item.id)}
+                                className="rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-ink/75 shadow-xs transition hover:bg-moss hover:text-white"
+                              >
+                                📸 Sync Google Photos
+                              </button>
+                              <button onClick={() => void publishEstablishment(item)} className="rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-white">Valider les photos</button>
+                            </div>
                           </div>
                           <div className="grid gap-3 lg:grid-cols-2">
                             <div className="grid gap-2">

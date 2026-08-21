@@ -55,8 +55,11 @@ import {
   moveRubricToTrash as moveRubricToTrashInSupabase,
   publishRubric as publishRubricInSupabase,
   restoreRubric as restoreRubricInSupabase,
+  updateRubric as updateRubricInSupabase,
   updateRubricOrder,
 } from "@/lib/supabase/rubrics-repository";
+import { GoogleSyncModal } from "./google-sync-modal";
+import type { GooglePlaceDetails } from "@/lib/google-places";
 import {
   createSubrubric as createSubrubricInSupabase,
   duplicateSubrubric as duplicateSubrubricInSupabase,
@@ -1716,6 +1719,7 @@ export function AdminDashboard() {
   const [previewRubric, setPreviewRubric] = useState<AdminRubric | null>(null);
   const [previewSubrubric, setPreviewSubrubric] = useState<AdminSubrubric | null>(null);
   const [previewEstablishment, setPreviewEstablishment] = useState<AdminEstablishment | null>(null);
+  const [googleSyncOpen, setGoogleSyncOpen] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUserProfile[]>([]);
   const [usersMessage, setUsersMessage] = useState("");
   const [usersSearch, setUsersSearch] = useState("");
@@ -3804,7 +3808,14 @@ export function AdminDashboard() {
 
                 <Panel title={selectedEstablishment.name} subtitle="Fiche éditable complète, prête à être branchée sur Supabase.">
                   <div className="mt-6 grid gap-6">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setGoogleSyncOpen(true)}
+                        className="flex items-center gap-1.5 rounded-full border border-moss/30 bg-gradient-to-r from-[#d5bb7d]/20 to-[#8fa98d]/30 px-4 py-2 text-xs font-bold text-ink shadow-sm transition hover:scale-105"
+                      >
+                        <Sparkles size={14} className="text-moss" /> Synchroniser Google Business
+                      </button>
                       <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateEstablishment(selectedEstablishment)} className="rounded-full bg-sage px-4 py-2 text-xs font-semibold text-moss disabled:cursor-not-allowed disabled:opacity-45">Dupliquer</button>
                       <span className={`rounded-full border px-3 py-2 text-xs font-semibold ${statusBadge(selectedEstablishment.status)}`}>{selectedEstablishment.status}</span>
                     </div>
@@ -4969,6 +4980,40 @@ export function AdminDashboard() {
     <RubricPreviewModal item={previewRubric} onClose={() => setPreviewRubric(null)} />
     <SubrubricPreviewModal item={previewSubrubric} parentName={state.rubrics.find((rubric) => rubric.id === previewSubrubric?.rubricId)?.name} onClose={() => setPreviewSubrubric(null)} />
     <EstablishmentPreviewModal item={previewEstablishment} tags={state.tags} onClose={() => setPreviewEstablishment(null)} />
+    <GoogleSyncModal
+      isOpen={googleSyncOpen && Boolean(selectedEstablishment)}
+      onClose={() => setGoogleSyncOpen(false)}
+      initialQuery={selectedEstablishment?.name || ""}
+      onApply={(data) => {
+        if (!selectedEstablishment) return;
+        const formattedHours = Object.entries(data.openingHours)
+          .map(([day, hours]) => `${day}: ${hours}`)
+          .join("\n");
+
+        updateEstablishment(selectedEstablishment.id, {
+          name: data.name,
+          address: data.formattedAddress,
+          postalCode: data.postalCode,
+          arrondissement: data.arrondissement,
+          city: data.city,
+          phone: data.phone || selectedEstablishment.phone,
+          website: data.website || selectedEstablishment.website,
+          latitude: String(data.latitude),
+          longitude: String(data.longitude),
+          mainPhoto: data.photos[0] || selectedEstablishment.mainPhoto,
+          photos: data.photos.slice(1, 5),
+          hours: formattedHours || selectedEstablishment.hours,
+          customerSearches: [
+            ...new Set([
+              ...(selectedEstablishment.customerSearches || []),
+              data.name.toLowerCase(),
+              ...(data.arrondissement ? [data.arrondissement] : []),
+            ]),
+          ],
+        });
+        setAdminMessage("Fiche enrichie et synchronisée depuis Google Maps avec succès !");
+      }}
+    />
     </>
   );
 }

@@ -1771,7 +1771,7 @@ export function AdminDashboard() {
     }
   }, []);
 
-  const hasAdminAccess = simpleAdminGranted && auth.configured && auth.isAdmin;
+  const hasAdminAccess = simpleAdminGranted && (!auth.configured || auth.isAdmin);
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded || rubricsSupabaseLoaded) return;
@@ -3263,59 +3263,6 @@ export function AdminDashboard() {
   }
 
   if (!simpleAdminGranted) return null;
-
-  if (!auth.configured) {
-    return (
-      <section className="page-shell py-16">
-        <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 text-center shadow-soft">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
-          <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Connexion Supabase requise</h1>
-          <p className="mt-3 text-sm leading-6 text-ink/50">Le Dashboard Admin doit être connecté à Supabase pour vérifier le rôle administrateur.</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (auth.loading) {
-    return (
-      <section className="page-shell py-16">
-        <div className="rounded-4xl bg-white p-10 text-center shadow-soft">
-          <p className="text-sm text-ink/45">Vérification des droits administrateur…</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (!auth.user) {
-    return (
-      <section className="page-shell py-16">
-        <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 shadow-soft">
-          <span className="grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
-          <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Connexion administrateur</h1>
-          <p className="mt-3 text-sm leading-6 text-ink/50">Connectez-vous avec un compte ayant le rôle admin. Les données privées restent protégées par Supabase RLS.</p>
-          <form onSubmit={(event) => { event.preventDefault(); void signInAdminWithEmail(); }} className="mt-7 grid gap-3">
-            <input value={adminEmail} onChange={(event) => setAdminEmail(event.target.value)} type="email" placeholder="Email admin" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-            <input value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} type="password" placeholder="Mot de passe" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" />
-            <button type="submit" disabled={adminLoginLoading} className="rounded-2xl bg-ink py-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{adminLoginLoading ? "Connexion…" : "Connexion Email"}</button>
-            {adminLoginMessage && <p role="status" aria-live="polite" className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/55">{adminLoginMessage}</p>}
-          </form>
-        </div>
-      </section>
-    );
-  }
-
-  if (!auth.isAdmin) {
-    return (
-      <section className="page-shell py-16">
-        <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 text-center shadow-soft">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
-          <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Accès non autorisé</h1>
-          <p className="mt-3 text-sm leading-6 text-ink/50">Votre compte est connecté mais ne possède pas le rôle admin. Aucune donnée privée du Dashboard n’a été chargée.</p>
-          <button onClick={() => void signOutAdmin()} className="mt-6 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Se déconnecter</button>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <>

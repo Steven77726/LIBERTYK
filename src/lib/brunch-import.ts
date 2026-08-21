@@ -45,6 +45,21 @@ export function normalizeBrunchRow(row: Record<string, string>, index = 0): Brun
     "https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&w=1400&q=85",
   ];
   const specialty = row["Spécialité"] || "Brunch";
+  const brunchCoordinates: Record<string, { lat: number; lng: number }> = {
+    "Bloomy Brunch": { lat: 48.8558, lng: 2.3957 },
+    "Marceau Café": { lat: 48.8479, lng: 2.3308 },
+    "Le Marceau 17e": { lat: 48.8842, lng: 2.2981 },
+    "Le XXV 16e": { lat: 48.8615, lng: 2.2798 },
+    "Brunch by Gabrielli": { lat: 48.8845, lng: 2.3021 },
+    "The Reserve": { lat: 48.8642, lng: 2.2755 },
+    "Le Loft": { lat: 48.8856, lng: 2.3012 },
+    "Chez Akol Pur Beurre": { lat: 48.8821, lng: 2.3789 },
+  };
+  const coords = brunchCoordinates[name] ?? {
+    lat: 48.8566 + ((index % 5) - 2) * 0.009,
+    lng: 2.3522 + ((index % 6) - 2.5) * 0.013,
+  };
+
   return {
     slug: slugify(`${name}-${address ?? "paris"}`),
     name,
@@ -74,8 +89,8 @@ export function normalizeBrunchRow(row: Record<string, string>, index = 0): Brun
     description: `${specialty}. Une adresse brunch casher à découvrir${arrondissement ? ` dans le ${arrondissement}e arrondissement de Paris` : " à Paris"}.`,
     reviewCount: 0,
     distanceKm: Number((1.1 + ((index * 13 + (arrondissement ?? 9)) % 68) / 10).toFixed(1)),
-    latitude: 48.8566 + ((index % 5) - 2) * 0.009,
-    longitude: 2.3522 + ((index % 6) - 2.5) * 0.013,
+    latitude: coords.lat,
+    longitude: coords.lng,
     importedAt: "2026-07-03",
   };
 }

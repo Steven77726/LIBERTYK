@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ArrowUpRight, CalendarDays, Car, ChevronDown,
-  Copy, Filter, Globe2, Instagram, List, Map as MapIcon,
+  CalendarDays, Car, ChevronDown,
+  Copy, Globe2, Instagram, List, Map as MapIcon,
   MapPin, Navigation, Phone, Search, SlidersHorizontal,
   Store, UtensilsCrossed, X,
 } from "lucide-react";
@@ -16,6 +16,7 @@ import { assetPath } from "@/lib/assets";
 import { LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
+import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -440,22 +441,6 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
   );
 }
 
-function RestaurantMap({ restaurants, selected, onSelect }: { restaurants: Restaurant[]; selected: Restaurant | null; onSelect: (restaurant: Restaurant) => void }) {
-  return (
-    <div className="sticky top-24 h-[calc(100vh-7rem)] min-h-[560px] overflow-hidden rounded-[2rem] bg-[#dfe6df]">
-      <div className="absolute inset-0 opacity-35" style={{ backgroundImage: "linear-gradient(32deg,transparent 46%,#fff 47%,#fff 51%,transparent 52%),linear-gradient(104deg,transparent 46%,#fff 47%,#fff 50%,transparent 51%)", backgroundSize: "110px 90px" }} />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_45%,transparent_0,transparent_20%,rgba(31,77,59,.08)_70%)]" />
-      <div className="absolute left-5 top-5 rounded-2xl bg-white/90 px-4 py-3 shadow-soft backdrop-blur"><p className="text-xs font-semibold">Paris</p><p className="mt-0.5 text-[10px] text-ink/40">{restaurants.length} adresses visibles</p></div>
-      {restaurants.map((restaurant, index) => {
-        const left = 10 + ((restaurant.longitude - 2.31) / 0.13) * 80;
-        const top = 12 + ((48.9 - restaurant.latitude) / 0.09) * 72;
-        return <button key={restaurant.id} onClick={() => onSelect(restaurant)} style={{ left: `${Math.max(7, Math.min(91, left))}%`, top: `${Math.max(10, Math.min(88, top))}%` }} className={`absolute grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white text-[10px] font-bold text-white shadow-lg transition hover:z-10 hover:scale-125 ${selected?.id === restaurant.id ? "z-10 scale-125 bg-gold" : "bg-moss"}`} aria-label={`Voir ${restaurant.name}`}>{index + 1}</button>;
-      })}
-      {selected && <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-white p-4 shadow-2xl"><button onClick={() => onSelect(selected)} className="absolute right-3 top-3 text-ink/30"><X size={15} /></button><p className="pr-8 font-semibold">{selected.name}</p><p className="mt-1 text-xs text-ink/45">{selected.fullAddress} · {selected.distanceKm} km</p><a href={`#${selected.id}`} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-moss">Voir la fiche <ArrowUpRight size={13} /></a></div>}
-    </div>
-  );
-}
-
 export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants: Restaurant[] }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<string[]>([]);
@@ -561,6 +546,23 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     });
   }, [restaurantData, query, filters, sort]);
 
+  const mapItems = useMemo<MapEstablishment[]>(() => results.map((r) => ({
+    id: r.id,
+    name: r.name,
+    address: r.fullAddress,
+    arrondissement: r.arrondissement,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    image: r.image,
+    cuisine: r.cuisine,
+    specialty: r.specialty,
+    price: r.price,
+    kosherType: r.type,
+    phone: r.phone,
+    distanceKm: r.distanceKm,
+    href: `/food/restaurants#${r.id}`,
+  })), [results]);
+
   return (
     <>
       <section className="page-shell pt-6">
@@ -569,12 +571,12 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
           <div className="mt-1 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-[-.045em] sm:text-3xl">Restaurants casher</h1>
-              <p className="mt-1 text-sm text-ink/45">{restaurantData.length} adresse{restaurantData.length > 1 ? "s" : ""} disponible{restaurantData.length > 1 ? "s" : ""} · Données Admin incluses</p>
+              <p className="mt-1 text-sm text-ink/45">{results.length} adresses sélectionnées à Paris</p>
             </div>
-            <div className="flex w-full max-w-2xl items-center rounded-2xl bg-cream p-2 text-ink">
-            <Search size={19} className="ml-3 shrink-0 text-ink/30" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, arrondissement, cuisine…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />
-            {query && <button onClick={() => setQuery("")} className="grid size-9 place-items-center rounded-full hover:bg-cream"><X size={15} /></button>}
+            <div className="flex w-full max-w-2xl items-center rounded-2xl bg-cream p-2">
+              <Search size={18} className="ml-3 shrink-0 text-ink/30" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nom, adresse, spécialité, arrondissement…" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none" />
+              {query && <button onClick={() => setQuery("")} className="grid size-9 place-items-center rounded-full hover:bg-white"><X size={15} /></button>}
             </div>
           </div>
         </div>
@@ -582,19 +584,33 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
 
       <section className="page-shell py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-xs font-semibold lg:hidden"><Filter size={15} /> Filtres {filters.length > 0 && `(${filters.length})`}</button>
-            <div className="flex rounded-xl bg-white p-1">
-              <button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "list" ? "bg-ink text-white" : "text-ink/45"}`}><List size={14} /> Liste</button>
-              <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "map" ? "bg-ink text-white" : "text-ink/45"}`}><MapIcon size={14} /> Carte</button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-semibold lg:hidden">
+              <SlidersHorizontal size={14} /> Filtres {filters.length ? `(${filters.length})` : ""}
+            </button>
+            <div className="flex rounded-xl bg-white p-1 shadow-sm">
+              <button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "list" ? "bg-ink text-white" : "text-ink/45"}`}>
+                <List size={14} /> Liste
+              </button>
+              <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "map" ? "bg-ink text-white" : "text-ink/45"}`}>
+                <MapIcon size={14} /> Carte
+              </button>
             </div>
           </div>
-          <label className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs"><SlidersHorizontal size={14} className="text-ink/40" /><select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent font-medium outline-none">{["Les plus proches", "Les mieux notés", "Les plus populaires", "Les nouveautés", "Ordre alphabétique"].map((option) => <option key={option}>{option}</option>)}</select><ChevronDown size={13} /></label>
+
+          <label className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs shadow-sm">
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent font-medium outline-none">
+              {["Les plus proches", "Les mieux notés", "Les plus populaires", "Les nouveautés", "Ordre alphabétique"].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="text-ink/40" />
+          </label>
         </div>
       </section>
 
       <section className="page-shell pb-20">
-        <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr] xl:grid-cols-[270px_1fr_460px]">
+        <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_450px]">
           <aside className={`${showFilters ? "fixed inset-0 z-[70] overflow-y-auto bg-cream p-6" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-white lg:p-5`}>
             <div className="flex items-center justify-between"><p className="font-semibold">Filtres</p><div className="flex items-center gap-3">{filters.length > 0 && <button onClick={() => setFilters([])} className="text-[11px] font-semibold text-moss">Tout effacer</button>}<button onClick={() => setShowFilters(false)} className="lg:hidden"><X size={19} /></button></div></div>
             <FilterSection title="Localisation" options={locationFilters} active={filters} toggle={toggleFilter} />
@@ -622,7 +638,26 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
             ))}</div> : <div className="grid min-h-80 place-items-center rounded-[2rem] bg-white text-center"><div><Search className="mx-auto text-ink/20" size={30} /><p className="mt-4 font-semibold">Aucun résultat</p><button onClick={() => { setFilters([]); setQuery(""); }} className="mt-3 text-xs font-semibold text-moss">Réinitialiser la recherche</button></div></div>}
           </div>
 
-          <div className={`${view === "map" ? "block lg:col-span-1 xl:col-span-1" : "hidden xl:block"}`}><RestaurantMap restaurants={results} selected={selected} onSelect={(restaurant) => setSelected(selected?.id === restaurant.id ? null : restaurant)} /></div>
+          <div className={`${view === "map" ? "block lg:col-span-1 xl:col-span-1" : "hidden xl:block"}`}>
+            <div className="sticky top-24">
+              <InteractiveMap
+                items={mapItems}
+                selectedItem={selected ? mapItems.find((m) => m.id === selected.id) ?? null : null}
+                onSelect={(item) => setSelected(item ? restaurantData.find((r) => r.id === item.id) ?? null : null)}
+                onOpenDetail={(item) => {
+                  const found = restaurantData.find((r) => r.id === item.id);
+                  if (found) setDetailRestaurant(found);
+                }}
+                onUserLocationChange={({ latitude, longitude }) => {
+                  setRestaurantData((current) => current.map((r) => ({
+                    ...r,
+                    distanceKm: Number(distanceBetween(latitude, longitude, r.latitude, r.longitude).toFixed(1)),
+                  })));
+                }}
+                className="h-[calc(100vh-7rem)] min-h-[560px]"
+              />
+            </div>
+          </div>
         </div>
       </section>
       <EstablishmentDetailDrawer

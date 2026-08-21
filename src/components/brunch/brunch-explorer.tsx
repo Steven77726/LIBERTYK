@@ -11,6 +11,7 @@ import { assetPath } from "@/lib/assets";
 import { LikeButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
+import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 
 const groups = [
   { title: "Localisation", values: ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"] },
@@ -40,6 +41,16 @@ const mapKosherType = (value?: string): Brunch["kosherType"] => {
   return "Parvé";
 };
 const mapPrice = (value?: string): Brunch["price"] | undefined => value === "€" || value === "€€" || value === "€€€" ? value : undefined;
+
+const distanceBetween = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371 * c;
+};
+
 const recordsToBrunches = (records: EstablishmentRecord[]): Brunch[] => records.map((item, index) => ({
   slug: item.slug ?? item.id,
   name: item.name,
@@ -163,7 +174,7 @@ function BrunchCard({ brunch, onOpen }: { brunch: Brunch; onOpen: () => void }) 
         </div>
         <div className="mt-4 flex flex-wrap gap-1.5 text-[10px]"><span className="rounded-full bg-sage px-2.5 py-1.5 font-semibold text-moss">{brunch.kosherType}</span>{visibility.price !== false && brunch.price && <span className="rounded-full bg-cream px-2.5 py-1.5">{brunch.price}</span>}{visibility.certification !== false && brunch.certification && <span className="rounded-full bg-cream px-2.5 py-1.5">✡ {brunch.certification}</span>}</div>
         {visibility.reviews !== false && <div className="mt-3"><CustomerRating rating={brunch.rating} reviewCount={brunch.reviewCount} /></div>}
-        {visibility.address !== false && (brunch.address || brunch.arrondissement) && <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-ink/50"><MapPin size={13} className="mt-0.5 shrink-0" />{brunch.address}{brunch.arrondissement && ` · Paris ${brunch.arrondissement}e`} · {brunch.distanceKm} km</p>}
+        {visibility.address !== false && (brunch.address || brunch.arrondissement) && <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-ink/50"><MapPin size={13} className="mt-0.5 shrink-0" />{brunch.address}{brunch.arrondissement && ` · Paris ${brunch.arrondissement}e`}{brunch.distanceKm ? ` · ${brunch.distanceKm} km` : ""}</p>}
         {visibility.phone !== false && brunch.phone && <p className="mt-2 flex items-center gap-2 text-xs text-ink/50"><Phone size={13} />{brunch.phone}</p>}
         <div className="mt-4 grid grid-cols-5 gap-1.5 border-t border-black/[.06] pt-4">{services.map(({ label, value, icon: Icon }) => <div key={label} title={label} className={`grid place-items-center gap-1 rounded-xl py-2 text-center text-[8px] ${value ? "bg-sage text-moss" : "bg-cream text-ink/25"}`}><Icon size={13} /><span className="line-clamp-1">{label}</span></div>)}</div>
         <button onClick={onOpen} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white">Voir la fiche <ArrowRight size={14} /></button>
@@ -183,6 +194,13 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
   const [detailBrunch, setDetailBrunch] = useState<Brunch | null>(null);
   const toggleFilter = (value: string) => setFilters((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
 
+  const handleUserLocation = ({ latitude, longitude }: { latitude: number; longitude: number }) => {
+    setBrunchData((current) => current.map((item) => ({
+      ...item,
+      distanceKm: Number(distanceBetween(latitude, longitude, item.latitude, item.longitude).toFixed(1)),
+    })));
+  };
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -198,6 +216,12 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
       window.removeEventListener("liberty-admin-published", refresh);
     };
   }, [initialBrunches]);
+
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(({ coords }) => {
+      handleUserLocation({ latitude: coords.latitude, longitude: coords.longitude });
+    }, () => undefined, { maximumAge: 300000, timeout: 6000 });
+  }, []);
 
   const results = useMemo(() => {
     const q = fold(query);
@@ -229,6 +253,23 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
     });
   }, [brunchData, query, filters, sort]);
 
+  const mapItems = useMemo<MapEstablishment[]>(() => results.map((item) => ({
+    id: item.slug,
+    name: item.name,
+    address: item.address,
+    arrondissement: item.arrondissement,
+    latitude: item.latitude,
+    longitude: item.longitude,
+    image: item.images[0],
+    cuisine: item.cuisine,
+    specialty: item.specialty,
+    price: item.price,
+    kosherType: item.kosherType,
+    phone: item.phone,
+    distanceKm: item.distanceKm,
+    href: `/food/brunch/${item.slug}`,
+  })), [results]);
+
   return (
     <>
       <section className="page-shell pt-6">
@@ -237,7 +278,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
           <div className="mt-1 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-[-.045em] sm:text-3xl">Brunch casher</h1>
-              <p className="mt-1 text-sm text-ink/45">8 adresses importées depuis votre catalogue</p>
+              <p className="mt-1 text-sm text-ink/45">{results.length} adresses d’exception à Paris</p>
             </div>
             <div className="flex w-full max-w-2xl items-center rounded-2xl bg-cream p-2">
               <Search size={18} className="ml-3 shrink-0 text-ink/30" />
@@ -247,12 +288,101 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
           </div>
         </div>
       </section>
-      <section className="page-shell py-6"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2"><button onClick={() => setFilterOpen(true)} className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-semibold lg:hidden"><Filter size={14} /> Filtres {filters.length ? `(${filters.length})` : ""}</button><div className="flex rounded-xl bg-white p-1"><button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs ${view === "list" ? "bg-ink text-white" : ""}`}><List size={14} /> Liste</button><button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs ${view === "map" ? "bg-ink text-white" : ""}`}><Map size={14} /> Carte</button></div></div><label className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs"><select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent outline-none">{["Les plus proches", "Les mieux notés", "Les plus populaires", "Les nouveautés", "Prix croissant", "Prix décroissant", "Ordre alphabétique"].map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13} /></label></div></section>
-      <section className="page-shell pb-20"><div className="grid items-start gap-5 lg:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_430px]">
-        <aside className={`${filterOpen ? "fixed inset-0 z-[70] overflow-y-auto bg-cream p-6" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-white lg:p-5`}><div className="flex items-center justify-between"><p className="font-semibold">Filtres</p><div className="flex gap-3">{filters.length > 0 && <button onClick={() => setFilters([])} className="text-[10px] font-semibold text-moss">Tout effacer</button>}<button onClick={() => setFilterOpen(false)} className="lg:hidden"><X size={18} /></button></div></div>{groups.map((group) => <div key={group.title} className="border-b border-black/[.06] py-5"><p className="mb-3 text-[10px] font-semibold uppercase tracking-[.14em] text-ink/40">{group.title}</p><div className="flex flex-wrap gap-2">{group.values.map((value) => <button key={value} onClick={() => toggleFilter(value)} className={`rounded-full border px-3 py-2 text-[11px] transition ${filters.includes(value) ? "border-ink bg-ink text-white" : "border-black/10"}`}>{value}</button>)}</div></div>)}<button onClick={() => setFilterOpen(false)} className="sticky bottom-2 mt-4 w-full rounded-xl bg-ink py-3 text-xs font-semibold text-white lg:hidden">Voir {results.length} résultats</button></aside>
-        <div className={view === "map" ? "hidden xl:block" : ""}><p className="mb-4 text-sm font-semibold">{results.length} brunch{results.length > 1 ? "s" : ""}</p>{results.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{results.map((brunch) => <BrunchCard key={brunch.slug} brunch={brunch} onOpen={() => setDetailBrunch(brunch)} />)}</div> : <div className="grid min-h-80 place-items-center rounded-[2rem] bg-white"><div className="text-center"><Search className="mx-auto text-ink/20" /><p className="mt-3 font-semibold">Aucun brunch trouvé</p><button onClick={() => { setFilters([]); setQuery(""); }} className="mt-2 text-xs font-semibold text-moss">Réinitialiser</button></div></div>}</div>
-        <div className={`${view === "map" ? "block" : "hidden xl:block"}`}><div className="sticky top-24 h-[calc(100vh-7rem)] min-h-[560px] overflow-hidden rounded-[2rem] bg-[#dfe6df]"><div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(35deg,transparent 46%,#fff 47%,#fff 51%,transparent 52%),linear-gradient(108deg,transparent 47%,#fff 48%,#fff 51%,transparent 52%)", backgroundSize: "110px 90px" }} /><span className="absolute left-5 top-5 rounded-xl bg-white/90 px-4 py-2 text-xs font-semibold shadow-sm">Paris · {results.length} brunchs</span>{results.map((brunch, index) => <button key={brunch.slug} onClick={() => setSelected(brunch)} style={{ left: `${16 + (index * 19) % 70}%`, top: `${22 + (index * 23) % 62}%` }} className="absolute grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-moss text-[10px] font-bold text-white shadow-lg transition hover:scale-125">{index + 1}</button>)}{selected && <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-white p-4 shadow-2xl"><button onClick={() => setSelected(null)} className="absolute right-3 top-3"><X size={14} /></button><p className="font-semibold">{selected.name}</p><p className="mt-1 text-xs text-ink/45">{selected.address || "Adresse non renseignée"} · {selected.distanceKm} km</p><button onClick={() => setDetailBrunch(selected)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-moss">Ouvrir la fiche <ArrowRight size={13} /></button></div>}</div></div>
-      </div></section>
+
+      <section className="page-shell py-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <button onClick={() => setFilterOpen(true)} className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-semibold lg:hidden">
+              <Filter size={14} /> Filtres {filters.length ? `(${filters.length})` : ""}
+            </button>
+            <div className="flex rounded-xl bg-white p-1 shadow-sm">
+              <button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${view === "list" ? "bg-ink text-white" : "text-ink/60"}`}>
+                <List size={14} /> Liste
+              </button>
+              <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${view === "map" ? "bg-ink text-white" : "text-ink/60"}`}>
+                <Map size={14} /> Carte
+              </button>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-semibold shadow-sm">
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent font-semibold text-ink outline-none">
+              {["Les plus proches", "Les mieux notés", "Les plus populaires", "Les nouveautés", "Prix croissant", "Prix décroissant", "Ordre alphabétique"].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="text-ink/40" />
+          </label>
+        </div>
+      </section>
+
+      <section className="page-shell pb-20">
+        <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_450px]">
+          {/* Barre latérale des filtres */}
+          <aside className={`${filterOpen ? "fixed inset-0 z-[70] overflow-y-auto bg-cream p-6" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-white lg:p-5`}>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-ink">Filtres</p>
+              <div className="flex gap-3">
+                {filters.length > 0 && <button onClick={() => setFilters([])} className="text-[10px] font-semibold text-moss">Tout effacer</button>}
+                <button onClick={() => setFilterOpen(false)} className="lg:hidden"><X size={18} /></button>
+              </div>
+            </div>
+            {groups.map((group) => (
+              <div key={group.title} className="border-b border-black/[.06] py-5">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.14em] text-ink/40">{group.title}</p>
+                <div className="flex flex-wrap gap-2">
+                  {group.values.map((value) => (
+                    <button key={value} onClick={() => toggleFilter(value)} className={`rounded-full border px-3 py-2 text-[11px] transition ${filters.includes(value) ? "border-ink bg-ink text-white" : "border-black/10 hover:border-black/25"}`}>
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button onClick={() => setFilterOpen(false)} className="sticky bottom-2 mt-4 w-full rounded-xl bg-ink py-3 text-xs font-semibold text-white lg:hidden">
+              Voir {results.length} résultats
+            </button>
+          </aside>
+
+          {/* Liste des cartes */}
+          <div className={view === "map" ? "hidden xl:block" : ""}>
+            <p className="mb-4 text-sm font-semibold text-ink">{results.length} brunch{results.length > 1 ? "s" : ""}</p>
+            {results.length ? (
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                {results.map((brunch) => (
+                  <BrunchCard key={brunch.slug} brunch={brunch} onOpen={() => setDetailBrunch(brunch)} />
+                ))}
+              </div>
+            ) : (
+              <div className="grid min-h-80 place-items-center rounded-[2rem] bg-white">
+                <div className="text-center">
+                  <Search className="mx-auto text-ink/20" />
+                  <p className="mt-3 font-semibold">Aucun brunch trouvé</p>
+                  <button onClick={() => { setFilters([]); setQuery(""); }} className="mt-2 text-xs font-semibold text-moss">Réinitialiser</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Vraie Carte Interactive Leaflet / OpenStreetMap */}
+          <div className={`${view === "map" ? "block" : "hidden xl:block"}`}>
+            <div className="sticky top-24">
+              <InteractiveMap
+                items={mapItems}
+                selectedItem={selected ? mapItems.find((m) => m.id === selected.slug) ?? null : null}
+                onSelect={(item) => setSelected(item ? brunchData.find((b) => b.slug === item.id) ?? null : null)}
+                onOpenDetail={(item) => {
+                  const found = brunchData.find((b) => b.slug === item.id);
+                  if (found) setDetailBrunch(found);
+                }}
+                onUserLocationChange={handleUserLocation}
+                className="h-[calc(100vh-7rem)] min-h-[560px]"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <EstablishmentDetailDrawer
         establishment={detailBrunch ? brunchToEstablishmentRecord(detailBrunch) : null}
         open={!!detailBrunch}

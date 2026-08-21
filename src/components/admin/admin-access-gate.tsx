@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Eye, EyeOff, ShieldCheck, X } from "lucide-react";
 
 export const ADMIN_SESSION_KEY = "liberty-admin-session";
-const ADMIN_ACCESS_CODE = "0519";
+const ADMIN_ACCESS_CODE = process.env.NEXT_PUBLIC_ADMIN_ACCESS_CODE || "0519";
 
 export function hasAdminSession() {
   if (typeof window === "undefined") return false;

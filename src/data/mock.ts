@@ -1,5 +1,5 @@
 export const highlights = [
-  { title: "Maison Noura", category: "Restaurant", place: "Paris 8e", note: 4.9, reviewCount: 38, image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=80" },
+  { title: "Le Marceau", category: "Restaurant & Brunch", place: "Paris 17e", note: 4.9, reviewCount: 48, image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=80" },
   { title: "Shabbat à Deauville", category: "Escapade", place: "Normandie", note: 4.8, reviewCount: 24, image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80" },
   { title: "Atelier Challah", category: "Expérience", place: "Paris 17e", note: 4.9, reviewCount: 18, image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=80" },
 ];

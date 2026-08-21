@@ -25,64 +25,44 @@ export function CategoryGrid() {
 
   useEffect(() => {
     let mounted = true;
+
     async function loadRubrics() {
       try {
         const publishedRubrics = await listPublishedRubrics();
         if (mounted && publishedRubrics?.length) {
-          setAdminRubrics(publishedRubrics.map((rubric) => ({
-            id: rubric.id,
-            slug: rubric.slug,
-            name: rubric.name,
-            description: rubric.description,
-            image: rubric.image,
-            imageAlt: rubric.imageAlt,
-            showOnHome: rubric.showOnHome,
-            format: rubric.format,
-            order: rubric.order,
-            status: rubric.status,
-          })));
-          return;
+          setAdminRubrics(
+            publishedRubrics.map((rubric: RubricRecord) => ({
+              id: rubric.id,
+              slug: rubric.slug,
+              name: rubric.name,
+              description: rubric.description,
+              image: rubric.image,
+              imageAlt: rubric.imageAlt,
+              showOnHome: rubric.showOnHome,
+              format: rubric.format,
+              order: rubric.order,
+              status: rubric.status,
+            }))
+          );
         }
       } catch {
-        // Fallback d'urgence lecture seule : données TypeScript locales.
         if (mounted) setAdminRubrics(null);
       }
     }
+
     void loadRubrics();
+
+    const handleUpdate = () => {
+      void loadRubrics();
+    };
+
+    window.addEventListener("storage", handleUpdate);
+    window.addEventListener("liberty-admin-published", handleUpdate);
+
     return () => {
       mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const refresh = async () => {
-      try {
-        const publishedRubrics = await listPublishedRubrics();
-        if (publishedRubrics?.length) {
-          setAdminRubrics(publishedRubrics.map((rubric: RubricRecord) => ({
-            id: rubric.id,
-            slug: rubric.slug,
-            name: rubric.name,
-            description: rubric.description,
-            image: rubric.image,
-            imageAlt: rubric.imageAlt,
-            showOnHome: rubric.showOnHome,
-            format: rubric.format,
-            order: rubric.order,
-            status: rubric.status,
-          })));
-          return;
-        }
-      } catch {
-        // Fallback d'urgence lecture seule : données TypeScript locales.
-        setAdminRubrics(null);
-      }
-    };
-    window.addEventListener("storage", refresh);
-    window.addEventListener("liberty-admin-published", refresh);
-    return () => {
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener("liberty-admin-published", refresh);
+      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("liberty-admin-published", handleUpdate);
     };
   }, []);
 

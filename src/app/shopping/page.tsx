@@ -7,12 +7,12 @@ export const metadata: Metadata = buildPageMetadata({
   title: "Shopping — Boutiques et marques",
   description: "Explorez les boutiques, vêtements, judaïca, maison et belles adresses shopping sélectionnées par Liberty.",
   path: "/shopping",
-  image: "/images/shopping/azamra.webp",
+  image: "/images/shopping/azamra.jpg",
   imageAlt: "Boutique Azamra",
 });
 
 const sections = [
-  { title: "Vêtements", description: "Mode pour homme, femme et enfant.", href: "/shopping/vetements", icon: Shirt, image: "/images/shopping/azamra.webp" },
+  { title: "Vêtements", description: "Mode pour homme, femme et enfant.", href: "/shopping/vetements", icon: Shirt, image: "/images/shopping/azamra.jpg" },
   { title: "Maison", description: "Objets, décoration et art de vivre.", href: "/shopping/maison", icon: House, image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=85" },
   { title: "Enfants", description: "Les belles trouvailles pour les plus jeunes.", href: "/shopping/enfants", icon: Baby, image: "https://images.unsplash.com/photo-1472162072942-cd5147eb3902?auto=format&fit=crop&w=1200&q=85" },
 ];

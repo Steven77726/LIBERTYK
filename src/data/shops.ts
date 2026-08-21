@@ -2,7 +2,7 @@ export const azamra = {
   slug: "azamra",
   name: "Azamra",
   type: "Vêtements",
-  image: "/images/shopping/azamra.webp",
+  image: "/images/shopping/azamra.jpg",
   tags: ["Homme", "Femme", "Enfant"],
   rating: null as number | null,
   reviewCount: 0,

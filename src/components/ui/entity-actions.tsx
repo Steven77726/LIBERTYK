@@ -73,7 +73,7 @@ export function LikeButton({ entity, className = "" }: { entity: EntityActionTar
 export function ShareButton({ entity, compact = false }: { entity: EntityActionTarget; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const url = useMemo(() => getAbsoluteUrl(entity.url), [entity.url, open]);
+  const url = useMemo(() => getAbsoluteUrl(entity.url), [entity.url]);
   const text = encodeURIComponent(entity.text ?? `Découvre ${entity.title} sur Liberty`);
 
   const copy = async () => {

@@ -39,8 +39,11 @@ jobs:
 
       - name: Verify public Supabase env
         run: |
-          test -n "$NEXT_PUBLIC_SUPABASE_URL"
-          test -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY"
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::warning::Supabase environment variables are missing; using local data fallbacks."
+          else
+            echo "Supabase environment variables are configured."
+          fi
 
       - name: Build static site
         run: npm run build

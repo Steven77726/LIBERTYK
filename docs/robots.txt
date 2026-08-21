@@ -1,0 +1,11 @@
+User-Agent: *
+Allow: /LIBERTYK/
+Disallow: /LIBERTYK/admin
+Disallow: /LIBERTYK/mon-compte
+Disallow: /LIBERTYK/mes-favoris
+Disallow: /LIBERTYK/api/
+Disallow: /LIBERTYK/*draft*
+Disallow: /LIBERTYK/*preview*
+
+Host: https://steven77726.github.io/LIBERTYK
+Sitemap: https://steven77726.github.io/LIBERTYK/sitemap.xml

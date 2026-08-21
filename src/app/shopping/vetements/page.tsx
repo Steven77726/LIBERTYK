@@ -7,7 +7,7 @@ export const metadata: Metadata = buildPageMetadata({
   title: "Vêtements — Shopping Liberty",
   description: "Découvrez les enseignes de vêtements et boutiques mode de Liberty, dont Azamra.",
   path: "/shopping/vetements",
-  image: "/images/shopping/azamra.webp",
+  image: "/images/shopping/azamra.jpg",
   imageAlt: "Boutique Azamra",
 });
 

@@ -146,7 +146,11 @@ export function AccountDashboard() {
     setSubmitting(false);
 
     if (!res.success) {
-      if (!isSupabaseLive()) {
+      if (res.error?.includes("not enabled") || res.error?.includes("validation_failed") || res.error?.includes("Unsupported provider")) {
+        setFieldError("Le bouton Google direct nécessite d'activer le fournisseur Google dans votre console Supabase (Authentication > Providers > Google).");
+        setMessage("💡 Vous pouvez vous connecter immédiatement et en toute sécurité avec votre adresse Gmail via le code de vérification ci-dessous.");
+        setAuthStep("input_email");
+      } else if (!isSupabaseLive()) {
         setShowConfigModal(true);
       } else {
         setFieldError(res.error || "Erreur de connexion avec Google.");
@@ -164,7 +168,11 @@ export function AccountDashboard() {
     setSubmitting(false);
 
     if (!res.success) {
-      if (!isSupabaseLive()) {
+      if (res.error?.includes("not enabled") || res.error?.includes("validation_failed") || res.error?.includes("Unsupported provider")) {
+        setFieldError("Le bouton Apple direct nécessite d'activer Apple dans votre console Supabase (Authentication > Providers > Apple).");
+        setMessage("💡 Vous pouvez vous connecter immédiatement avec votre adresse email via le code de vérification ci-dessous.");
+        setAuthStep("input_email");
+      } else if (!isSupabaseLive()) {
         setShowConfigModal(true);
       } else {
         setFieldError(res.error || "Erreur de connexion avec Apple.");

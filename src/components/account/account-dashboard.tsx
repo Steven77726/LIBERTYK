@@ -3,14 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   Bell,
   Check,
   ChevronRight,
   Heart,
+  KeyRound,
   Lock,
   LogOut,
   Mail,
   MapPin,
+  RefreshCw,
+  Send,
+  Settings,
   Shield,
   Sparkles,
   Trash2,
@@ -20,12 +25,13 @@ import {
 } from "lucide-react";
 import {
   getCurrentUser,
-  loginWithEmail,
-  loginWithOAuth,
+  initiateOfficialOAuth,
   logoutUser,
-  registerWithEmail,
+  sendEmailOtp,
   updateProfile,
+  verifyEmailOtp,
   authStateChangedEvent,
+  isSupabaseLive,
   type LibertyUser,
 } from "@/lib/auth/auth-service";
 import {
@@ -34,6 +40,7 @@ import {
   toggleFavorite,
   type FavoriteRecord,
 } from "@/lib/favorites/favorites-service";
+import { setCustomSupabaseCredentials, getSupabaseConfig } from "@/lib/supabase/client";
 import { assetPath } from "@/lib/assets";
 import { POPULAR_CITIES } from "@/lib/hebcal";
 
@@ -41,27 +48,29 @@ export function AccountDashboard() {
   const [currentUser, setCurrentUser] = useState<LibertyUser | null>(null);
   const [activeTab, setActiveTab] = useState<"favorites" | "profile" | "preferences" | "security">("favorites");
 
-  // Form State
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // Email OTP Authentication Step
+  // 'input_email' -> 'input_code'
+  const [authStep, setAuthStep] = useState<"input_email" | "input_code">("input_email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [message, setMessage] = useState("");
+  const [fieldError, setFieldError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  // Profile Form
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [selectedCity, setSelectedCity] = useState<string>("Paris");
-  const [message, setMessage] = useState("");
-  const [fieldError, setFieldError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  // Social Modal (Google / Apple Custom Email Prompt)
-  const [socialModal, setSocialModal] = useState<"google" | "apple" | null>(null);
-  const [socialEmail, setSocialEmail] = useState("");
-  const [socialName, setSocialName] = useState("");
-
-  // Profile Save State
   const [profileMessage, setProfileMessage] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const profileMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Supabase Config Modal
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [customUrl, setCustomUrl] = useState("");
+  const [customKey, setCustomKey] = useState("");
 
   // Favorites in Account
   const [favorites, setFavorites] = useState<FavoriteRecord[]>([]);
@@ -82,11 +91,26 @@ export function AccountDashboard() {
 
     syncUser();
     window.addEventListener(authStateChangedEvent, syncUser);
+
+    const cfg = getSupabaseConfig();
+    if (cfg) {
+      setCustomUrl(cfg.url);
+      setCustomKey(cfg.key);
+    }
+
     return () => {
       window.removeEventListener(authStateChangedEvent, syncUser);
       if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
     };
   }, []);
+
+  // Timer pour le renvoi d'email OTP
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   // Charger les favoris
   const refreshFavorites = async () => {
@@ -109,80 +133,95 @@ export function AccountDashboard() {
   }, []);
 
   // =========================================================================
-  // ACTIONS D'AUTHENTIFICATION
+  // ACTIONS D'AUTHENTIFICATION OFFICIELLE
   // =========================================================================
 
-  const handleOpenGoogleModal = () => {
-    setSocialModal("google");
-    setSocialEmail(email.trim() || "");
-    setSocialName(firstName.trim() || "");
-  };
-
-  const handleOpenAppleModal = () => {
-    setSocialModal("apple");
-    setSocialEmail(email.trim() || "");
-    setSocialName(firstName.trim() || "");
-  };
-
-  const handleConfirmSocialLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 1. Google OAuth Officiel
+  const handleGoogleOAuth = async () => {
     setSubmitting(true);
     setFieldError("");
     setMessage("");
 
-    const targetEmail = socialEmail.trim() || (socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur.liberty@icloud.com");
-    const targetName = socialName.trim() || (socialModal === "google" ? "Steven Ohayon" : "Membre Apple Liberty");
-
-    const res = await loginWithOAuth(socialModal || "google", {
-      email: targetEmail,
-      name: targetName,
-      avatarUrl:
-        socialModal === "google"
-          ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-          : "",
-    });
-
+    const res = await initiateOfficialOAuth("google");
     setSubmitting(false);
-    if (res.success) {
-      setSocialModal(null);
-      setMessage("Connexion réussie !");
-    } else {
-      setFieldError(res.error || "Erreur de connexion.");
+
+    if (!res.success) {
+      if (!isSupabaseLive()) {
+        setShowConfigModal(true);
+      } else {
+        setFieldError(res.error || "Erreur de connexion avec Google.");
+      }
     }
   };
 
-  const handleSubmitEmail = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // 2. Apple OAuth Officiel
+  const handleAppleOAuth = async () => {
+    setSubmitting(true);
     setFieldError("");
     setMessage("");
-    setSubmitting(true);
 
-    if (mode === "signin") {
-      const res = await loginWithEmail(email, password);
-      setSubmitting(false);
-      if (res.success) {
-        setMessage("Connexion réussie !");
+    const res = await initiateOfficialOAuth("apple");
+    setSubmitting(false);
+
+    if (!res.success) {
+      if (!isSupabaseLive()) {
+        setShowConfigModal(true);
       } else {
-        setFieldError(res.error || "Erreur de connexion.");
-      }
-    } else {
-      const res = await registerWithEmail({
-        email,
-        password,
-        firstName,
-        lastName,
-        phone,
-        city: selectedCity,
-      });
-      setSubmitting(false);
-      if (res.success) {
-        setMessage("Votre compte a été créé avec succès !");
-      } else {
-        setFieldError(res.error || "Erreur d'inscription.");
+        setFieldError(res.error || "Erreur de connexion avec Apple.");
       }
     }
   };
 
+  // 3. Envoi du Code de Sécurité par Email (Gmail, etc.)
+  const handleSendOtpEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setFieldError("Veuillez renseigner une adresse email valide (ex: contact@gmail.com).");
+      return;
+    }
+
+    setSubmitting(true);
+    setFieldError("");
+    setMessage("");
+
+    const res = await sendEmailOtp(cleanEmail);
+    setSubmitting(false);
+
+    if (res.success) {
+      setMessage(res.message);
+      setAuthStep("input_code");
+      setCountdown(60);
+    } else {
+      setFieldError(res.error || "Impossible d'envoyer l'email de vérification.");
+    }
+  };
+
+  // 4. Validation du Code Reçu par Email
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanToken = otpCode.trim();
+    if (!cleanToken) {
+      setFieldError("Veuillez saisir le code de sécurité à 6 chiffres reçu dans vos emails.");
+      return;
+    }
+
+    setSubmitting(true);
+    setFieldError("");
+
+    const res = await verifyEmailOtp(email, cleanToken);
+    setSubmitting(false);
+
+    if (res.success) {
+      setMessage("Authentification réussie !");
+      setAuthStep("input_email");
+      setOtpCode("");
+    } else {
+      setFieldError(res.error || "Code invalide. Veuillez réessayer.");
+    }
+  };
+
+  // 5. Enregistrement du Profil
   const handleSaveProfile = async () => {
     if (!currentUser) return;
     setSavingProfile(true);
@@ -197,16 +236,18 @@ export function AccountDashboard() {
 
     setSavingProfile(false);
     if (res.success) {
-      setProfileMessage("Vos informations ont bien été enregistrées !");
+      setProfileMessage("Vos informations ont bien été mises à jour !");
       if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
       profileMessageTimer.current = setTimeout(() => setProfileMessage(""), 4000);
     }
   };
 
+  // 6. Déconnexion
   const handleSignOut = async () => {
     await logoutUser();
     setEmail("");
-    setPassword("");
+    setOtpCode("");
+    setAuthStep("input_email");
     setMessage("");
     setFieldError("");
   };
@@ -216,31 +257,38 @@ export function AccountDashboard() {
     refreshFavorites();
   };
 
+  const handleSaveCustomSupabase = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customUrl.trim() || !customKey.trim()) {
+      alert("Veuillez renseigner l'URL Supabase et la clé Anon.");
+      return;
+    }
+    setCustomSupabaseCredentials(customUrl, customKey);
+  };
+
   // =========================================================================
-  // ÉCRAN 1 : FORMULAIRE DE CONNEXION / INSCRIPTION ÉLÉGANT & FONCTIONNEL
+  // ÉCRAN 1 : FORMULAIRE DE SÉCURITÉ OFFICIEL (EMAIL OTP & GOOGLE OAUTH)
   // =========================================================================
   if (!currentUser) {
     return (
       <div className="mx-auto w-full max-w-lg space-y-6">
         <div className="text-center sm:text-left">
           <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-[#f6ecd9] text-[#8f6424] shadow-2xs">
-            <UserRound size={22} />
+            <Lock size={22} />
           </span>
           <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-            {mode === "signin" ? "Bon retour parmi nous" : "Créer votre compte Liberty"}
+            Connexion Sécurisée Liberty
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-ink/60">
-            {mode === "signin"
-              ? "Connectez-vous pour retrouver vos favoris, sélections privées et préférences."
-              : "Rejoignez le cercle Liberty pour enregistrer vos coups de cœur et vos alertes."}
+            Conformément aux protocoles de sécurité officiels, connectez-vous directement via Google ou recevez un code de vérification sécurisé sur votre adresse Gmail/Email.
           </p>
         </div>
 
-        {/* Boutons d'authentification 1-clic Google & Apple */}
+        {/* Boutons d'authentification OAuth officiels */}
         <div className="grid gap-3">
           <button
             type="button"
-            onClick={handleOpenGoogleModal}
+            onClick={handleGoogleOAuth}
             disabled={submitting}
             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-[#4285F4] hover:bg-[#4285F4]/5 hover:shadow-sm"
           >
@@ -267,7 +315,7 @@ export function AccountDashboard() {
 
           <button
             type="button"
-            onClick={handleOpenAppleModal}
+            onClick={handleAppleOAuth}
             disabled={submitting}
             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-ink hover:bg-black/5"
           >
@@ -281,157 +329,181 @@ export function AccountDashboard() {
         <div className="relative flex items-center justify-center">
           <div className="w-full border-t border-black/10" />
           <span className="absolute bg-white px-3 text-xs font-semibold text-ink/40">
-            ou avec votre email
+            ou par code de vérification par email
           </span>
         </div>
 
-        {/* Formulaire Email */}
-        <form
-          onSubmit={handleSubmitEmail}
-          className="space-y-3 rounded-3xl border border-black/10 bg-white p-5 shadow-xs"
-        >
-          {mode === "signup" && (
-            <div className="grid gap-2 sm:grid-cols-2">
+        {/* ÉTAPE 1 : ENTRER L'EMAIL POUR RECEVOIR LE CODE */}
+        {authStep === "input_email" && (
+          <form
+            onSubmit={handleSendOtpEmail}
+            className="space-y-4 rounded-3xl border border-black/10 bg-white p-6 shadow-xs"
+          >
+            <div>
+              <label className="text-xs font-bold text-ink/60">Votre adresse Email (Gmail, etc.)</label>
+              <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3">
+                <Mail size={16} className="text-ink/40" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldError("");
+                  }}
+                  placeholder="ex: votre-adresse@gmail.com"
+                  autoComplete="email"
+                  className="ml-3 w-full bg-transparent text-xs font-medium text-ink outline-none placeholder:text-ink/35"
+                />
+              </div>
+            </div>
+
+            {fieldError && <p className="text-center text-xs font-semibold text-rose-600">{fieldError}</p>}
+            {message && <p className="text-center text-xs font-semibold text-moss">{message}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
+            >
+              <Send size={14} />
+              {submitting ? "Envoi du code sécurisé…" : "M'envoyer mon code de connexion par email"}
+            </button>
+
+            <p className="text-center text-[11px] text-ink/45">
+              🔒 Un email contenant votre code de vérification à 6 chiffres vous sera instantanément envoyé.
+            </p>
+          </form>
+        )}
+
+        {/* ÉTAPE 2 : SAISIR LE CODE DE SÉCURITÉ REÇU DANS GMAIL */}
+        {authStep === "input_code" && (
+          <form
+            onSubmit={handleVerifyOtp}
+            className="space-y-5 rounded-3xl border border-black/10 bg-white p-6 shadow-xs"
+          >
+            <div className="text-center">
+              <span className="inline-flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-moss">
+                <KeyRound size={18} />
+              </span>
+              <h3 className="mt-2 text-base font-bold text-ink">Code de vérification envoyé</h3>
+              <p className="mt-1 text-xs text-ink/60">
+                Veuillez saisir le code à 6 chiffres envoyé à <strong className="text-ink">{email}</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-center block text-xs font-bold text-ink/60">Code de sécurité à 6 chiffres</label>
               <input
                 type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Prénom"
-                className="rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none placeholder:text-ink/35"
-              />
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Nom"
-                className="rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none placeholder:text-ink/35"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => {
+                  setOtpCode(e.target.value);
+                  setFieldError("");
+                }}
+                placeholder="• • • • • •"
+                className="w-full text-center tracking-[0.4em] font-mono text-xl font-bold rounded-2xl bg-cream py-3.5 text-ink outline-none focus:bg-white focus:ring-2 focus:ring-moss/20"
               />
             </div>
-          )}
 
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setFieldError("");
-            }}
-            placeholder="Adresse email"
-            autoComplete="email"
-            className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none placeholder:text-ink/35"
-          />
+            {fieldError && <p className="text-center text-xs font-semibold text-rose-600">{fieldError}</p>}
+            {message && <p className="text-center text-xs font-semibold text-moss">{message}</p>}
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setFieldError("");
-            }}
-            placeholder="Mot de passe"
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
-            className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none placeholder:text-ink/35"
-          />
-
-          {fieldError && <p className="text-center text-xs font-semibold text-rose-600">{fieldError}</p>}
-          {message && <p className="text-center text-xs font-semibold text-moss">{message}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
-          >
-            <Mail size={15} />
-            {submitting
-              ? "Vérification en cours…"
-              : mode === "signin"
-              ? "Se connecter avec mon Email"
-              : "Créer mon compte"}
-          </button>
-
-          <div className="flex items-center justify-between pt-2 text-xs">
             <button
-              type="button"
-              onClick={() => {
-                setMode(mode === "signin" ? "signup" : "signin");
-                setFieldError("");
-                setMessage("");
-              }}
-              className="font-bold text-moss hover:underline"
+              type="submit"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
             >
-              {mode === "signin" ? "Pas encore de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
+              <Check size={16} />
+              {submitting ? "Vérification du code…" : "Valider mon identité et me connecter"}
             </button>
-            {mode === "signin" && (
+
+            <div className="flex items-center justify-between text-xs pt-1">
               <button
                 type="button"
-                onClick={() => setMessage("Un email avec instructions vous sera envoyé.")}
-                className="text-ink/45 hover:text-ink"
+                onClick={() => {
+                  setAuthStep("input_email");
+                  setFieldError("");
+                  setMessage("");
+                }}
+                className="font-semibold text-ink/50 hover:text-ink"
               >
-                Mot de passe oublié ?
+                ← Changer d&apos;email
               </button>
-            )}
-          </div>
-        </form>
 
-        {/* MODALE DE CONNEXION SOCIALE INSTANTANÉE (Google / Apple) */}
-        {socialModal && (
+              <button
+                type="button"
+                onClick={handleSendOtpEmail}
+                disabled={countdown > 0}
+                className="font-bold text-moss hover:underline disabled:opacity-40"
+              >
+                {countdown > 0 ? `Renvoyer (${countdown}s)` : "Renvoyer le code"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Bouton discret pour configurer Supabase si besoin */}
+        <div className="text-center pt-2">
+          <button
+            type="button"
+            onClick={() => setShowConfigModal(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink/40 hover:text-ink"
+          >
+            <Settings size={13} />
+            {isSupabaseLive() ? "Backend Supabase connecté" : "Paramètres de connexion Supabase & Google"}
+          </button>
+        </div>
+
+        {/* MODALE DE CONFIGURATION SUPABASE & GOOGLE */}
+        {showConfigModal && (
           <div
             className="fixed inset-0 z-[130] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm"
             onMouseDown={(e) => {
-              if (e.target === e.currentTarget) setSocialModal(null);
+              if (e.target === e.currentTarget) setShowConfigModal(false);
             }}
           >
             <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
               <button
                 type="button"
-                onClick={() => setSocialModal(null)}
+                onClick={() => setShowConfigModal(false)}
                 className="absolute right-5 top-5 grid size-8 place-items-center rounded-full bg-cream text-ink/50 hover:bg-ink hover:text-white"
               >
                 <X size={15} />
               </button>
 
-              <div className="text-center">
-                <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-xl text-[#4285F4]">
-                  {socialModal === "google" ? "G" : ""}
-                </span>
-                <h3 className="mt-3 text-lg font-bold text-ink">
-                  Connexion avec {socialModal === "google" ? "Google" : "Apple"}
-                </h3>
-                <p className="mt-1 text-xs text-ink/60">
-                  Confirmez votre compte pour synchroniser instantanément vos favoris et préférences.
-                </p>
-              </div>
+              <h3 className="text-lg font-bold text-ink">Connexion Projet Supabase</h3>
+              <p className="mt-1 text-xs text-ink/60">
+                Pour router automatiquement vos redirections Google OAuth et envoyer les emails officiels via votre propre serveur :
+              </p>
 
-              <form onSubmit={handleConfirmSocialLogin} className="mt-6 space-y-3">
+              <form onSubmit={handleSaveCustomSupabase} className="mt-5 space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-ink/50">Votre Nom / Prénom</label>
+                  <label className="text-[11px] font-bold text-ink/50">URL du projet Supabase</label>
                   <input
-                    type="text"
-                    value={socialName}
-                    onChange={(e) => setSocialName(e.target.value)}
-                    placeholder={socialModal === "google" ? "Steven Ohayon" : "Membre Liberty"}
-                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
+                    type="url"
+                    value={customUrl}
+                    onChange={(e) => setCustomUrl(e.target.value)}
+                    placeholder="https://xyzcompany.supabase.co"
+                    className="w-full rounded-2xl bg-cream px-4 py-2.5 text-xs font-medium text-ink outline-none"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-ink/50">
-                    Adresse {socialModal === "google" ? "Gmail" : "iCloud"}
-                  </label>
+                  <label className="text-[11px] font-bold text-ink/50">Clé Publique Anon Key</label>
                   <input
-                    type="email"
-                    value={socialEmail}
-                    onChange={(e) => setSocialEmail(e.target.value)}
-                    placeholder={socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur@icloud.com"}
-                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
+                    type="password"
+                    value={customKey}
+                    onChange={(e) => setCustomKey(e.target.value)}
+                    placeholder="eyJhbGciOiJIUzI1NiIsIn..."
+                    className="w-full rounded-2xl bg-cream px-4 py-2.5 text-xs font-medium text-ink outline-none"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss"
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3 text-xs font-bold text-white shadow-md hover:bg-moss"
                 >
-                  Valider et se connecter
+                  Enregistrer et connecter
                 </button>
               </form>
             </div>
@@ -442,7 +514,7 @@ export function AccountDashboard() {
   }
 
   // =========================================================================
-  // ÉCRAN 2 : ESPACE UTILISATEUR CONNECTÉ RICHE (AVEC REPERTOIRE DE FAVORIS)
+  // ÉCRAN 2 : ESPACE UTILISATEUR CONNECTÉ (AVEC REPERTOIRE DE FAVORIS)
   // =========================================================================
   return (
     <div className="w-full space-y-8">
@@ -470,12 +542,12 @@ export function AccountDashboard() {
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-ink sm:text-2xl">{currentUser.name}</h2>
               <span className="rounded-full bg-[#f6ecd9] px-2.5 py-0.5 text-[10px] font-bold text-[#8f6424]">
-                Membre Privilège
+                Membre Privilège Vérifié
               </span>
             </div>
             <p className="text-xs text-ink/50">{currentUser.email}</p>
             <p className="mt-0.5 text-[11px] text-ink/40">
-              Connecté via {currentUser.provider === "google" ? "Google" : currentUser.provider === "apple" ? "Apple" : "Email"} • Ville : {currentUser.city || "Paris"}
+              Session sécurisée • Ville : {currentUser.city || "Paris"}
             </p>
           </div>
         </div>
@@ -495,7 +567,7 @@ export function AccountDashboard() {
           { id: "favorites", label: `Mes Favoris (${favorites.length})`, icon: Heart },
           { id: "profile", label: "Mon Profil", icon: User },
           { id: "preferences", label: "Mes Alertes & Chabbat", icon: Bell },
-          { id: "security", label: "Sécurité & Confidentialité", icon: Shield },
+          { id: "security", label: "Sécurité & Données", icon: Shield },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -722,15 +794,15 @@ export function AccountDashboard() {
         <div className="max-w-2xl rounded-3xl border border-black/5 bg-white p-6 shadow-sm sm:p-8 space-y-6">
           <div>
             <h3 className="text-xl font-bold text-ink">Sécurité & Confidentialité</h3>
-            <p className="text-xs text-ink/50">Votre session est chiffrée et protégée conformément aux normes RGPD.</p>
+            <p className="text-xs text-ink/50">Votre session est chiffrée et protégée conformément aux normes RGPD et PKCE.</p>
           </div>
 
           <div className="space-y-3 rounded-2xl bg-cream/70 p-4 text-xs text-ink/75">
             <p className="flex items-center gap-2 font-bold text-ink">
-              <Lock size={14} className="text-moss" /> Statut de sécurité : Actif
+              <Lock size={14} className="text-moss" /> Statut de sécurité : Authentifié & Chiffré
             </p>
-            <p>Fournisseur d&apos;accès : {currentUser.provider === "google" ? "Google OAuth 2.0 certifié" : currentUser.provider === "apple" ? "Apple ID Sécurisé" : "Authentification Email"}</p>
-            <p>Identifiant : {currentUser.id}</p>
+            <p>Type d&apos;authentification : OTP Email / OAuth Vérifié</p>
+            <p>Adresse vérifiée : {currentUser.email}</p>
           </div>
 
           <div className="pt-2">

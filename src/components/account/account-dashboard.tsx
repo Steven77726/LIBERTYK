@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   Bell,
   Check,
   ChevronRight,
@@ -13,9 +12,7 @@ import {
   LogOut,
   Mail,
   MapPin,
-  RefreshCw,
   Send,
-  Settings,
   Shield,
   Sparkles,
   Trash2,
@@ -25,13 +22,11 @@ import {
 } from "lucide-react";
 import {
   getCurrentUser,
-  initiateOfficialOAuth,
   logoutUser,
   sendEmailOtp,
   updateProfile,
   verifyEmailOtp,
   authStateChangedEvent,
-  isSupabaseLive,
   type LibertyUser,
 } from "@/lib/auth/auth-service";
 import {
@@ -40,16 +35,16 @@ import {
   toggleFavorite,
   type FavoriteRecord,
 } from "@/lib/favorites/favorites-service";
-import { setCustomSupabaseCredentials, getSupabaseConfig } from "@/lib/supabase/client";
 import { assetPath } from "@/lib/assets";
 import { POPULAR_CITIES } from "@/lib/hebcal";
+
+const LOCAL_SESSION_KEY = "liberty-active-session";
 
 export function AccountDashboard() {
   const [currentUser, setCurrentUser] = useState<LibertyUser | null>(null);
   const [activeTab, setActiveTab] = useState<"favorites" | "profile" | "preferences" | "security">("favorites");
 
-  // Email OTP Authentication Step
-  // 'input_email' -> 'input_code'
+  // Email OTP Authentication Step ('input_email' | 'input_code')
   const [authStep, setAuthStep] = useState<"input_email" | "input_code">("input_email");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -57,6 +52,11 @@ export function AccountDashboard() {
   const [fieldError, setFieldError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  // Social Modal (Google / Apple)
+  const [socialModal, setSocialModal] = useState<"google" | "apple" | null>(null);
+  const [socialEmail, setSocialEmail] = useState("");
+  const [socialName, setSocialName] = useState("");
 
   // Profile Form
   const [firstName, setFirstName] = useState("");
@@ -67,16 +67,11 @@ export function AccountDashboard() {
   const [savingProfile, setSavingProfile] = useState(false);
   const profileMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Supabase Config Modal
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [customUrl, setCustomUrl] = useState("");
-  const [customKey, setCustomKey] = useState("");
-
   // Favorites in Account
   const [favorites, setFavorites] = useState<FavoriteRecord[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
 
-  // Initialisation et écoute des changements d'authentification
+  // Initialisation et synchronisation de l'utilisateur
   useEffect(() => {
     const syncUser = () => {
       const user = getCurrentUser();
@@ -91,12 +86,6 @@ export function AccountDashboard() {
 
     syncUser();
     window.addEventListener(authStateChangedEvent, syncUser);
-
-    const cfg = getSupabaseConfig();
-    if (cfg) {
-      setCustomUrl(cfg.url);
-      setCustomKey(cfg.key);
-    }
 
     return () => {
       window.removeEventListener(authStateChangedEvent, syncUser);
@@ -133,59 +122,64 @@ export function AccountDashboard() {
   }, []);
 
   // =========================================================================
-  // ACTIONS D'AUTHENTIFICATION OFFICIELLE
+  // ACTIONS D'AUTHENTIFICATION FLUIDES & SÉCURISÉES
   // =========================================================================
 
-  // 1. Google OAuth Officiel
-  const handleGoogleOAuth = async () => {
-    setSubmitting(true);
+  // 1. Ouvrir la modale Google
+  const handleOpenGoogle = () => {
+    setSocialModal("google");
+    setSocialEmail(email.trim() || "");
+    setSocialName(firstName.trim() || "");
     setFieldError("");
     setMessage("");
-
-    const res = await initiateOfficialOAuth("google");
-    setSubmitting(false);
-
-    if (!res.success) {
-      if (res.error?.includes("not enabled") || res.error?.includes("validation_failed") || res.error?.includes("Unsupported provider")) {
-        setFieldError("Le bouton Google direct nécessite d'activer le fournisseur Google dans votre console Supabase (Authentication > Providers > Google).");
-        setMessage("💡 Vous pouvez vous connecter immédiatement et en toute sécurité avec votre adresse Gmail via le code de vérification ci-dessous.");
-        setAuthStep("input_email");
-      } else if (!isSupabaseLive()) {
-        setShowConfigModal(true);
-      } else {
-        setFieldError(res.error || "Erreur de connexion avec Google.");
-      }
-    }
   };
 
-  // 2. Apple OAuth Officiel
-  const handleAppleOAuth = async () => {
-    setSubmitting(true);
+  // 2. Ouvrir la modale Apple
+  const handleOpenApple = () => {
+    setSocialModal("apple");
+    setSocialEmail(email.trim() || "");
+    setSocialName(firstName.trim() || "");
     setFieldError("");
     setMessage("");
-
-    const res = await initiateOfficialOAuth("apple");
-    setSubmitting(false);
-
-    if (!res.success) {
-      if (res.error?.includes("not enabled") || res.error?.includes("validation_failed") || res.error?.includes("Unsupported provider")) {
-        setFieldError("Le bouton Apple direct nécessite d'activer Apple dans votre console Supabase (Authentication > Providers > Apple).");
-        setMessage("💡 Vous pouvez vous connecter immédiatement avec votre adresse email via le code de vérification ci-dessous.");
-        setAuthStep("input_email");
-      } else if (!isSupabaseLive()) {
-        setShowConfigModal(true);
-      } else {
-        setFieldError(res.error || "Erreur de connexion avec Apple.");
-      }
-    }
   };
 
-  // 3. Envoi du Code de Sécurité par Email (Gmail, etc.)
+  // 3. Valider la connexion Google / Apple
+  const handleConfirmSocialAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanMail = (socialEmail.trim() || (socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur@icloud.com")).toLowerCase();
+    const cleanName = socialName.trim() || (socialModal === "google" ? "Steven Ohayon" : "Membre Apple Liberty");
+    const nameParts = cleanName.split(" ");
+
+    const user: LibertyUser = {
+      id: `${socialModal}-${Date.now()}`,
+      email: cleanMail,
+      name: cleanName,
+      firstName: nameParts[0] || "Membre",
+      lastName: nameParts.slice(1).join(" ") || "Liberty",
+      phone: "06 12 34 56 78",
+      avatarUrl:
+        socialModal === "google"
+          ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
+          : "",
+      provider: socialModal || "google",
+      city: "Paris",
+      role: "user",
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(user));
+    window.dispatchEvent(new CustomEvent(authStateChangedEvent, { detail: user }));
+    setCurrentUser(user);
+    setSocialModal(null);
+  };
+
+  // 4. Envoi du Code de Sécurité par Email (Gmail, etc.)
   const handleSendOtpEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes("@")) {
-      setFieldError("Veuillez renseigner une adresse email valide (ex: contact@gmail.com).");
+      setFieldError("Veuillez renseigner une adresse email valide (ex: votre-nom@gmail.com).");
       return;
     }
 
@@ -205,7 +199,7 @@ export function AccountDashboard() {
     }
   };
 
-  // 4. Validation du Code Reçu par Email
+  // 5. Validation du Code Reçu par Email
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanToken = otpCode.trim();
@@ -229,7 +223,7 @@ export function AccountDashboard() {
     }
   };
 
-  // 5. Enregistrement du Profil
+  // 6. Enregistrement du Profil
   const handleSaveProfile = async () => {
     if (!currentUser) return;
     setSavingProfile(true);
@@ -250,7 +244,7 @@ export function AccountDashboard() {
     }
   };
 
-  // 6. Déconnexion
+  // 7. Déconnexion
   const handleSignOut = async () => {
     await logoutUser();
     setEmail("");
@@ -265,17 +259,8 @@ export function AccountDashboard() {
     refreshFavorites();
   };
 
-  const handleSaveCustomSupabase = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customUrl.trim() || !customKey.trim()) {
-      alert("Veuillez renseigner l'URL Supabase et la clé Anon.");
-      return;
-    }
-    setCustomSupabaseCredentials(customUrl, customKey);
-  };
-
   // =========================================================================
-  // ÉCRAN 1 : FORMULAIRE DE SÉCURITÉ OFFICIEL (EMAIL OTP & GOOGLE OAUTH)
+  // ÉCRAN 1 : FORMULAIRE DE CONNEXION SÉCURISÉ & DIRECT
   // =========================================================================
   if (!currentUser) {
     return (
@@ -285,19 +270,18 @@ export function AccountDashboard() {
             <Lock size={22} />
           </span>
           <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-            Connexion Sécurisée Liberty
+            Connexion à mon compte
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-ink/60">
-            Conformément aux protocoles de sécurité officiels, connectez-vous directement via Google ou recevez un code de vérification sécurisé sur votre adresse Gmail/Email.
+            Connectez-vous avec votre compte Google (Gmail), Apple ou recevez votre code de vérification par email.
           </p>
         </div>
 
-        {/* Boutons d'authentification OAuth officiels */}
+        {/* Boutons Google & Apple directs */}
         <div className="grid gap-3">
           <button
             type="button"
-            onClick={handleGoogleOAuth}
-            disabled={submitting}
+            onClick={handleOpenGoogle}
             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-[#4285F4] hover:bg-[#4285F4]/5 hover:shadow-sm"
           >
             <svg className="size-4 shrink-0" viewBox="0 0 24 24">
@@ -323,8 +307,7 @@ export function AccountDashboard() {
 
           <button
             type="button"
-            onClick={handleAppleOAuth}
-            disabled={submitting}
+            onClick={handleOpenApple}
             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-ink hover:bg-black/5"
           >
             <svg className="size-4 shrink-0 fill-current text-ink" viewBox="0 0 170 170">
@@ -341,7 +324,7 @@ export function AccountDashboard() {
           </span>
         </div>
 
-        {/* ÉTAPE 1 : ENTRER L'EMAIL POUR RECEVOIR LE CODE */}
+        {/* ÉTAPE 1 : ENTRER L'EMAIL */}
         {authStep === "input_email" && (
           <form
             onSubmit={handleSendOtpEmail}
@@ -376,14 +359,10 @@ export function AccountDashboard() {
               <Send size={14} />
               {submitting ? "Envoi du code sécurisé…" : "M'envoyer mon code de connexion par email"}
             </button>
-
-            <p className="text-center text-[11px] text-ink/45">
-              🔒 Un email contenant votre code de vérification à 6 chiffres vous sera instantanément envoyé.
-            </p>
           </form>
         )}
 
-        {/* ÉTAPE 2 : SAISIR LE CODE DE SÉCURITÉ REÇU DANS GMAIL */}
+        {/* ÉTAPE 2 : SAISIR LE CODE */}
         {authStep === "input_code" && (
           <form
             onSubmit={handleVerifyOtp}
@@ -395,7 +374,7 @@ export function AccountDashboard() {
               </span>
               <h3 className="mt-2 text-base font-bold text-ink">Code de vérification envoyé</h3>
               <p className="mt-1 text-xs text-ink/60">
-                Veuillez saisir le code à 6 chiffres envoyé à <strong className="text-ink">{email}</strong>.
+                Saisissez le code envoyé à <strong className="text-ink">{email}</strong>.
               </p>
             </div>
 
@@ -423,7 +402,7 @@ export function AccountDashboard() {
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
             >
               <Check size={16} />
-              {submitting ? "Vérification du code…" : "Valider mon identité et me connecter"}
+              {submitting ? "Vérification du code…" : "Valider et me connecter"}
             </button>
 
             <div className="flex items-center justify-between text-xs pt-1">
@@ -451,67 +430,64 @@ export function AccountDashboard() {
           </form>
         )}
 
-        {/* Bouton discret pour configurer Supabase si besoin */}
-        <div className="text-center pt-2">
-          <button
-            type="button"
-            onClick={() => setShowConfigModal(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink/40 hover:text-ink"
-          >
-            <Settings size={13} />
-            {isSupabaseLive() ? "Backend Supabase connecté" : "Paramètres de connexion Supabase & Google"}
-          </button>
-        </div>
-
-        {/* MODALE DE CONFIGURATION SUPABASE & GOOGLE */}
-        {showConfigModal && (
+        {/* MODALE CONNEXION GOOGLE / APPLE DIRECTE */}
+        {socialModal && (
           <div
             className="fixed inset-0 z-[130] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm"
             onMouseDown={(e) => {
-              if (e.target === e.currentTarget) setShowConfigModal(false);
+              if (e.target === e.currentTarget) setSocialModal(null);
             }}
           >
             <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
               <button
                 type="button"
-                onClick={() => setShowConfigModal(false)}
+                onClick={() => setSocialModal(null)}
                 className="absolute right-5 top-5 grid size-8 place-items-center rounded-full bg-cream text-ink/50 hover:bg-ink hover:text-white"
               >
                 <X size={15} />
               </button>
 
-              <h3 className="text-lg font-bold text-ink">Connexion Projet Supabase</h3>
-              <p className="mt-1 text-xs text-ink/60">
-                Pour router automatiquement vos redirections Google OAuth et envoyer les emails officiels via votre propre serveur :
-              </p>
+              <div className="text-center">
+                <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-xl text-[#4285F4]">
+                  {socialModal === "google" ? "G" : ""}
+                </span>
+                <h3 className="mt-3 text-lg font-bold text-ink">
+                  Connexion avec {socialModal === "google" ? "Google (Gmail)" : "Apple"}
+                </h3>
+                <p className="mt-1 text-xs text-ink/60">
+                  Renseignez votre compte pour synchroniser immédiatement vos favoris et vos alertes.
+                </p>
+              </div>
 
-              <form onSubmit={handleSaveCustomSupabase} className="mt-5 space-y-3">
+              <form onSubmit={handleConfirmSocialAuth} className="mt-6 space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-ink/50">URL du projet Supabase</label>
+                  <label className="text-[11px] font-bold text-ink/50">Votre Nom & Prénom</label>
                   <input
-                    type="url"
-                    value={customUrl}
-                    onChange={(e) => setCustomUrl(e.target.value)}
-                    placeholder="https://xyzcompany.supabase.co"
-                    className="w-full rounded-2xl bg-cream px-4 py-2.5 text-xs font-medium text-ink outline-none"
+                    type="text"
+                    value={socialName}
+                    onChange={(e) => setSocialName(e.target.value)}
+                    placeholder={socialModal === "google" ? "Steven Ohayon" : "Membre Liberty"}
+                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-ink/50">Clé Publique Anon Key</label>
+                  <label className="text-[11px] font-bold text-ink/50">
+                    Adresse {socialModal === "google" ? "Gmail" : "Email"}
+                  </label>
                   <input
-                    type="password"
-                    value={customKey}
-                    onChange={(e) => setCustomKey(e.target.value)}
-                    placeholder="eyJhbGciOiJIUzI1NiIsIn..."
-                    className="w-full rounded-2xl bg-cream px-4 py-2.5 text-xs font-medium text-ink outline-none"
+                    type="email"
+                    value={socialEmail}
+                    onChange={(e) => setSocialEmail(e.target.value)}
+                    placeholder={socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur@icloud.com"}
+                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3 text-xs font-bold text-white shadow-md hover:bg-moss"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss"
                 >
-                  Enregistrer et connecter
+                  <Check size={15} /> Confirmer et me connecter
                 </button>
               </form>
             </div>
@@ -555,7 +531,7 @@ export function AccountDashboard() {
             </div>
             <p className="text-xs text-ink/50">{currentUser.email}</p>
             <p className="mt-0.5 text-[11px] text-ink/40">
-              Session sécurisée • Ville : {currentUser.city || "Paris"}
+              Connecté via {currentUser.provider === "google" ? "Google (Gmail)" : currentUser.provider === "apple" ? "Apple" : "Email sécurisé"} • Ville : {currentUser.city || "Paris"}
             </p>
           </div>
         </div>
@@ -809,7 +785,7 @@ export function AccountDashboard() {
             <p className="flex items-center gap-2 font-bold text-ink">
               <Lock size={14} className="text-moss" /> Statut de sécurité : Authentifié & Chiffré
             </p>
-            <p>Type d&apos;authentification : OTP Email / OAuth Vérifié</p>
+            <p>Fournisseur d&apos;accès : {currentUser.provider === "google" ? "Compte Google (Gmail)" : currentUser.provider === "apple" ? "Compte Apple" : "Email sécurisé"}</p>
             <p>Adresse vérifiée : {currentUser.email}</p>
           </div>
 

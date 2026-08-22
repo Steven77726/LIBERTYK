@@ -68,11 +68,11 @@ export function FavoritesDashboard() {
     return (
       <div className="grid min-h-[420px] place-items-center rounded-[2rem] bg-white p-8 text-center shadow-soft">
         <div>
-          <span className="mx-auto grid size-16 place-items-center rounded-full bg-sage text-moss"><Heart size={25} /></span>
-          <h2 className="mt-6 text-2xl font-semibold tracking-[-.04em]">No favorites yet.</h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink/45">Ajoutez une adresse en favori pour la retrouver automatiquement ici.</p>
+          <span className="mx-auto grid size-16 place-items-center rounded-full bg-[#f6ecd9] text-[#8f6424]"><Heart size={25} /></span>
+          <h2 className="mt-6 text-2xl font-bold tracking-[-.04em]">Aucun favori pour le moment</h2>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink/50">Cliquez sur le cœur d’une adresse ou d’une fiche pour la retrouver automatiquement ici.</p>
           {error && <p className="mx-auto mt-4 max-w-md rounded-2xl bg-rose-50 p-3 text-xs text-rose-700">{error}</p>}
-          <Link href="/" className="mt-7 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-xs font-semibold text-white">Explorer Liberty <ArrowRight size={14} /></Link>
+          <Link href="/" className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-ink px-6 py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss">Explorer les adresses Liberty <ArrowRight size={14} /></Link>
         </div>
       </div>
     );

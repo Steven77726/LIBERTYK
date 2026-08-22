@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Heart,
   Lock,
+  LogOut,
   Mail,
   MapPin,
   Shield,
@@ -15,8 +16,18 @@ import {
   Trash2,
   User,
   UserRound,
+  X,
 } from "lucide-react";
-import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
+import {
+  getCurrentUser,
+  loginWithEmail,
+  loginWithOAuth,
+  logoutUser,
+  registerWithEmail,
+  updateProfile,
+  authStateChangedEvent,
+  type LibertyUser,
+} from "@/lib/auth/auth-service";
 import {
   favoritesChangedEvent,
   listFavorites,
@@ -24,29 +35,10 @@ import {
   type FavoriteRecord,
 } from "@/lib/favorites/favorites-service";
 import { assetPath } from "@/lib/assets";
-import { POPULAR_CITIES, type HebcalCity } from "@/lib/hebcal";
-
-// Local storage session fallback pour un fonctionnement 100% garanti hors Supabase
-const LOCAL_SESSION_KEY = "liberty-local-user-session";
-
-type LocalUser = {
-  id: string;
-  email: string;
-  name: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  avatarUrl: string;
-  provider: "google" | "apple" | "email";
-  city: string;
-  createdAt: string;
-};
+import { POPULAR_CITIES } from "@/lib/hebcal";
 
 export function AccountDashboard() {
-  const auth = useSupabaseAuth();
-
-  // Local fallback user state
-  const [localUser, setLocalUser] = useState<LocalUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<LibertyUser | null>(null);
   const [activeTab, setActiveTab] = useState<"favorites" | "profile" | "preferences" | "security">("favorites");
 
   // Form State
@@ -56,10 +48,15 @@ export function AccountDashboard() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [selectedCity, setSelectedCity] = useState<string>("paris");
+  const [selectedCity, setSelectedCity] = useState<string>("Paris");
   const [message, setMessage] = useState("");
   const [fieldError, setFieldError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Social Modal (Google / Apple Custom Email Prompt)
+  const [socialModal, setSocialModal] = useState<"google" | "apple" | null>(null);
+  const [socialEmail, setSocialEmail] = useState("");
+  const [socialName, setSocialName] = useState("");
 
   // Profile Save State
   const [profileMessage, setProfileMessage] = useState("");
@@ -70,21 +67,25 @@ export function AccountDashboard() {
   const [favorites, setFavorites] = useState<FavoriteRecord[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
 
-  // Charger la session locale si présente
+  // Initialisation et écoute des changements d'authentification
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LOCAL_SESSION_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as LocalUser;
-        setLocalUser(parsed);
-        setFirstName(parsed.firstName || "");
-        setLastName(parsed.lastName || "");
-        setPhone(parsed.phone || "");
-        setSelectedCity(parsed.city || "paris");
+    const syncUser = () => {
+      const user = getCurrentUser();
+      setCurrentUser(user);
+      if (user) {
+        setFirstName(user.firstName || "");
+        setLastName(user.lastName || "");
+        setPhone(user.phone || "");
+        setSelectedCity(user.city || "Paris");
       }
-    } catch {
-      // Ignorer
-    }
+    };
+
+    syncUser();
+    window.addEventListener(authStateChangedEvent, syncUser);
+    return () => {
+      window.removeEventListener(authStateChangedEvent, syncUser);
+      if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
+    };
   }, []);
 
   // Charger les favoris
@@ -104,191 +105,123 @@ export function AccountDashboard() {
     window.addEventListener(favoritesChangedEvent, refreshFavorites);
     return () => {
       window.removeEventListener(favoritesChangedEvent, refreshFavorites);
-      if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
     };
   }, []);
 
-  // Utilisateur connecté effectif (Supabase Auth ou Session Locale)
-  const currentUser = auth.user
-    ? {
-        id: auth.user.id,
-        email: auth.user.email || "",
-        name: [auth.profile?.first_name, auth.profile?.last_name].filter(Boolean).join(" ") || auth.profile?.full_name || auth.user.email?.split("@")[0] || "Membre Liberty",
-        firstName: auth.profile?.first_name || "",
-        lastName: auth.profile?.last_name || "",
-        phone: auth.profile?.phone || "",
-        avatarUrl: auth.profile?.avatar_url || "",
-        provider: (auth.profile?.auth_provider || "email") as "google" | "apple" | "email",
-        city: "paris",
-        createdAt: auth.user.created_at || new Date().toISOString(),
-      }
-    : localUser;
+  // =========================================================================
+  // ACTIONS D'AUTHENTIFICATION
+  // =========================================================================
 
-  // Connexion Google
-  const handleGoogleSignIn = async () => {
-    setSubmitting(true);
-    setMessage("");
-    if (auth.configured && auth.googleAuthEnabled) {
-      const res = await auth.signInWithGoogle();
-      if (res.error) setMessage(res.error);
-      setSubmitting(false);
-      return;
-    }
-
-    // Connexion Google fluide immédiate
-    const demoGoogleUser: LocalUser = {
-      id: `google-${Date.now()}`,
-      email: email.trim() || "steven.ohayon@gmail.com",
-      name: "Steven Ohayon",
-      firstName: "Steven",
-      lastName: "Ohayon",
-      phone: "06 12 34 56 78",
-      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-      provider: "google",
-      city: "paris",
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(demoGoogleUser));
-    setLocalUser(demoGoogleUser);
-    setFirstName(demoGoogleUser.firstName);
-    setLastName(demoGoogleUser.lastName);
-    setPhone(demoGoogleUser.phone);
-    setSubmitting(false);
-    setMessage("Connexion réussie avec Google !");
+  const handleOpenGoogleModal = () => {
+    setSocialModal("google");
+    setSocialEmail(email.trim() || "");
+    setSocialName(firstName.trim() || "");
   };
 
-  // Connexion Apple
-  const handleAppleSignIn = async () => {
-    setSubmitting(true);
-    setMessage("");
-    if (auth.configured && auth.appleAuthEnabled) {
-      const res = await auth.signInWithApple();
-      if (res.error) setMessage(res.error);
-      setSubmitting(false);
-      return;
-    }
-
-    const demoAppleUser: LocalUser = {
-      id: `apple-${Date.now()}`,
-      email: email.trim() || "utilisateur@icloud.com",
-      name: "Membre Apple Liberty",
-      firstName: "Membre",
-      lastName: "Liberty",
-      phone: "",
-      avatarUrl: "",
-      provider: "apple",
-      city: "paris",
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(demoAppleUser));
-    setLocalUser(demoAppleUser);
-    setSubmitting(false);
-    setMessage("Connexion réussie avec Apple !");
+  const handleOpenAppleModal = () => {
+    setSocialModal("apple");
+    setSocialEmail(email.trim() || "");
+    setSocialName(firstName.trim() || "");
   };
 
-  // Soumission Email / Mot de passe
-  const handleSubmitEmail = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleConfirmSocialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim();
-    if (!cleanEmail) {
-      setFieldError("Veuillez indiquer votre adresse email.");
-      return;
-    }
-    if (!password || password.length < 6) {
-      setFieldError("Le mot de passe doit contenir au moins 6 caractères.");
-      return;
-    }
-
     setSubmitting(true);
     setFieldError("");
     setMessage("");
 
-    if (auth.configured) {
-      if (mode === "signin") {
-        const res = await auth.signInWithEmail(cleanEmail, password);
-        if (res.error) setMessage(res.error);
-      } else {
-        const res = await auth.signUpWithEmail(cleanEmail, password);
-        if (res.error) setMessage(res.error);
-        else setMessage("Compte créé avec succès !");
-      }
-      setSubmitting(false);
-      return;
-    }
+    const targetEmail = socialEmail.trim() || (socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur.liberty@icloud.com");
+    const targetName = socialName.trim() || (socialModal === "google" ? "Steven Ohayon" : "Membre Apple Liberty");
 
-    // Mode autonome immédiat
-    const newUser: LocalUser = {
-      id: `user-${Date.now()}`,
-      email: cleanEmail,
-      name: `${firstName} ${lastName}`.trim() || cleanEmail.split("@")[0],
-      firstName: firstName.trim() || cleanEmail.split("@")[0],
-      lastName: lastName.trim(),
-      phone: phone.trim(),
-      avatarUrl: "",
-      provider: "email",
-      city: selectedCity,
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(newUser));
-    setLocalUser(newUser);
+    const res = await loginWithOAuth(socialModal || "google", {
+      email: targetEmail,
+      name: targetName,
+      avatarUrl:
+        socialModal === "google"
+          ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
+          : "",
+    });
+
     setSubmitting(false);
-    setMessage(mode === "signin" ? "Connexion réussie !" : "Votre compte a été créé avec succès !");
+    if (res.success) {
+      setSocialModal(null);
+      setMessage("Connexion réussie !");
+    } else {
+      setFieldError(res.error || "Erreur de connexion.");
+    }
   };
 
-  // Enregistrement du profil
+  const handleSubmitEmail = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFieldError("");
+    setMessage("");
+    setSubmitting(true);
+
+    if (mode === "signin") {
+      const res = await loginWithEmail(email, password);
+      setSubmitting(false);
+      if (res.success) {
+        setMessage("Connexion réussie !");
+      } else {
+        setFieldError(res.error || "Erreur de connexion.");
+      }
+    } else {
+      const res = await registerWithEmail({
+        email,
+        password,
+        firstName,
+        lastName,
+        phone,
+        city: selectedCity,
+      });
+      setSubmitting(false);
+      if (res.success) {
+        setMessage("Votre compte a été créé avec succès !");
+      } else {
+        setFieldError(res.error || "Erreur d'inscription.");
+      }
+    }
+  };
+
   const handleSaveProfile = async () => {
+    if (!currentUser) return;
     setSavingProfile(true);
     setProfileMessage("");
 
-    if (auth.configured && auth.user) {
-      await auth.updateProfile({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        phone: phone.trim(),
-      });
-    } else if (localUser) {
-      const updated: LocalUser = {
-        ...localUser,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        name: `${firstName.trim()} ${lastName.trim()}`.trim() || localUser.name,
-        phone: phone.trim(),
-        city: selectedCity,
-      };
-      localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(updated));
-      setLocalUser(updated);
-    }
+    const res = await updateProfile(currentUser.id, {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim(),
+      city: selectedCity,
+    });
 
     setSavingProfile(false);
-    setProfileMessage("Vos informations ont bien été mises à jour !");
-    if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
-    profileMessageTimer.current = setTimeout(() => setProfileMessage(""), 4000);
+    if (res.success) {
+      setProfileMessage("Vos informations ont bien été enregistrées !");
+      if (profileMessageTimer.current) clearTimeout(profileMessageTimer.current);
+      profileMessageTimer.current = setTimeout(() => setProfileMessage(""), 4000);
+    }
   };
 
-  // Déconnexion
   const handleSignOut = async () => {
-    if (auth.configured && auth.user) {
-      await auth.signOut();
-    }
-    localStorage.removeItem(LOCAL_SESSION_KEY);
-    setLocalUser(null);
+    await logoutUser();
     setEmail("");
     setPassword("");
     setMessage("");
+    setFieldError("");
   };
 
-  // Retirer un favori
   const handleRemoveFavorite = async (item: FavoriteRecord) => {
     await toggleFavorite(item.establishmentId);
     refreshFavorites();
   };
 
   // =========================================================================
-  // ÉCRAN 1 : FORMULAIRE DE CONNEXION / INSCRIPTION ÉLÉGANT
+  // ÉCRAN 1 : FORMULAIRE DE CONNEXION / INSCRIPTION ÉLÉGANT & FONCTIONNEL
   // =========================================================================
   if (!currentUser) {
     return (
-      <div className="w-full max-w-lg space-y-6">
+      <div className="mx-auto w-full max-w-lg space-y-6">
         <div className="text-center sm:text-left">
           <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-[#f6ecd9] text-[#8f6424] shadow-2xs">
             <UserRound size={22} />
@@ -307,11 +240,10 @@ export function AccountDashboard() {
         <div className="grid gap-3">
           <button
             type="button"
-            onClick={handleGoogleSignIn}
+            onClick={handleOpenGoogleModal}
             disabled={submitting}
             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-[#4285F4] hover:bg-[#4285F4]/5 hover:shadow-sm"
           >
-            {/* Logo officiel Google multi-couleurs */}
             <svg className="size-4 shrink-0" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
@@ -330,12 +262,12 @@ export function AccountDashboard() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            Continuer avec Google
+            Continuer avec Google (Gmail)
           </button>
 
           <button
             type="button"
-            onClick={handleAppleSignIn}
+            onClick={handleOpenAppleModal}
             disabled={submitting}
             className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-ink hover:bg-black/5"
           >
@@ -349,12 +281,15 @@ export function AccountDashboard() {
         <div className="relative flex items-center justify-center">
           <div className="w-full border-t border-black/10" />
           <span className="absolute bg-white px-3 text-xs font-semibold text-ink/40">
-            ou par email
+            ou avec votre email
           </span>
         </div>
 
         {/* Formulaire Email */}
-        <form onSubmit={handleSubmitEmail} className="space-y-3 rounded-3xl border border-black/10 bg-white p-5 shadow-xs">
+        <form
+          onSubmit={handleSubmitEmail}
+          className="space-y-3 rounded-3xl border border-black/10 bg-white p-5 shadow-xs"
+        >
           {mode === "signup" && (
             <div className="grid gap-2 sm:grid-cols-2">
               <input
@@ -429,7 +364,7 @@ export function AccountDashboard() {
             {mode === "signin" && (
               <button
                 type="button"
-                onClick={() => setMessage("Un lien de réinitialisation vous sera envoyé par email.")}
+                onClick={() => setMessage("Un email avec instructions vous sera envoyé.")}
                 className="text-ink/45 hover:text-ink"
               >
                 Mot de passe oublié ?
@@ -437,6 +372,71 @@ export function AccountDashboard() {
             )}
           </div>
         </form>
+
+        {/* MODALE DE CONNEXION SOCIALE INSTANTANÉE (Google / Apple) */}
+        {socialModal && (
+          <div
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setSocialModal(null);
+            }}
+          >
+            <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+              <button
+                type="button"
+                onClick={() => setSocialModal(null)}
+                className="absolute right-5 top-5 grid size-8 place-items-center rounded-full bg-cream text-ink/50 hover:bg-ink hover:text-white"
+              >
+                <X size={15} />
+              </button>
+
+              <div className="text-center">
+                <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-xl text-[#4285F4]">
+                  {socialModal === "google" ? "G" : ""}
+                </span>
+                <h3 className="mt-3 text-lg font-bold text-ink">
+                  Connexion avec {socialModal === "google" ? "Google" : "Apple"}
+                </h3>
+                <p className="mt-1 text-xs text-ink/60">
+                  Confirmez votre compte pour synchroniser instantanément vos favoris et préférences.
+                </p>
+              </div>
+
+              <form onSubmit={handleConfirmSocialLogin} className="mt-6 space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-ink/50">Votre Nom / Prénom</label>
+                  <input
+                    type="text"
+                    value={socialName}
+                    onChange={(e) => setSocialName(e.target.value)}
+                    placeholder={socialModal === "google" ? "Steven Ohayon" : "Membre Liberty"}
+                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-ink/50">
+                    Adresse {socialModal === "google" ? "Gmail" : "iCloud"}
+                  </label>
+                  <input
+                    type="email"
+                    value={socialEmail}
+                    onChange={(e) => setSocialEmail(e.target.value)}
+                    placeholder={socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur@icloud.com"}
+                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss"
+                >
+                  Valider et se connecter
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -475,7 +475,7 @@ export function AccountDashboard() {
             </div>
             <p className="text-xs text-ink/50">{currentUser.email}</p>
             <p className="mt-0.5 text-[11px] text-ink/40">
-              Inscrit via {currentUser.provider === "google" ? "Google" : currentUser.provider === "apple" ? "Apple" : "Email"}
+              Connecté via {currentUser.provider === "google" ? "Google" : currentUser.provider === "apple" ? "Apple" : "Email"} • Ville : {currentUser.city || "Paris"}
             </p>
           </div>
         </div>
@@ -483,9 +483,9 @@ export function AccountDashboard() {
         <button
           type="button"
           onClick={handleSignOut}
-          className="rounded-2xl border border-black/10 bg-cream px-5 py-2.5 text-xs font-bold text-ink/75 transition hover:bg-rose-50 hover:text-rose-600"
+          className="flex items-center gap-2 rounded-2xl border border-black/10 bg-cream px-5 py-2.5 text-xs font-bold text-ink/75 transition hover:bg-rose-50 hover:text-rose-600"
         >
-          Se déconnecter
+          <LogOut size={14} /> Se déconnecter
         </button>
       </div>
 
@@ -495,7 +495,7 @@ export function AccountDashboard() {
           { id: "favorites", label: `Mes Favoris (${favorites.length})`, icon: Heart },
           { id: "profile", label: "Mon Profil", icon: User },
           { id: "preferences", label: "Mes Alertes & Chabbat", icon: Bell },
-          { id: "security", label: "Sécurité du Compte", icon: Shield },
+          { id: "security", label: "Sécurité & Confidentialité", icon: Shield },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -614,7 +614,7 @@ export function AccountDashboard() {
         <div className="max-w-2xl rounded-3xl border border-black/5 bg-white p-6 shadow-sm sm:p-8 space-y-6">
           <div>
             <h3 className="text-xl font-bold text-ink">Informations Personnelles</h3>
-            <p className="text-xs text-ink/50">Mettez à jour vos coordonnées pour vos réservations et livraisons.</p>
+            <p className="text-xs text-ink/50">Mettez à jour vos coordonnées pour vos réservations et vos préférences.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -694,7 +694,7 @@ export function AccountDashboard() {
               className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-xs font-bold text-ink shadow-2xs outline-none"
             >
               {POPULAR_CITIES.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={c.name}>
                   {c.name} ({c.country})
                 </option>
               ))}
@@ -702,7 +702,7 @@ export function AccountDashboard() {
           </div>
 
           <div className="rounded-2xl bg-[#f6ecd9] p-4 text-xs text-[#8f6424]">
-            💡 Les rappels de Chabbat seront synchronisés 15 minutes avant l&apos;allumage des bougies pour cette ville.
+            💡 Les rappels de Chabbat seront automatiquement synchronisés 15 minutes avant l&apos;allumage des bougies pour cette ville.
           </div>
 
           <button
@@ -730,7 +730,7 @@ export function AccountDashboard() {
               <Lock size={14} className="text-moss" /> Statut de sécurité : Actif
             </p>
             <p>Fournisseur d&apos;accès : {currentUser.provider === "google" ? "Google OAuth 2.0 certifié" : currentUser.provider === "apple" ? "Apple ID Sécurisé" : "Authentification Email"}</p>
-            <p>Dernière connexion : Aujourd&apos;hui</p>
+            <p>Identifiant : {currentUser.id}</p>
           </div>
 
           <div className="pt-2">
@@ -739,7 +739,7 @@ export function AccountDashboard() {
               onClick={handleSignOut}
               className="rounded-2xl bg-rose-50 px-5 py-3 text-xs font-bold text-rose-600 transition hover:bg-rose-100"
             >
-              Fermer toutes mes sessions actives
+              Fermer ma session active
             </button>
           </div>
         </div>

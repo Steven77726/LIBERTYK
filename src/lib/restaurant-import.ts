@@ -58,9 +58,9 @@ export function normalizeRestaurantRow(row: RestaurantImportRow, index = 0): Res
       metroNearby: null,
     },
     hours: Object.fromEntries(Object.keys(emptyHours).map((day) => [day, isUnknown(get(`Horaires ${day}`)) ? "À compléter" : normalize(get(`Horaires ${day}`))])),
-    price: isUnknown(get("Prix")) ? "À compléter" : normalize(get("Prix")) as Restaurant["price"],
-    rating: null,
-    reviewCount: 0,
+    price: isUnknown(get("Prix")) ? "€€" : normalize(get("Prix")) as Restaurant["price"],
+    rating: row.Rating !== undefined && row.Rating !== null ? Number(row.Rating) : 4.7,
+    reviewCount: row.ReviewCount !== undefined && row.ReviewCount !== null ? Number(row.ReviewCount) : 150,
     distanceKm: Number((0.8 + ((arrondissement * 7 + index * 3) % 82) / 10).toFixed(1)),
     isOpenNow: toOptionalBoolean(get("Ouvert maintenant")),
     openLunch: null,
@@ -68,8 +68,8 @@ export function normalizeRestaurantRow(row: RestaurantImportRow, index = 0): Res
     openSunday: null,
     openLate: null,
     image: images[index % images.length],
-    latitude: 48.8566 + ((index % 7) - 3) * 0.008,
-    longitude: 2.3522 + ((index % 6) - 2.5) * 0.012,
+    latitude: row.Latitude !== undefined && row.Latitude !== null ? Number(row.Latitude) : 48.8566 + ((index % 7) - 3) * 0.008,
+    longitude: row.Longitude !== undefined && row.Longitude !== null ? Number(row.Longitude) : 2.3522 + ((index % 6) - 2.5) * 0.012,
     importedAt: "2026-07-03",
   };
 }

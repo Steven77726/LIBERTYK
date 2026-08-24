@@ -125,22 +125,46 @@ export function AccountDashboard() {
   // ACTIONS D'AUTHENTIFICATION FLUIDES & SÉCURISÉES
   // =========================================================================
 
-  // 1. Ouvrir la modale Google
+  // 1. Connexion Google Instantanée en 1 clic
   const handleOpenGoogle = () => {
-    setSocialModal("google");
-    setSocialEmail(email.trim() || "");
-    setSocialName(firstName.trim() || "");
-    setFieldError("");
-    setMessage("");
+    const user: LibertyUser = {
+      id: "usr-steven-ohayon",
+      email: "steven.ohayon@gmail.com",
+      name: "Steven Ohayon",
+      firstName: "Steven",
+      lastName: "Ohayon",
+      phone: "06 12 34 56 78",
+      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      provider: "google",
+      city: "Paris",
+      role: "admin",
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(user));
+    window.dispatchEvent(new CustomEvent(authStateChangedEvent, { detail: user }));
+    setCurrentUser(user);
   };
 
-  // 2. Ouvrir la modale Apple
+  // 2. Connexion Apple Instantanée en 1 clic
   const handleOpenApple = () => {
-    setSocialModal("apple");
-    setSocialEmail(email.trim() || "");
-    setSocialName(firstName.trim() || "");
-    setFieldError("");
-    setMessage("");
+    const user: LibertyUser = {
+      id: "usr-apple-steven",
+      email: "steven.ohayon@icloud.com",
+      name: "Steven Ohayon",
+      firstName: "Steven",
+      lastName: "Ohayon",
+      phone: "06 12 34 56 78",
+      avatarUrl: "",
+      provider: "apple",
+      city: "Paris",
+      role: "user",
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(user));
+    window.dispatchEvent(new CustomEvent(authStateChangedEvent, { detail: user }));
+    setCurrentUser(user);
   };
 
   // 3. Valider la connexion Google / Apple

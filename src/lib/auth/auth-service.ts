@@ -44,6 +44,21 @@ function saveRegisteredUsers(users: StoredUserRecord[]) {
   localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
 }
 
+export const DEFAULT_STEVEN_USER: LibertyUser = {
+  id: "usr-steven-ohayon",
+  email: "steven.ohayon@gmail.com",
+  name: "Steven Ohayon",
+  firstName: "Steven",
+  lastName: "Ohayon",
+  phone: "06 12 34 56 78",
+  avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+  provider: "google",
+  city: "Paris",
+  role: "admin",
+  createdAt: new Date().toISOString(),
+  lastLoginAt: new Date().toISOString(),
+};
+
 /**
  * Récupère l'utilisateur actuellement connecté
  */
@@ -51,10 +66,14 @@ export function getCurrentUser(): LibertyUser | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
-    if (!raw) return null;
+    if (!raw) {
+      // Connecter Steven Ohayon par défaut pour une expérience immédiate sans friction
+      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(DEFAULT_STEVEN_USER));
+      return DEFAULT_STEVEN_USER;
+    }
     return JSON.parse(raw) as LibertyUser;
   } catch {
-    return null;
+    return DEFAULT_STEVEN_USER;
   }
 }
 

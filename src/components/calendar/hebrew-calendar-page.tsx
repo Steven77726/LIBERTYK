@@ -15,8 +15,10 @@ import {
   Navigation,
   Search,
   Share2,
+  Smartphone,
   Sparkles,
   Sun,
+  X,
 } from "lucide-react";
 import {
   fetchCurrentHebrewDate,
@@ -44,6 +46,8 @@ export function HebrewCalendarPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
+  const [showRotateHint, setShowRotateHint] = useState<boolean>(true);
 
   // Modale d'exportation
   const [modalEvent, setModalEvent] = useState<{
@@ -163,6 +167,21 @@ export function HebrewCalendarPage() {
     }
     return days;
   }, [selectedYear, selectedMonth, holidays]);
+
+  // Jour actif sélectionné (ou aujourd'hui / premier jour avec fête par défaut)
+  const activeDay = useMemo(() => {
+    const currentMonthDays = monthDays.filter((d) => d.isCurrentMonth);
+    if (!currentMonthDays.length) return null;
+    if (selectedDayDate) {
+      const found = currentMonthDays.find((d) => d.dateIso === selectedDayDate);
+      if (found) return found;
+    }
+    const today = currentMonthDays.find((d) => d.isToday);
+    if (today) return today;
+    const withEvents = currentMonthDays.find((d) => d.events && d.events.length > 0);
+    if (withEvents) return withEvents;
+    return currentMonthDays[0];
+  }, [monthDays, selectedDayDate]);
 
   const openExportModalForShabbat = () => {
     if (!shabbatTimes) return;
@@ -598,124 +617,271 @@ export function HebrewCalendarPage() {
           )}
 
           {/* ========================================================================= */}
-          {/* VUE 2 : CALENDRIER MENSUEL INTERACTIF */}
+          {/* VUE 2 : CALENDRIER MENSUEL INTERACTIF & OPTIMISÉ IPHONE */}
           {/* ========================================================================= */}
           {viewMode === "calendar" && (
-            <div className="rounded-3xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8">
-              {/* Navigation de mois */}
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-ink sm:text-2xl">
-                    {monthNames[selectedMonth]} {selectedYear}
-                  </h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedMonth === 0) {
-                        setSelectedMonth(11);
-                        setSelectedYear((y) => y - 1);
-                      } else {
-                        setSelectedMonth((m) => m - 1);
-                      }
-                    }}
-                    className="grid size-9 place-items-center rounded-full bg-cream text-ink/60 transition hover:bg-ink hover:text-white"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedMonth(new Date().getMonth());
-                      setSelectedYear(new Date().getFullYear());
-                    }}
-                    className="rounded-full bg-cream px-3 py-1.5 text-xs font-semibold text-ink/70 hover:bg-ink hover:text-white"
-                  >
-                    Aujourd&apos;hui
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedMonth === 11) {
-                        setSelectedMonth(0);
-                        setSelectedYear((y) => y + 1);
-                      } else {
-                        setSelectedMonth((m) => m + 1);
-                      }
-                    }}
-                    className="grid size-9 place-items-center rounded-full bg-cream text-ink/60 transition hover:bg-ink hover:text-white"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Grille du calendrier */}
-              <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold text-ink/40 mb-2">
-                <span>Lun</span>
-                <span>Mar</span>
-                <span>Mer</span>
-                <span>Jeu</span>
-                <span>Ven</span>
-                <span className="text-moss">Sam</span>
-                <span>Dim</span>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                {monthDays.map((day, idx) => {
-                  if (!day.isCurrentMonth) {
-                    return (
-                      <div
-                        key={idx}
-                        className="min-h-20 sm:min-h-24 rounded-2xl bg-cream/20 p-2 opacity-30"
-                      />
-                    );
-                  }
-
-                  const hasEvents = day.events && day.events.length > 0;
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`min-h-20 sm:min-h-24 flex flex-col justify-between rounded-2xl p-2 sm:p-2.5 text-left border transition ${
-                        day.isToday
-                          ? "border-moss bg-moss/5 shadow-2xs"
-                          : hasEvents
-                          ? "border-black/10 bg-white hover:border-black/20"
-                          : "border-black/5 bg-cream/30"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs font-bold ${
-                            day.isToday
-                              ? "grid size-6 place-items-center rounded-full bg-moss text-white"
-                              : "text-ink"
-                          }`}
-                        >
-                          {day.dayNumber}
-                        </span>
-                      </div>
-
-                      {/* Événements du jour */}
-                      <div className="mt-1 space-y-1">
-                        {day.events?.map((ev) => (
-                          <button
-                            key={ev.id}
-                            type="button"
-                            onClick={() => openExportModalForHoliday(ev)}
-                            className="w-full truncate rounded-lg bg-[#f6ecd9] px-1.5 py-0.5 text-[10px] font-bold text-[#8f6424] text-left hover:bg-moss hover:text-white transition"
-                            title={`${ev.titleFr} - Cliquer pour ajouter à l'agenda`}
-                          >
-                            {ev.titleFr}
-                          </button>
-                        ))}
+            <div className="space-y-6">
+              {/* BANDEAU INDICATEUR IPHONE / MOBILE : TOURNER EN PAYSAGE */}
+              {showRotateHint && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#8f6424]/20 bg-[#f6ecd9]/90 px-4 py-3 text-xs text-[#8f6424] shadow-xs sm:hidden">
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/80 shadow-2xs">
+                      {/* Icône smartphone animée avec rotation douce toutes les 3s */}
+                      <div className="animate-rotate-device text-[#8f6424]">
+                        <Smartphone size={20} />
                       </div>
                     </div>
-                  );
-                })}
+                    <div>
+                      <p className="font-bold leading-snug">
+                        Tournez votre iPhone à l&apos;horizontale
+                      </p>
+                      <p className="text-[11px] opacity-80 leading-snug">
+                        Basculez en mode paysage pour voir tout le mois en grand, ou touchez un jour ci-dessous.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRotateHint(false)}
+                    className="grid size-6 shrink-0 place-items-center rounded-full bg-white/60 text-[#8f6424] hover:bg-white"
+                    aria-label="Fermer le conseil"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
+              <div className="rounded-3xl border border-black/[.06] bg-white p-4 shadow-sm sm:p-8">
+                {/* Navigation de mois */}
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-ink sm:text-2xl">
+                      {monthNames[selectedMonth]} {selectedYear}
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedMonth === 0) {
+                          setSelectedMonth(11);
+                          setSelectedYear((y) => y - 1);
+                        } else {
+                          setSelectedMonth((m) => m - 1);
+                        }
+                      }}
+                      className="grid size-9 place-items-center rounded-full bg-cream text-ink/60 transition hover:bg-ink hover:text-white"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedMonth(new Date().getMonth());
+                        setSelectedYear(new Date().getFullYear());
+                        setSelectedDayDate(new Date().toISOString().split("T")[0]);
+                      }}
+                      className="rounded-full bg-cream px-3 py-1.5 text-xs font-semibold text-ink/70 hover:bg-ink hover:text-white"
+                    >
+                      Aujourd&apos;hui
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedMonth === 11) {
+                          setSelectedMonth(0);
+                          setSelectedYear((y) => y + 1);
+                        } else {
+                          setSelectedMonth((m) => m + 1);
+                        }
+                      }}
+                      className="grid size-9 place-items-center rounded-full bg-cream text-ink/60 transition hover:bg-ink hover:text-white"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* En-tête des jours */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold text-ink/40 mb-2">
+                  <span>Lun</span>
+                  <span>Mar</span>
+                  <span>Mer</span>
+                  <span>Jeu</span>
+                  <span>Ven</span>
+                  <span className="text-moss">Sam</span>
+                  <span>Dim</span>
+                </div>
+
+                {/* Grille des jours */}
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {monthDays.map((day, idx) => {
+                    if (!day.isCurrentMonth) {
+                      return (
+                        <div
+                          key={idx}
+                          className="min-h-14 sm:min-h-24 rounded-2xl bg-cream/20 p-1 sm:p-2 opacity-30"
+                        />
+                      );
+                    }
+
+                    const hasEvents = day.events && day.events.length > 0;
+                    const isSelected = selectedDayDate === day.dateIso || (!selectedDayDate && day.isToday);
+
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedDayDate(day.dateIso)}
+                        className={`min-h-14 sm:min-h-24 flex flex-col justify-between rounded-2xl p-1.5 sm:p-2.5 text-left border transition cursor-pointer ${
+                          isSelected
+                            ? "border-[#8f6424] bg-[#f6ecd9]/40 ring-2 ring-[#8f6424]/30 shadow-xs"
+                            : day.isToday
+                            ? "border-moss bg-moss/5 shadow-2xs"
+                            : hasEvents
+                            ? "border-black/10 bg-white hover:border-black/25 hover:shadow-2xs"
+                            : "border-black/5 bg-cream/25 hover:bg-cream/50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span
+                            className={`text-xs font-bold ${
+                              day.isToday
+                                ? "grid size-6 place-items-center rounded-full bg-moss text-white"
+                                : isSelected
+                                ? "text-[#8f6424] font-black"
+                                : "text-ink"
+                            }`}
+                          >
+                            {day.dayNumber}
+                          </span>
+
+                          {/* Pastille mobile tactile */}
+                          {hasEvents && (
+                            <span className="sm:hidden flex items-center gap-0.5">
+                              {day.events?.slice(0, 2).map((ev, i) => (
+                                <span
+                                  key={i}
+                                  className={`size-2 rounded-full ${
+                                    ev.category === "major"
+                                      ? "bg-[#8f6424]"
+                                      : ev.category === "fast"
+                                      ? "bg-rose-500"
+                                      : "bg-moss"
+                                  }`}
+                                />
+                              ))}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Événements complets visibles sur grand écran et en mode paysage */}
+                        <div className="mt-1 space-y-1 hidden sm:block landscape:block w-full">
+                          {day.events?.map((ev) => (
+                            <div
+                              key={ev.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openExportModalForHoliday(ev);
+                              }}
+                              className="w-full truncate rounded-lg bg-[#f6ecd9] px-1.5 py-0.5 text-[10px] font-bold text-[#8f6424] text-left hover:bg-moss hover:text-white transition"
+                              title={`${ev.titleFr} - Cliquer pour ajouter à l'agenda`}
+                            >
+                              {ev.titleFr}
+                            </div>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* ========================================================================= */}
+              {/* PANNEAU INTERACTIF DU JOUR SÉLECTIONNÉ (LISIBLE ET CLAIR SUR MOBILE) */}
+              {/* ========================================================================= */}
+              {activeDay && (
+                <div className="rounded-3xl border border-black/[.06] bg-white p-6 shadow-sm sm:p-8 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-black/5 pb-4">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-moss">
+                        Jour sélectionné
+                      </span>
+                      <h3 className="text-xl font-extrabold text-ink sm:text-2xl capitalize">
+                        {new Date(activeDay.dateIso).toLocaleDateString("fr-FR", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-[#f6ecd9] px-3.5 py-1 text-xs font-bold text-[#8f6424]">
+                        Ville : {selectedCity.name}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Liste des fêtes ou horaires du jour */}
+                  {activeDay.events && activeDay.events.length > 0 ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {activeDay.events.map((event) => (
+                        <div
+                          key={event.id}
+                          className="flex flex-col justify-between rounded-2xl border border-black/10 bg-[#fbf8f2] p-5 shadow-2xs space-y-4"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                  event.category === "major"
+                                    ? "bg-amber-100/80 text-amber-900"
+                                    : event.category === "fast"
+                                    ? "bg-rose-100 text-rose-800"
+                                    : "bg-neutral-200/80 text-ink/70"
+                                }`}
+                              >
+                                {event.categoryLabel}
+                              </span>
+                              {event.hebrewDate && (
+                                <span className="font-serif text-xs font-bold text-[#8f6424]">
+                                  {event.hebrewDate}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="mt-3 text-lg font-bold text-ink">{event.titleFr}</h4>
+                            {event.titleHe && (
+                              <p className="font-serif text-xs text-ink/50">{event.titleHe}</p>
+                            )}
+                            <p className="mt-2 text-xs leading-relaxed text-ink/70">
+                              {event.description}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => openExportModalForHoliday(event)}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-moss"
+                          >
+                            <CalendarIcon size={14} /> Ajouter {event.titleFr} à mon agenda
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-2xl bg-cream/40 p-8 text-center">
+                      <CalendarIcon size={28} className="text-ink/30 mb-2" />
+                      <p className="text-sm font-bold text-ink">Aucune fête majeure ce jour</p>
+                      <p className="text-xs text-ink/50 mt-1 max-w-md">
+                        Journée classique du calendrier hébraïque. Vous pouvez consulter les horaires de Chabbat pour ce week-end ci-dessus.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

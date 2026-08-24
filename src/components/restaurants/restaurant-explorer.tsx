@@ -13,7 +13,7 @@ import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-ra
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
 import { assetPath } from "@/lib/assets";
-import { LikeButton, ReviewButton, ShareButton } from "@/components/ui/entity-actions";
+import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
@@ -22,9 +22,7 @@ const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israéli
 const typeFilters = ["Viande", "Lait", "Parvé"];
 const serviceFilters = ["Sur place", "À emporter", "Livraison", "Click & Collect", "Réservation en ligne"];
 const availabilityFilters = ["Ouvert maintenant", "Ouvert le midi", "Ouvert le soir", "Ouvert le dimanche", "Ouvert tard"];
-const budgetFilters = ["Moins de 20 €", "20 € à 40 €", "40 € à 70 €", "Plus de 70 €"];
 const comfortFilters = ["Adapté aux familles", "Terrasse", "Wifi", "Menu enfant", "Privatisation"];
-const accessibilityFilters = ["Accessible PMR", "Parking", "Métro à moins de 500 mètres"];
 const locationFilters = ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"];
 const publicDefaultFieldVisibility: Record<string, boolean> = {
   phone: true,
@@ -169,38 +167,79 @@ function hourLinesToRecord(value?: string) {
   }, { ...fallback });
 }
 
+function parseTimeToMinutes(timeStr: string): number | null {
+  const t = timeStr.trim().toLowerCase().replace("h", ":");
+  const isPM = t.includes("pm");
+  const isAM = t.includes("am");
+  const clean = t.replace(/(am|pm)/g, "").trim();
+  const parts = clean.split(":");
+  let hour = Number(parts[0]);
+  let min = parts.length > 1 ? Number(parts[1]) : 0;
+  if (isNaN(hour)) return null;
+  if (isNaN(min)) min = 0;
+  if (isPM && hour < 12) hour += 12;
+  if (isAM && hour === 12) hour = 0;
+  return hour * 60 + min;
+}
+
 function getOpenStatus(restaurant: Restaurant) {
   const today = days[dayIndex()];
   const yesterday = days[(dayIndex() + 6) % 7];
   const text = restaurant.hours[today] ?? "";
+  const yesterdayText = restaurant.hours[yesterday] ?? "";
   const normalized = normalize(text);
+
   if (!hasMeaningfulHours(restaurant)) return { label: "Horaires non renseignés", open: null as boolean | null };
+
+  if (normalized.includes("24h") || normalized.includes("24/24")) {
+    return { label: "Ouvert 24h/24", open: true };
+  }
+  if (normalized === "ferme" || normalized.startsWith("ferme")) {
+    return { label: "Fermé aujourd'hui", open: false };
+  }
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   let closingTime = "";
+
+  const rangeRegex = /(\d{1,2}(?:[:h]\d{2})?\s*(?:am|pm)?)\s*(?:[–—\-–]|à|to)\s*(\d{1,2}(?:[:h]\d{2})?\s*(?:am|pm)?)/gi;
+
   const isOpenForText = (hoursText: string, previousDay = false) => {
     if (!hoursText || normalize(hoursText).includes("ferme")) return false;
-    const ranges = hoursText.match(/\d{1,2}[:h]\d{2}\s*[–-]\s*\d{1,2}[:h]\d{2}/g) ?? [];
-    return ranges.some((range) => {
-    const [start, end] = range.split(/[–-]/).map((part) => part.trim().replace("h", ":"));
-    const [startHour, startMinute] = start.split(":").map(Number);
-    const [endHour, endMinute] = end.split(":").map(Number);
-    const startMinutes = startHour * 60 + startMinute + (previousDay ? -24 * 60 : 0);
-    let endMinutes = endHour * 60 + endMinute + (previousDay ? -24 * 60 : 0);
-    const current = nowMinutes;
-    if (endMinutes < startMinutes) {
-      endMinutes += 24 * 60;
+    let isMatch = false;
+    let match: RegExpExecArray | null;
+    const re = new RegExp(rangeRegex.source, "gi");
+    while ((match = re.exec(hoursText)) !== null) {
+      const startMin = parseTimeToMinutes(match[1]);
+      const endMin = parseTimeToMinutes(match[2]);
+      if (startMin !== null && endMin !== null) {
+        const adjStart = startMin + (previousDay ? -24 * 60 : 0);
+        let adjEnd = endMin + (previousDay ? -24 * 60 : 0);
+        if (adjEnd < adjStart) {
+          adjEnd += 24 * 60;
+        }
+        if (nowMinutes >= adjStart && nowMinutes <= adjEnd) {
+          isMatch = true;
+          const endHour = Math.floor(endMin / 60) % 24;
+          const endMinute = endMin % 60;
+          closingTime = `${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
+        }
+      }
     }
-    const inRange = current >= startMinutes && current <= endMinutes;
-    if (inRange) closingTime = end;
-    return inRange;
-  });
+    return isMatch;
   };
-  const todayRanges = text.match(/\d{1,2}[:h]\d{2}\s*[–-]\s*\d{1,2}[:h]\d{2}/g) ?? [];
-  const isOpen = isOpenForText(text) || isOpenForText(restaurant.hours[yesterday] ?? "", true);
-  if (!todayRanges.length && normalized && !normalized.includes("ferme")) return { label: "Horaires disponibles", open: null as boolean | null };
-  return { label: isOpen ? (closingTime ? `Ouvert · Ferme à ${closingTime}` : "Ouvert maintenant") : "Fermé actuellement", open: isOpen };
+
+  const isOpen = isOpenForText(text) || isOpenForText(yesterdayText, true);
+  const hasRanges = rangeRegex.test(text);
+
+  if (!hasRanges && normalized && !normalized.includes("ferme")) {
+    return { label: "Horaires disponibles", open: null as boolean | null };
+  }
+
+  return {
+    label: isOpen ? (closingTime ? `Ouvert · Ferme à ${closingTime}` : "Ouvert maintenant") : "Fermé actuellement",
+    open: isOpen,
+  };
 }
 
 function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Restaurant[] {
@@ -521,31 +560,48 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         "Réservation en ligne": restaurant.services.reservation,
       };
       if (filters.filter((filter) => serviceFilters.includes(filter)).some((filter) => services[filter] !== true)) return false;
+
+      // Calcul dynamique basé sur les horaires Google Business
+      const openStatus = getOpenStatus(restaurant);
+      const isCurrentlyOpen = openStatus.open === true;
+
+      const hasLunch = restaurant.openLunch === true || Object.values(restaurant.hours).some((h) => {
+        const norm = normalize(h);
+        return !norm.includes("ferme") && !norm.includes("a completer") && /1[1-4][:h]/i.test(h);
+      });
+
+      const hasDinner = restaurant.openDinner === true || Object.values(restaurant.hours).some((h) => {
+        const norm = normalize(h);
+        return !norm.includes("ferme") && !norm.includes("a completer") && (/1[89][:h]/i.test(h) || /2[0-3][:h]/i.test(h));
+      });
+
+      const hasSunday = Boolean(restaurant.hours.dimanche?.trim()) && !normalize(restaurant.hours.dimanche).includes("ferme") && !normalize(restaurant.hours.dimanche).includes("a completer");
+
+      const hasLate = restaurant.openLate === true || Object.values(restaurant.hours).some((h) => {
+        const norm = normalize(h);
+        return !norm.includes("ferme") && !norm.includes("a completer") && (/2[3-4][:h]/i.test(h) || /0[0-2][:h]/i.test(h));
+      });
+
       const availability: Record<string, boolean | null> = {
-        "Ouvert maintenant": restaurant.isOpenNow, "Ouvert le midi": restaurant.openLunch,
-        "Ouvert le soir": restaurant.openDinner, "Ouvert le dimanche": restaurant.openSunday, "Ouvert tard": restaurant.openLate,
+        "Ouvert maintenant": isCurrentlyOpen,
+        "Ouvert le midi": hasLunch,
+        "Ouvert le soir": hasDinner,
+        "Ouvert le dimanche": hasSunday,
+        "Ouvert tard": hasLate,
       };
       if (filters.filter((filter) => availabilityFilters.includes(filter)).some((filter) => availability[filter] !== true)) return false;
-      if (filters.includes("Ouvert le dimanche") && !restaurant.hours.dimanche?.trim()) return false;
+
       const comfort: Record<string, boolean | null> = {
         "Adapté aux familles": restaurant.amenities.familyFriendly, "Terrasse": restaurant.amenities.terrace,
         "Wifi": restaurant.amenities.wifi, "Menu enfant": restaurant.amenities.kidsMenu, "Privatisation": restaurant.amenities.privateHire,
       };
       if (filters.filter((filter) => comfortFilters.includes(filter)).some((filter) => comfort[filter] !== true)) return false;
-      const accessibility: Record<string, boolean | null> = {
-        "Accessible PMR": restaurant.amenities.accessible, "Parking": restaurant.amenities.parking,
-        "Métro à moins de 500 mètres": restaurant.amenities.metroNearby,
-      };
-      if (filters.filter((filter) => accessibilityFilters.includes(filter)).some((filter) => accessibility[filter] !== true)) return false;
-      const budgetSelected = filters.filter((filter) => budgetFilters.includes(filter));
-      if (budgetSelected.length) {
-        const priceBucket: Record<string, string> = { "€": "Moins de 20 €", "€€": "20 € à 40 €", "€€€": "40 € à 70 €" };
-        if (!budgetSelected.includes(priceBucket[restaurant.price] ?? "")) return false;
-      }
+
       if (filters.includes("À moins de 2 km") && restaurant.distanceKm >= 2) return false;
       if (filters.includes("À moins de 5 km") && restaurant.distanceKm >= 5) return false;
       if (filters.includes("À moins de 10 km") && restaurant.distanceKm >= 10) return false;
-      const knownFilters = new Set([...cuisineFilters, ...typeFilters, ...serviceFilters, ...availabilityFilters, ...budgetFilters, ...comfortFilters, ...accessibilityFilters, ...locationFilters]);
+
+      const knownFilters = new Set([...cuisineFilters, ...typeFilters, ...serviceFilters, ...availabilityFilters, ...comfortFilters, ...locationFilters]);
       const smartFilters = filters.filter((filter) => !knownFilters.has(filter));
       if (smartFilters.length && !smartFilters.every((filter) => matchesSmartFilter(restaurant, filter))) return false;
       return true;
@@ -631,9 +687,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
             <FilterSection title="Type" options={typeFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Services" options={serviceFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Disponibilité" options={availabilityFilters} active={filters} toggle={toggleFilter} />
-            <FilterSection title="Budget" options={budgetFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Confort" options={comfortFilters} active={filters} toggle={toggleFilter} />
-            <FilterSection title="Accessibilité" options={accessibilityFilters} active={filters} toggle={toggleFilter} />
             <button onClick={() => setShowFilters(false)} className="sticky bottom-3 mt-5 w-full rounded-xl bg-ink py-3 text-xs font-semibold text-white lg:hidden">Voir {results.length} résultats</button>
           </aside>
 

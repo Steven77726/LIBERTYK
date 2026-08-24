@@ -201,7 +201,7 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
 
         if (isMajor) {
           cat = "major";
-          catLabel = item.yomtov ? "Yom Tov" : "Grande Fête";
+          catLabel = "Yom Tov";
         } else if (isFast) {
           cat = "fast";
           catLabel = "Jeûne";

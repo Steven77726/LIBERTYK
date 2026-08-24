@@ -563,7 +563,7 @@ export function HebrewCalendarPage() {
             <div className="flex flex-wrap items-center gap-2">
               {[
                 { id: "all", label: "Toutes les dates" },
-                { id: "major", label: "Grandes Fêtes (Yom Tov)" },
+                { id: "major", label: "Yom Tov" },
                 { id: "fast", label: "Jeûnes" },
                 { id: "roshchodesh", label: "Roch Hodech" },
                 { id: "minor", label: "Fêtes mineures" },

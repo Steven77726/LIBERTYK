@@ -221,7 +221,7 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
           category: cat,
           categoryLabel: catLabel,
           hebrewDate: item.hdate || "",
-          description: item.memo || getHolidayDescription(item.title),
+          description: getHolidayDescription(item.title, item.title_orig),
         };
       });
 
@@ -270,21 +270,146 @@ function translateHolidayTitle(title: string): string {
     .replace(/^Rosh Chodesh\s+/i, "Roch Hodech ");
 }
 
-function getHolidayDescription(title: string): string {
-  const t = title.toLowerCase();
-  if (t.includes("pessah") || t.includes("pesach")) return "Fête de la libération et de la sortie d'Égypte. Consommation de Matsot et interdiction du Hamets.";
-  if (t.includes("kippur") || t.includes("kippour")) return "Jour du Grand Pardon, 25 heures de jeûne total, prières de Kol Nidré et Néïla.";
-  if (t.includes("rosh hashana") || t.includes("hachana") || t.includes("hachanah")) return "Nouvel An juif (Yom Tov), sonnerie du Chofar, bénédictions sur la pomme trempée dans le miel.";
-  if (t.includes("sukkot") || t.includes("souccot") || t.includes("soukkot")) return "Fête des Cabanes (Yom Tov), séjour sous la Soucca et bénédiction sur les 4 espèces (Loulav, Etrog).";
-  if (t.includes("shemini") || t.includes("chemini")) return "Chemini Atséret : Fête solennelle de clôture, prière de la pluie (Guechem).";
-  if (t.includes("simchat") || t.includes("simhat") || t.includes("sim'hat")) return "Sim'hat Torah : Grande réjouissance marquant la fin et le recommencement du cycle de lecture de la Torah.";
-  if (t.includes("hochanah") || t.includes("hoshana")) return "Hochaana Raba : 7e jour de Souccot, 7 tours autour de la Téva et frappe des saules (Aravot).";
-  if (t.includes("hanoucca") || t.includes("chanukah") || t.includes("anoukah")) return "Fête des Lumières, allumage de la Ménorah pendant 8 soirs consécutifs.";
-  if (t.includes("purim") || t.includes("pourim")) return "Fête de la délivrance d'Esther, lecture de la Méguila, Michloah Manot et grand festin joyeux.";
-  if (t.includes("chavouot") || t.includes("shavuot") || t.includes("chavou'ot")) return "Fête du Don de la Torah au Mont Sinaï (Yom Tov). Consommation de mets lactés et nuit d'étude.";
-  if (t.includes("esther")) return "Jeûne de l'aube au coucher du soleil en mémoire du jeûne décrété par la reine Esther.";
-  if (t.includes("ticha") || t.includes("b'av")) return "Grand jeûne de 25 heures commémorant la destruction des deux Temples de Jérusalem.";
-  if (t.includes("rosh chodesh") || t.includes("hodech")) return "Début du nouveau mois hébraïque, prière de Hallel et Moussaf.";
+function getHolidayDescription(title: string, origTitle?: string): string {
+  const t = `${title} ${origTitle || ""}`.toLowerCase();
+
+  // Pessah
+  if (t.includes("erev pessah") || t.includes("erev pesach") || t.includes("veille de pessah")) {
+    return "Veille de Pessah : Recherche et élimination du Hamets (Bedikat Hamets), jeûne des premiers-nés et préparation du premier Séder.";
+  }
+  if (t.includes("pessah i") || t.includes("pesach i") || (t.includes("pessah") && t.includes("1er"))) {
+    return "1er jour de Pessah (Yom Tov) : Célébration de la sortie d'Égypte, lecture de la Haggadah, consommation des Matsot et des 4 coupes de vin lors du Séder.";
+  }
+  if (t.includes("pessah ii") || t.includes("pesach ii") || (t.includes("pessah") && t.includes("2e"))) {
+    return "2e jour de Pessah (Yom Tov en diaspora) : Deuxième Séder de Pessah et début du décompte solennel de l'Omer (Sefirat HaOmer).";
+  }
+  if (t.includes("pessah vii") || t.includes("pesach vii") || (t.includes("pessah") && t.includes("7e"))) {
+    return "7e jour de Pessah (Yom Tov) : Commémoration de l'ouverture de la Mer Rouge (Kriat Yam Souf) et chant du Cantique de la Mer (Chirat HaYam).";
+  }
+  if (t.includes("pessah viii") || t.includes("pesach viii") || (t.includes("pessah") && t.includes("8e"))) {
+    return "8e jour de Pessah (Dernier jour de Yom Tov) : Prière commémorative de Yizkor et repas festif du Machiah (Seoudat Machiah).";
+  }
+  if (t.includes("pessah cheni") || t.includes("pesach sheni")) {
+    return "Pessah Chéni : Seconde chance pour le sacrifice pascal un mois après Nissan, coutume de consommer de la matsa.";
+  }
+  if (t.includes("pessah") || t.includes("pesach")) {
+    return "Fête de Pessah (Hol Hamoed) : Demi-fête, interdiction de consommer du Hamets et joie de la libération.";
+  }
+
+  // Chavouot
+  if (t.includes("erev chavou") || t.includes("erev shavuot") || t.includes("veille de chavou")) {
+    return "Veille de Chavouot : Nuit du Tikoun Leil Chavouot consacrée à l'étude intensive de la Torah jusqu'à l'aube.";
+  }
+  if (t.includes("chavou") || t.includes("shavuot")) {
+    return "Fête de Chavouot (Yom Tov) : Célébration du Don de la Torah (Matan Torah) au Mont Sinaï, lecture des Dix Paroles et dégustation de mets lactés.";
+  }
+
+  // Roch Hachana
+  if (t.includes("erev roch hachan") || t.includes("erev rosh hashana") || t.includes("veille de roch")) {
+    return "Veille de Roch Hachana : Prières de Sélihot, annulation des vœux (Hatarat Nedarim) et allumage des bougies de la nouvelle année.";
+  }
+  if (t.includes("roch hachana ii") || t.includes("rosh hashana ii")) {
+    return "2e jour de Roch Hachana (Yom Tov) : Deuxième sonnerie du Chofar, dégustation d'un fruit nouveau pour la bénédiction de Chéhéhayanou.";
+  }
+  if (t.includes("roch hachan") || t.includes("rosh hashana")) {
+    return "Roch Hachana (Jour du Jugement / Yom Tov) : Nouvel An juif, sonnerie du Chofar, bénédictions sur la pomme trempée dans le miel pour une année douce.";
+  }
+
+  // Yom Kippour
+  if (t.includes("erev yom kippour") || t.includes("erev yom kippur") || t.includes("veille de yom kippour")) {
+    return "Veille de Yom Kippour : Coutume des Kapparot, repas d'interruption (Seouda Hamafseket) et prière solennelle de Kol Nidré au coucher du soleil.";
+  }
+  if (t.includes("kippour") || t.includes("kippur")) {
+    return "Yom Kippour (Jour du Grand Pardon) : Jour le plus saint du calendrier hébraïque, 25 heures de jeûne total, prières de pardon et sonnerie finale du Chofar (Néïla).";
+  }
+
+  // Souccot
+  if (t.includes("erev souccot") || t.includes("erev sukkot") || t.includes("erev soukkot") || t.includes("veille de souccot")) {
+    return "Veille de Souccot : Finalisation de la Soucca, préparation du bouquet des 4 espèces (Loulav, Etrog, Hadassim, Aravot).";
+  }
+  if (t.includes("souccot i") || t.includes("sukkot i") || t.includes("soukkot i")) {
+    return "1er jour de Souccot (Yom Tov) : Repas sous la Soucca, première bénédiction sur les 4 espèces du Loulav.";
+  }
+  if (t.includes("souccot ii") || t.includes("sukkot ii") || t.includes("soukkot ii")) {
+    return "2e jour de Souccot (Yom Tov en diaspora) : Séjour sous la Soucca, bénédictions et prières d'Ouchpizine.";
+  }
+  if (t.includes("hochanah") || t.includes("hoshana") || t.includes("souccot vii") || t.includes("soukkot vii")) {
+    return "Hochaana Raba (7e jour de Souccot) : Nuit d'étude, 7 processions solennelles (Hakafot) autour de la Téva et rituel des branches de saule.";
+  }
+  if (t.includes("souccot") || t.includes("sukkot") || t.includes("soukkot")) {
+    return "Souccot (Hol Hamoed) : Demi-fête des Cabanes, joie familiale et accomplissement de la mitsva du Loulav sous la Soucca.";
+  }
+
+  // Chemini Atseret & Simhat Torah
+  if (t.includes("shemini") || t.includes("chemini")) {
+    return "Chemini Atséret (Yom Tov) : Fête de clôture et de rassemblement intime avec le Créateur, prière solennelle pour la pluie (Téfilat HaGuechem) et Yizkor.";
+  }
+  if (t.includes("simchat") || t.includes("simhat") || t.includes("sim'hat")) {
+    return "Sim'hat Torah (Yom Tov) : Joie immense de la Torah, 7 tours de danses avec les Séfarim (Hakafot), fin et recommencement immédiat du cycle de la Genèse (Béréchit).";
+  }
+
+  // Pourim
+  if (t.includes("erev pourim") || t.includes("erev purim") || t.includes("veille de pourim")) {
+    return "Veille de Pourim : Lecture nocturne de la Méguila d'Esther à la synagogue, déguisements et dons de demi-shekel (Mahantsit HaChékel).";
+  }
+  if (t.includes("chouchan pourim") || t.includes("shushan purim")) {
+    return "Chouchan Pourim : Célébration de Pourim dans les villes fortifiées depuis l'époque de Josué (Jérusalem).";
+  }
+  if (t.includes("pourim") || t.includes("purim")) {
+    return "Fête de Pourim : Célébration de la délivrance d'Esther et Mardochée, lecture publique de la Méguila, envoi de mets (Michloah Manot), dons aux nécessiteux (Matanot LaEvyonim) et grand festin joyeux (Michté).";
+  }
+
+  // Hanoucca
+  if (t.includes("hanoucca") || t.includes("chanukah") || t.includes("anoukah")) {
+    return "Hanoucca (Fête des Lumières) : Allumage quotidien de la Ménorah au coucher du soleil, bénédictions de miracles, prières de Al HaNissim et consommation de mets à l'huile (beignets/soufganiyot).";
+  }
+
+  // Tou Bichvat
+  if (t.includes("tu bishvat") || t.includes("tou bichvat")) {
+    return "Tou Bichvat (Nouvel An des Arbres) : Dégustation des sept fruits d'Israël (grenades, dattes, figues, raisins, olives) et bénédictions de la nature.";
+  }
+
+  // Lag BaOmer
+  if (t.includes("lag baomer") || t.includes("lag ba'omer")) {
+    return "Lag BaOmer (33e jour du Omer) : Fin de l'épidémie des élèves de Rabbi Akiva, célébration de la Hilloula de Rabbi Chimon Bar Yohaï avec feux de joie et festivités.";
+  }
+
+  // Jeûnes
+  if (t.includes("esther")) {
+    return "Jeûne d'Esther (Ta'anit Esther) : Jeûne de l'aube au coucher du soleil en mémoire du jeûne et des prières décrétés par la reine Esther avant d'aller voir le roi Assuérus.";
+  }
+  if (t.includes("ticha") || t.includes("b'av") || t.includes("tich'ah beav")) {
+    return "Ticha Beav (9 Av) : Grand jeûne de 25 heures en signe de deuil national commémorant la destruction du Premier et du Second Temple de Jérusalem, lecture des Lamentations (Méguilat Eikha).";
+  }
+  if (t.includes("tammuz") || t.includes("tamouz") || t.includes("17 tamouz")) {
+    return "Jeûne du 17 Tamouz : Commémoration de la brèche faite dans les murailles de Jérusalem, ouvrant la période de deuil des Trois Semaines (Bein HaMetsarim).";
+  }
+  if (t.includes("gedalia") || t.includes("gedaliah") || t.includes("guedalia")) {
+    return "Jeûne de Guedalia : Jeûne de l'aube au coucher du soleil commémorant l'assassinat de Guedalia fils d'Ahikam, gouverneur de Judée, marquant l'exil complet de Babylone.";
+  }
+  if (t.includes("tevet") || t.includes("tévet") || t.includes("10 tévet")) {
+    return "Jeûne du 10 Tévet (Assara BeTévet) : Commémoration du début du siège de Jérusalem par Nabuchodonosor roi de Babylone.";
+  }
+
+  // Roch Hodech
+  if (t.includes("rosh chodesh") || t.includes("roch hodech") || t.includes("hodech")) {
+    return "Roch Hodech : Célébration de la néoménie et du nouveau mois du calendrier hébraïque, récitation des prières festives de Hallel et Moussaf.";
+  }
+
+  // Commémorations modernes
+  if (t.includes("shoah") || t.includes("choah")) {
+    return "Yom HaChoah : Journée solennelle de mémoire des 6 millions de victimes de la Shoah et des actes d'héroïsme.";
+  }
+  if (t.includes("zikaron")) {
+    return "Yom HaZikaron : Journée du souvenir des soldats tombés au combat et des victimes du terrorisme en Israël.";
+  }
+  if (t.includes("atzma") || t.includes("atsmaout")) {
+    return "Yom HaAtsmaout : Fête nationale commémorant la déclaration d'indépendance de l'État d'Israël en 1948.";
+  }
+  if (t.includes("yerushalayim") || t.includes("yérouchalayim")) {
+    return "Yom Yérouchalayim : Célébration de la réunification de Jérusalem et de l'accès retrouvé au Mur des Lamentations (Kotel).";
+  }
+
   return "Temps fort et célébration du calendrier hébraïque traditionnel.";
 }
 

@@ -32,6 +32,10 @@ type EstablishmentRow = {
   whatsapp: string | null;
   email: string | null;
   instagram: string | null;
+  deliveroo_url?: string | null;
+  uber_eats_url?: string | null;
+  deliverooUrl?: string;
+  uberEatsUrl?: string;
   website: string | null;
   reservation_url: string | null;
   reservation_target: string | null;
@@ -350,6 +354,8 @@ function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = [], tagM
     phone: row.phone ?? "",
     whatsapp: row.whatsapp ?? "",
     instagram: row.instagram ?? "",
+    deliverooUrl: row.deliveroo_url ?? row.deliverooUrl ?? "",
+    uberEatsUrl: row.uber_eats_url ?? row.uberEatsUrl ?? "",
     website: row.website ?? "",
     hours: parseJsonHours(row.hours),
     terrace: boolFromJson(amenities, "terrace"),

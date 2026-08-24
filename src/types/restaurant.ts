@@ -47,6 +47,8 @@ export type Restaurant = {
   gallery?: string[];
   website?: string;
   instagram?: string;
+  deliverooUrl?: string;
+  uberEatsUrl?: string;
   whatsapp?: string;
   email?: string;
   city?: string;

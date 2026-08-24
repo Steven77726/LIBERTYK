@@ -238,6 +238,8 @@ type AdminEstablishment = {
   whatsapp: string;
   instagram: string;
   website: string;
+  deliverooUrl?: string;
+  uberEatsUrl?: string;
   hours: string;
   terrace: boolean;
   delivery: boolean;
@@ -383,6 +385,8 @@ const defaultFieldVisibility: FieldVisibility = {
   email: true,
   instagram: true,
   website: true,
+  deliveroo: true,
+  ubereats: true,
   reservation: true,
   address: true,
   opening_hours: true,
@@ -402,6 +406,8 @@ const visibilityLabels: Array<{ key: string; label: string }> = [
   { key: "whatsapp", label: "WhatsApp" },
   { key: "email", label: "Email" },
   { key: "instagram", label: "Instagram" },
+  { key: "deliveroo", label: "Deliveroo" },
+  { key: "ubereats", label: "Uber Eats" },
   { key: "website", label: "Site internet" },
   { key: "reservation", label: "Réservation" },
   { key: "address", label: "Adresse" },
@@ -3957,6 +3963,8 @@ export function AdminDashboard() {
                       <Field label="Téléphone" value={selectedEstablishment.phone} onChange={(value) => updateEstablishment(selectedEstablishment.id, { phone: value })} />
                       <Field label="WhatsApp" value={selectedEstablishment.whatsapp} onChange={(value) => updateEstablishment(selectedEstablishment.id, { whatsapp: value })} />
                       <Field label="Instagram" value={selectedEstablishment.instagram} onChange={(value) => updateEstablishment(selectedEstablishment.id, { instagram: value })} />
+                      <Field label="Lien Deliveroo" value={selectedEstablishment.deliverooUrl ?? ""} placeholder="https://deliveroo.fr/... (auto-match si vide)" onChange={(value) => updateEstablishment(selectedEstablishment.id, { deliverooUrl: value })} />
+                      <Field label="Lien Uber Eats" value={selectedEstablishment.uberEatsUrl ?? ""} placeholder="https://www.ubereats.com/... (auto-match si vide)" onChange={(value) => updateEstablishment(selectedEstablishment.id, { uberEatsUrl: value })} />
                       <Field label="Site Internet" value={selectedEstablishment.website} onChange={(value) => updateEstablishment(selectedEstablishment.id, { website: value })} />
                       <Field label="URL réservation" value={selectedEstablishment.reservationTarget ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { reservationTarget: value })} />
                       <SelectField label="Certification cacher" value={selectedEstablishment.certification} onChange={(value) => updateEstablishment(selectedEstablishment.id, { certification: value })}>

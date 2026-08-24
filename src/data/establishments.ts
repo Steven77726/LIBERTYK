@@ -28,6 +28,8 @@ export type LocalEstablishment = {
   whatsapp: string;
   instagram: string;
   website: string;
+  deliverooUrl?: string;
+  uberEatsUrl?: string;
   hours: string;
   terrace: boolean;
   delivery: boolean;
@@ -102,6 +104,8 @@ const restaurantEstablishments: LocalEstablishment[] = restaurants.map((restaura
   whatsapp: "",
   instagram: "",
   website: "",
+  deliverooUrl: restaurant.deliverooUrl ?? "",
+  uberEatsUrl: restaurant.uberEatsUrl ?? "",
   hours: Object.entries(restaurant.hours).map(([day, hours]) => `${day}: ${hours}`).join("\n"),
   terrace: restaurant.amenities.terrace === true,
   delivery: restaurant.services.delivery === true,

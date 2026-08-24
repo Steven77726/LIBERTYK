@@ -17,6 +17,7 @@ import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
+import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Africain", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -115,6 +116,8 @@ function restaurantToEstablishmentRecord(restaurant: Restaurant): EstablishmentR
     phone: restaurant.phone,
     whatsapp: restaurant.whatsapp ?? "",
     instagram: restaurant.instagram ?? "",
+    deliverooUrl: restaurant.deliverooUrl ?? "",
+    uberEatsUrl: restaurant.uberEatsUrl ?? "",
     website: restaurant.website ?? "",
     hours: Object.entries(restaurant.hours).map(([day, hours]) => `${day}: ${hours}`).join("\n"),
     terrace: restaurant.amenities.terrace === true,
@@ -291,6 +294,8 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
       gallery,
       website: normalizeExternalUrl(item.website),
       instagram: normalizeExternalUrl(item.instagram),
+      deliverooUrl: item.deliverooUrl,
+      uberEatsUrl: item.uberEatsUrl,
       city: item.city || "Paris",
       country: item.country ?? "France",
       tags: uniqueList([
@@ -472,6 +477,15 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
         <div className="mt-2 flex items-center justify-center gap-1">
           {visibility.website !== false && restaurant.website && <a href={restaurant.website} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Site internet"><Globe2 size={14} /></a>}
           {visibility.instagram !== false && restaurant.instagram && <a href={restaurant.instagram} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Instagram"><Instagram size={14} /></a>}
+          <DeliveryPlatformButtons
+            name={restaurant.name}
+            city={restaurant.city}
+            deliverooUrl={restaurant.deliverooUrl}
+            uberEatsUrl={restaurant.uberEatsUrl}
+            showDeliveroo={visibility.deliveroo !== false}
+            showUberEats={visibility.ubereats !== false}
+            compact
+          />
           <ShareButton entity={entity} compact />
         </div>
       </div>

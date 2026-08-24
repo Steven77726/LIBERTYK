@@ -12,6 +12,7 @@ import type { EstablishmentRecord } from "@/lib/supabase/establishments-reposito
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { EntityActions } from "@/components/ui/entity-actions";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
+import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 
 type Props = {
   establishment: EstablishmentRecord | null;
@@ -353,6 +354,15 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
             </div>
           </div>
         )}
+
+        <DeliveryPlatformButtons
+          name={establishment.name}
+          city={establishment.city}
+          deliverooUrl={establishment.deliverooUrl}
+          uberEatsUrl={establishment.uberEatsUrl}
+          showDeliveroo={visibility.deliveroo !== false}
+          showUberEats={visibility.ubereats !== false}
+        />
 
         <div className="grid gap-2 sm:grid-cols-2">
           {visibility.phone !== false && isMeaningful(establishment.phone) && <a href={`tel:${establishment.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><Phone size={15} /> Téléphone</a>}

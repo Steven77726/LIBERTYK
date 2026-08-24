@@ -42,6 +42,7 @@ export function HebrewCalendarPage() {
   // Vue & Filtres
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [selectedFestival, setSelectedFestival] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -160,22 +161,81 @@ export function HebrewCalendarPage() {
     );
   };
 
-  // Filtrage des événements
+  // Filtrage des événements avec recherche tolérante aux synonymes et fautes de frappe
   const filteredHolidays = useMemo(() => {
     return holidays.filter((event) => {
       if (categoryFilter !== "all" && event.category !== categoryFilter) {
         return false;
       }
+
+      if (categoryFilter === "major" && selectedFestival !== "all") {
+        const titleLower = event.titleFr.toLowerCase();
+        if (selectedFestival === "purim" && !/pourim|purim/i.test(titleLower)) return false;
+        if (selectedFestival === "pesach" && !/pessah|pesach/i.test(titleLower)) return false;
+        if (selectedFestival === "shavuot" && !/chavou|shavuot/i.test(titleLower)) return false;
+        if (selectedFestival === "rosh_hashana" && !/roch hachan|rosh hashana/i.test(titleLower)) return false;
+        if (selectedFestival === "kippur" && !/kippour|kippur/i.test(titleLower)) return false;
+        if (selectedFestival === "sukkot" && !/souccot|soukkot|sukkot/i.test(titleLower)) return false;
+        if (selectedFestival === "simchat_torah" && !/simchat|simhat|sim'hat|shemini|chemini/i.test(titleLower)) return false;
+        if (selectedFestival === "chanukah" && !/hanoucca|chanukah|anoukah/i.test(titleLower)) return false;
+      }
+
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTitle = event.titleFr.toLowerCase().includes(q) || (event.titleHe && event.titleHe.includes(q));
-        const matchHDate = event.hebrewDate.toLowerCase().includes(q);
-        const matchDesc = event.description.toLowerCase().includes(q);
-        if (!matchTitle && !matchHDate && !matchDesc) return false;
+        const normalize = (s: string) =>
+          s
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[\u0332\u0331]/g, "")
+            .replace(/[^a-z0-9]/g, "");
+
+        const qRaw = searchQuery.trim().toLowerCase();
+        const qNorm = normalize(searchQuery);
+
+        // Synonymes et équivalences orthographiques (ex: soukkout -> souccot, sima tora -> simhat torah)
+        const syns: Record<string, string> = {
+          soukkout: "souccot",
+          soukkot: "souccot",
+          sukkot: "souccot",
+          succot: "souccot",
+          simha: "simhat",
+          "sima tora": "simhat torah",
+          "simha tora": "simhat torah",
+          "simha torah": "simhat torah",
+          simhat: "simhat",
+          simchat: "simhat",
+          rochacahan: "roch hachana",
+          rochachana: "roch hachana",
+          roshashana: "roch hachana",
+          kipour: "kippour",
+          kippur: "kippour",
+          pessach: "pessah",
+          shavouot: "chavouot",
+          shavuot: "chavouot",
+          hanouka: "hanoucca",
+          chanuka: "hanoucca",
+        };
+
+        const targetSyn = syns[qRaw] || qNorm;
+
+        const titleNorm = normalize(event.titleFr);
+        const titleOrig = normalize(event.titleHe || "");
+        const hDateNorm = normalize(event.hebrewDate);
+        const descNorm = normalize(event.description);
+
+        const match =
+          titleNorm.includes(qNorm) ||
+          titleNorm.includes(normalize(targetSyn)) ||
+          descNorm.includes(qNorm) ||
+          descNorm.includes(normalize(targetSyn)) ||
+          titleOrig.includes(qNorm) ||
+          hDateNorm.includes(qNorm);
+
+        if (!match) return false;
       }
       return true;
     });
-  }, [holidays, categoryFilter, searchQuery]);
+  }, [holidays, categoryFilter, selectedFestival, searchQuery]);
 
   // Calcul du calendrier mensuel
   const monthDays = useMemo(() => {
@@ -571,11 +631,47 @@ export function HebrewCalendarPage() {
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => setCategoryFilter(f.id)}
+                  onClick={() => {
+                    setCategoryFilter(f.id);
+                    if (f.id !== "major") setSelectedFestival("all");
+                  }}
                   className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                     categoryFilter === f.id
                       ? "bg-ink text-white shadow-xs"
                       : "bg-white border border-black/5 text-ink/65 hover:bg-cream"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Sous-filtres rapides par fête pour Yom Tov */}
+          {viewMode === "list" && categoryFilter === "major" && (
+            <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-[#f6ecd9]/60 p-2.5 border border-[#8f6424]/15">
+              <span className="text-[11px] font-extrabold uppercase tracking-wide text-[#8f6424] px-2">
+                Fêtes :
+              </span>
+              {[
+                { id: "all", label: "🌟 Tous les Yom Tov" },
+                { id: "pesach", label: "🌾 Pessah" },
+                { id: "shavuot", label: "📜 Chavouot" },
+                { id: "rosh_hashana", label: "🍯 Roch Hachana" },
+                { id: "kippur", label: "🕊️ Yom Kippour" },
+                { id: "sukkot", label: "🌿 Souccot" },
+                { id: "simchat_torah", label: "🎉 Sim'hat Torah & Chemini Atséret" },
+                { id: "purim", label: "🎭 Pourim" },
+                { id: "chanukah", label: "🕯️ Hanoucca" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setSelectedFestival(f.id)}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                    selectedFestival === f.id
+                      ? "bg-[#8f6424] text-white shadow-xs"
+                      : "bg-white/80 text-[#8f6424] hover:bg-white"
                   }`}
                 >
                   {f.label}

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Calendar as CalendarIcon,
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Flame,
   Globe,
   List,
@@ -48,6 +49,49 @@ export function HebrewCalendarPage() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
   const [showRotateHint, setShowRotateHint] = useState<boolean>(true);
+
+  // Panneau pop-up auto-fermable de 7 secondes
+  const [popupDay, setPopupDay] = useState<{
+    dateIso: string;
+    dayNumber: number;
+    events: JewishHolidayEvent[];
+  } | null>(null);
+  const [popupCountdown, setPopupCountdown] = useState<number>(7);
+  const popupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleOpenDayPopup = (day: { dateIso: string; dayNumber: number; events?: JewishHolidayEvent[] }) => {
+    setSelectedDayDate(day.dateIso);
+    setPopupDay({
+      dateIso: day.dateIso,
+      dayNumber: day.dayNumber,
+      events: day.events || [],
+    });
+    setPopupCountdown(7);
+  };
+
+  const handleCloseDayPopup = () => {
+    setPopupDay(null);
+    if (popupTimerRef.current) clearInterval(popupTimerRef.current);
+  };
+
+  useEffect(() => {
+    if (!popupDay) return;
+    if (popupTimerRef.current) clearInterval(popupTimerRef.current);
+
+    popupTimerRef.current = setInterval(() => {
+      setPopupCountdown((prev) => {
+        if (prev <= 1) {
+          setPopupDay(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (popupTimerRef.current) clearInterval(popupTimerRef.current);
+    };
+  }, [popupDay]);
 
   // Modale d'exportation
   const [modalEvent, setModalEvent] = useState<{
@@ -737,7 +781,7 @@ export function HebrewCalendarPage() {
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => setSelectedDayDate(day.dateIso)}
+                        onClick={() => handleOpenDayPopup(day)}
                         className={`min-h-14 sm:min-h-24 flex flex-col justify-between rounded-2xl p-1.5 sm:p-2.5 text-left border transition cursor-pointer ${
                           isSelected
                             ? "border-[#8f6424] bg-[#f6ecd9]/40 ring-2 ring-[#8f6424]/30 shadow-xs"
@@ -891,6 +935,128 @@ export function HebrewCalendarPage() {
           )}
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* PANNEAU POP-UP 7 SECONDES (TAILLE MOYENNE, ULTRA LISIBLE, FERMETURE AUTO) */}
+      {/* ========================================================================= */}
+      {popupDay && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm transition-all"
+          onClick={handleCloseDayPopup}
+        >
+          <div
+            className="relative w-full max-w-lg overflow-hidden rounded-[2.5rem] border border-black/10 bg-white p-6 shadow-2xl transition-all sm:p-8 space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Barre de progression dégressive de 7 secondes */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-black/5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#8f6424] via-[#c99b42] to-moss transition-all duration-1000 ease-linear"
+                style={{ width: `${(popupCountdown / 7) * 100}%` }}
+              />
+            </div>
+
+            {/* En-tête du panneau */}
+            <div className="flex items-start justify-between gap-4 pt-1">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#f6ecd9] px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-[#8f6424]">
+                    📍 {selectedCity.name}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-0.5 text-[11px] font-bold text-ink/60">
+                    <Clock size={12} /> Auto-fermeture {popupCountdown}s
+                  </span>
+                </div>
+                <h3 className="mt-2 text-xl font-extrabold text-ink sm:text-2xl capitalize">
+                  {new Date(popupDay.dateIso).toLocaleDateString("fr-FR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </h3>
+                <p className="font-serif text-sm font-bold text-[#8f6424] mt-0.5">
+                  {popupDay.events[0]?.hebrewDate || "Date hébraïque"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseDayPopup}
+                className="grid size-9 shrink-0 place-items-center rounded-full bg-cream text-ink/60 transition hover:bg-ink hover:text-white"
+                aria-label="Fermer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Contenu et événements du jour */}
+            {popupDay.events.length > 0 ? (
+              <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+                {popupDay.events.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="rounded-2xl border border-black/10 bg-[#fbf8f2] p-4.5 shadow-2xs space-y-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                          ev.category === "major"
+                            ? "bg-amber-100/80 text-amber-900"
+                            : ev.category === "fast"
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-neutral-200/80 text-ink/70"
+                        }`}
+                      >
+                        {ev.categoryLabel}
+                      </span>
+                      {ev.titleHe && (
+                        <span className="font-serif text-xs font-bold text-[#8f6424]">{ev.titleHe}</span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 className="text-lg font-extrabold text-ink">{ev.titleFr}</h4>
+                      <p className="mt-1 text-xs leading-relaxed text-ink/70">{ev.description}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCloseDayPopup();
+                        openExportModalForHoliday(ev);
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-moss"
+                    >
+                      <CalendarIcon size={14} /> Synchroniser {ev.titleFr} sur mon mobile
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-2xl bg-cream/40 p-6 text-center">
+                <CalendarIcon size={32} className="text-ink/30 mb-2" />
+                <p className="text-base font-bold text-ink">Journée classique du calendrier</p>
+                <p className="text-xs text-ink/50 mt-1 max-w-sm">
+                  Aucun jeûne ou fête majeure n&apos;est recensé pour ce jour à {selectedCity.name}.
+                </p>
+              </div>
+            )}
+
+            {/* Pied de panneau avec bouton fermeture immédiate */}
+            <div className="flex items-center justify-between border-t border-black/5 pt-3 text-xs text-ink/50">
+              <span>Fermeture automatique dans {popupCountdown} seconde{popupCountdown > 1 ? "s" : ""}</span>
+              <button
+                type="button"
+                onClick={handleCloseDayPopup}
+                className="font-bold text-ink hover:underline"
+              >
+                Fermer maintenant
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODALE D'EXPORTATION D'ÉVÉNEMENT (Google / Apple) */}
       <AddToCalendarModal

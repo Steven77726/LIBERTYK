@@ -240,20 +240,23 @@ function translateHolidayTitle(title: string): string {
     .replace(/[\u0332\u0331]/g, "")
     .replace(/’/g, "'")
     .replace(/\(H’’M\)|\(CH''M\)/g, "(Hol Hamoed)")
+    .replace(/Soukkot/g, "Souccot")
+    .replace(/Roch Hachanah\b/g, "Roch Hachana")
+    .replace(/Chemini Atzéret\b/g, "Chemini Atséret")
+    .replace(/Simhat Torah\b/g, "Sim'hat Torah")
+    .replace(/Hochanah Rabbah/g, "Hochaana Raba")
+    .replace(/H̲?anoukah\b|Chanukah\b/g, "Hanoucca")
     .replace(/^Erev\s+/i, "Veille de ")
     .replace(/^Rosh Hashana\b/i, "Roch Hachana")
     .replace(/^Yom Kippur\b/i, "Yom Kippour")
     .replace(/^Sukkot\b/i, "Souccot")
     .replace(/^Shemini Atzeret\b/i, "Chemini Atséret")
     .replace(/^Simchat Torah\b/i, "Sim'hat Torah")
-    .replace(/^Chanukah\b/i, "Hanoucca")
     .replace(/^Tu BiShvat\b/i, "Tou Bichvat")
     .replace(/^Purim\b/i, "Pourim")
     .replace(/^Ta'anit Esther\b/i, "Jeûne d’Esther")
     .replace(/^Pesach\b/i, "Pessah")
-    .replace(/^Pessah\b/i, "Pessah")
     .replace(/^Chavou'ot\b/i, "Chavouot")
-    .replace(/^Chavouot\b/i, "Chavouot")
     .replace(/^Shavuot\b/i, "Chavouot")
     .replace(/^Yom HaShoah\b/i, "Yom HaChoah")
     .replace(/^Yom HaZikaron\b/i, "Yom HaZikaron")
@@ -269,13 +272,16 @@ function translateHolidayTitle(title: string): string {
 
 function getHolidayDescription(title: string): string {
   const t = title.toLowerCase();
-  if (t.includes("pessah") || t.includes("pesach")) return "Fête de la libération et de la sortie d'Égypte. Consommation de Matsot.";
-  if (t.includes("kippur") || t.includes("kippour")) return "Jour du Grand Pardon, 25 heures de jeûne, prières et recueillement.";
-  if (t.includes("rosh hashana") || t.includes("hachana")) return "Nouvel An juif, sonnerie du Chofar, bénédictions sur la pomme et le miel.";
-  if (t.includes("sukkot") || t.includes("souccot")) return "Fête des Cabanes, commandement des 4 espèces (Loulav et Etrog).";
-  if (t.includes("hanoucca") || t.includes("chanukah")) return "Fête des Lumières, allumage de la Ménorah pendant 8 soirs consécutifs.";
-  if (t.includes("purim") || t.includes("pourim")) return "Fête de la délivrance d'Esther, lecture de la Méguila, Michloah Manot et joie.";
-  if (t.includes("chavouot") || t.includes("shavuot")) return "Fête du Don de la Torah au Mont Sinaï. Consommation de plats lactés.";
+  if (t.includes("pessah") || t.includes("pesach")) return "Fête de la libération et de la sortie d'Égypte. Consommation de Matsot et interdiction du Hamets.";
+  if (t.includes("kippur") || t.includes("kippour")) return "Jour du Grand Pardon, 25 heures de jeûne total, prières de Kol Nidré et Néïla.";
+  if (t.includes("rosh hashana") || t.includes("hachana") || t.includes("hachanah")) return "Nouvel An juif (Yom Tov), sonnerie du Chofar, bénédictions sur la pomme trempée dans le miel.";
+  if (t.includes("sukkot") || t.includes("souccot") || t.includes("soukkot")) return "Fête des Cabanes (Yom Tov), séjour sous la Soucca et bénédiction sur les 4 espèces (Loulav, Etrog).";
+  if (t.includes("shemini") || t.includes("chemini")) return "Chemini Atséret : Fête solennelle de clôture, prière de la pluie (Guechem).";
+  if (t.includes("simchat") || t.includes("simhat") || t.includes("sim'hat")) return "Sim'hat Torah : Grande réjouissance marquant la fin et le recommencement du cycle de lecture de la Torah.";
+  if (t.includes("hochanah") || t.includes("hoshana")) return "Hochaana Raba : 7e jour de Souccot, 7 tours autour de la Téva et frappe des saules (Aravot).";
+  if (t.includes("hanoucca") || t.includes("chanukah") || t.includes("anoukah")) return "Fête des Lumières, allumage de la Ménorah pendant 8 soirs consécutifs.";
+  if (t.includes("purim") || t.includes("pourim")) return "Fête de la délivrance d'Esther, lecture de la Méguila, Michloah Manot et grand festin joyeux.";
+  if (t.includes("chavouot") || t.includes("shavuot") || t.includes("chavou'ot")) return "Fête du Don de la Torah au Mont Sinaï (Yom Tov). Consommation de mets lactés et nuit d'étude.";
   if (t.includes("esther")) return "Jeûne de l'aube au coucher du soleil en mémoire du jeûne décrété par la reine Esther.";
   if (t.includes("ticha") || t.includes("b'av")) return "Grand jeûne de 25 heures commémorant la destruction des deux Temples de Jérusalem.";
   if (t.includes("rosh chodesh") || t.includes("hodech")) return "Début du nouveau mois hébraïque, prière de Hallel et Moussaf.";

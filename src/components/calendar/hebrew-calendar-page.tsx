@@ -43,6 +43,7 @@ export function HebrewCalendarPage() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedFestival, setSelectedFestival] = useState<string>("all");
+  const [showPastHolidays, setShowPastHolidays] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -161,9 +162,16 @@ export function HebrewCalendarPage() {
     );
   };
 
-  // Filtrage des événements avec recherche tolérante aux synonymes et fautes de frappe
+  // Filtrage des événements avec recherche tolérante aux synonymes et classement chronologique dès aujourd'hui (Jour J)
   const filteredHolidays = useMemo(() => {
-    return holidays.filter((event) => {
+    const todayIso = new Date().toISOString().split("T")[0];
+
+    const filtered = holidays.filter((event) => {
+      // Masquer les fêtes déjà passées par défaut, sauf si l'utilisateur coche la case ou fait une recherche
+      if (!showPastHolidays && !searchQuery.trim() && event.dateIso < todayIso) {
+        return false;
+      }
+
       if (categoryFilter !== "all" && event.category !== categoryFilter) {
         return false;
       }
@@ -171,13 +179,13 @@ export function HebrewCalendarPage() {
       if (categoryFilter === "major" && selectedFestival !== "all") {
         const titleLower = event.titleFr.toLowerCase();
         if (selectedFestival === "purim" && !/pourim|purim/i.test(titleLower)) return false;
-        if (selectedFestival === "pesach" && !/pessah|pesach/i.test(titleLower)) return false;
+        if (selectedFestival === "pesach" && !/pessa|pesach/i.test(titleLower)) return false;
         if (selectedFestival === "shavuot" && !/chavou|shavuot/i.test(titleLower)) return false;
         if (selectedFestival === "rosh_hashana" && !/roch hachan|rosh hashana/i.test(titleLower)) return false;
         if (selectedFestival === "kippur" && !/kippour|kippur/i.test(titleLower)) return false;
         if (selectedFestival === "sukkot" && !/souccot|soukkot|sukkot/i.test(titleLower)) return false;
         if (selectedFestival === "simchat_torah" && !/simchat|simhat|sim'hat|shemini|chemini/i.test(titleLower)) return false;
-        if (selectedFestival === "chanukah" && !/hanoucca|chanukah|anoukah/i.test(titleLower)) return false;
+        if (selectedFestival === "chanukah" && !/hanoucca|hanouka|chanukah|anoukah/i.test(titleLower)) return false;
       }
 
       if (searchQuery.trim()) {
@@ -235,7 +243,9 @@ export function HebrewCalendarPage() {
       }
       return true;
     });
-  }, [holidays, categoryFilter, selectedFestival, searchQuery]);
+
+    return filtered.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+  }, [holidays, categoryFilter, selectedFestival, searchQuery, showPastHolidays]);
 
   // Calcul du calendrier mensuel
   const monthDays = useMemo(() => {
@@ -618,32 +628,47 @@ export function HebrewCalendarPage() {
             </div>
           </div>
 
-          {/* Filtres par catégorie */}
+          {/* Filtres par catégorie & Bascule Fêtes à venir / passées */}
           {viewMode === "list" && (
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { id: "all", label: "Toutes les dates" },
-                { id: "major", label: "Yom Tov" },
-                { id: "fast", label: "Jeûnes" },
-                { id: "roshchodesh", label: "Roch Hodech" },
-                { id: "minor", label: "Fêtes mineures" },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => {
-                    setCategoryFilter(f.id);
-                    if (f.id !== "major") setSelectedFestival("all");
-                  }}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    categoryFilter === f.id
-                      ? "bg-ink text-white shadow-xs"
-                      : "bg-white border border-black/5 text-ink/65 hover:bg-cream"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: "all", label: "Toutes les dates" },
+                  { id: "major", label: "Yom Tov" },
+                  { id: "fast", label: "Jeûnes" },
+                  { id: "roshchodesh", label: "Roch Hodech" },
+                  { id: "minor", label: "Fêtes mineures" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => {
+                      setCategoryFilter(f.id);
+                      if (f.id !== "major") setSelectedFestival("all");
+                    }}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                      categoryFilter === f.id
+                        ? "bg-ink text-white shadow-xs"
+                        : "bg-white border border-black/5 text-ink/65 hover:bg-cream"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPastHolidays(!showPastHolidays)}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
+                  showPastHolidays
+                    ? "bg-[#f6ecd9] text-[#8f6424] border border-[#8f6424]/30"
+                    : "bg-white border border-black/10 text-ink/55 hover:bg-cream"
+                }`}
+              >
+                <Clock size={12} />
+                {showPastHolidays ? "📅 Fêtes à venir uniquement (Dès aujourd'hui)" : "⏳ Inclure les fêtes passées"}
+              </button>
             </div>
           )}
 
@@ -743,9 +768,11 @@ export function HebrewCalendarPage() {
                             </span>
                           )}
                         </div>
-                        <p className="mt-2 text-xs leading-relaxed text-ink/65">
-                          {event.description}
-                        </p>
+                        {event.description ? (
+                          <p className="mt-2 text-xs leading-relaxed text-ink/65">
+                            {event.description}
+                          </p>
+                        ) : null}
                       </div>
 
                       {/* Horaires d'Entrée et de Sortie selon la localisation */}
@@ -1065,9 +1092,11 @@ export function HebrewCalendarPage() {
                               )}
                             </div>
 
-                            <p className="mt-2 text-xs leading-relaxed text-ink/70">
-                              {event.description}
-                            </p>
+                            {event.description ? (
+                              <p className="mt-2 text-xs leading-relaxed text-ink/70">
+                                {event.description}
+                              </p>
+                            ) : null}
 
                             {/* Horaires d'Entrée et de Sortie selon la localisation */}
                             {(event.entryTime || event.exitTime) && (
@@ -1224,7 +1253,9 @@ export function HebrewCalendarPage() {
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 text-xs leading-relaxed text-ink/70">{ev.description}</p>
+                        {ev.description ? (
+                          <p className="mt-1 text-xs leading-relaxed text-ink/70">{ev.description}</p>
+                        ) : null}
                     </div>
 
                     {/* Horaires d'Entrée et de Sortie selon la localisation */}

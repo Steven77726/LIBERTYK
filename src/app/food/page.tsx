@@ -67,7 +67,7 @@ function getCuisineCount(label: string): number {
     if (target === "japonais") return full.includes("japon") || full.includes("sushi") || full.includes("asiatique");
     if (target === "chinois") return full.includes("chinois") || full.includes("chinoise") || full.includes("asiatique");
     if (target === "thailandais") return full.includes("thai") || full.includes("asiatique");
-    if (target === "africain") return full.includes("africain");
+    if (target === "africain") return full.includes("afric") || full.includes("africa") || full.includes("yassa") || full.includes("mafe");
     if (target === "italien") return full.includes("italien") || full.includes("italienne") || full.includes("pizza");
     if (target === "libanais") return full.includes("libanais") || full.includes("libanaise") || full.includes("oriental");
     if (target === "americain") return full.includes("americain") || full.includes("burger") || full.includes("fast-food");

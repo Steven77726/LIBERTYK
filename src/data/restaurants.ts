@@ -34,6 +34,7 @@ const importedRows = [
   ["Chez Rafou", "91 Avenue Secrétan, Paris", "75019", 19, "07 51 32 78 00", "Orientale, Tunisienne, Grillades", "Orientale", "Viande", "Beth Din de Paris", 4.6, 310, 48.8812, 2.3749, "11:30–23:00"],
 
   // ÎLE-DE-FRANCE (92, 93, 94, 95)
+  ["Afrika", "46 Rue Marjolin, Levallois-Perret", "92300", 92, "07 66 41 55 68", "Cuisine africaine, Yassa, Mafé, Thieb, Allokos", "Africain", "Viande", "Loubavitch (Chabad)", 4.9, 280, 48.8951, 2.2882, "12:00–14:30, 19:30–22:30"],
   ["Chez Dan Boulogne", "110 Route de la Reine, Boulogne-Billancourt", "92100", 92, "01 46 05 12 12", "Burgers artisanaux, Grillades", "Burgers", "Viande", "Beth Din de Paris", 4.7, 380, 48.8378, 2.2412, "12:00–15:00, 19:30–23:00"],
   ["Pâtisserie Shana", "18 Rue de l'Hôtel de Ville, Neuilly-sur-Seine", "92200", 92, "01 47 45 22 33", "Pâtisserie haut de gamme, Brunch", "Pâtisserie", "Lait", "Beth Din de Paris", 4.8, 290, 48.8841, 2.2689, "08:00–19:30"],
   ["Le K Levallois", "55 Rue Aristide Briand, Levallois-Perret", "92300", 92, "01 47 37 40 40", "Bistrot gourmet, Viandes nobles", "Française", "Viande", "Beth Din de Paris", 4.7, 320, 48.8932, 2.2865, "12:00–14:30, 19:30–23:00"],

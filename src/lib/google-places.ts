@@ -31,6 +31,50 @@ export type GooglePlaceDetails = {
 
 // Base de données d'enrichissement Google Business & Places pour toutes les adresses de Liberty
 const placeDatabase: Record<string, Partial<GooglePlaceDetails>> = {
+  afrika: {
+    placeId: "ChIJ_Afrika_Levallois_92300",
+    name: "Afrika",
+    formattedAddress: "46 Rue Marjolin, 92300 Levallois-Perret",
+    postalCode: "92300",
+    arrondissement: "92",
+    city: "Levallois-Perret",
+    latitude: 48.8951,
+    longitude: 2.2882,
+    phone: "07 66 41 55 68",
+    website: "https://afrikasher.fr",
+    googleMapsUrl: "https://maps.google.com/?q=Afrika+46+Rue+Marjolin+92300+Levallois-Perret",
+    rating: 4.9,
+    userRatingsTotal: 280,
+    photos: [
+      "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=85",
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=85",
+    ],
+    reviews: [
+      {
+        author: "Sarah L.",
+        rating: 5,
+        text: "Une découverte incroyable ! Le poulet Yassa et les allokos sont succulents. Le premier vrai resto africain cacher d'Europe, accueil au top !",
+        relativeTime: "Il y a 3 jours",
+      },
+      {
+        author: "Mickaël T.",
+        rating: 5,
+        text: "Saveurs authentiques, plats généreux et cacherout irréprochable. L'Afrika Burger sauce cacahuète est une merveille.",
+        relativeTime: "Il y a 1 semaine",
+      },
+    ],
+    openingHours: {
+      lundi: "12:00–14:30, 19:30–22:30",
+      mardi: "12:00–14:30, 19:30–22:30",
+      mercredi: "12:00–14:30, 19:30–22:30",
+      jeudi: "12:00–14:30, 19:30–22:30",
+      vendredi: "12:00–14:30",
+      samedi: "Fermé",
+      dimanche: "12:00–14:30, 19:30–22:30",
+    },
+    openNow: true,
+  },
   khan: {
     placeId: "ChIJKhanParis17e",
     name: "Khan",

@@ -18,7 +18,7 @@ import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/sup
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 
-const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
+const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Africain", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
 const serviceFilters = ["Sur place", "À emporter", "Livraison", "Click & Collect", "Réservation en ligne"];
 const availabilityFilters = ["Ouvert maintenant", "Ouvert le midi", "Ouvert le soir", "Ouvert le dimanche", "Ouvert tard"];
@@ -318,7 +318,7 @@ const cuisineMatch = (restaurant: Restaurant, filter: string) => {
   const corpus = normalize(`${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
   const aliases: Record<string, string[]> = {
     Japonais: ["japon", "japonaise", "sushi"], Italien: ["italien", "italienne", "pizza"], Israélien: ["israel"],
-    Français: ["franc"], Indien: ["indien"], Pizzeria: ["pizza"],
+    Français: ["franc"], Indien: ["indien"], Africain: ["afric", "africa", "afrique", "yassa", "mafe", "thieb", "alloko"], Pizzeria: ["pizza"],
     Bassari: ["bassari", "viande"], Halavi: ["halavi", "lait"], Parvé: ["parve", "parvé"],
   };
   return (aliases[filter] ?? [normalize(filter)]).some((term) => corpus.includes(normalize(term)));

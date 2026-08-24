@@ -621,32 +621,37 @@ export function HebrewCalendarPage() {
           {/* ========================================================================= */}
           {viewMode === "calendar" && (
             <div className="space-y-6">
-              {/* BANDEAU INDICATEUR IPHONE / MOBILE : TOURNER EN PAYSAGE */}
+              {/* BANDEAU INDICATEUR IPHONE / MOBILE : TOURNER EN PAYSAGE (CLIGNOTEMENT ATTENTION) */}
               {showRotateHint && (
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#8f6424]/20 bg-[#f6ecd9]/90 px-4 py-3 text-xs text-[#8f6424] shadow-xs sm:hidden">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[#8f6424] bg-[#fef3c7] p-3.5 text-xs text-[#78350f] shadow-md animate-banner-blink sm:hidden">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/80 shadow-2xs">
-                      {/* Icône smartphone animée avec rotation douce toutes les 3s */}
+                    <div className="relative grid size-10 shrink-0 place-items-center rounded-xl bg-white shadow-xs border border-amber-300">
+                      {/* Icône smartphone animée avec rotation douce toutes les 2.8s */}
                       <div className="animate-rotate-device text-[#8f6424]">
-                        <Smartphone size={20} />
+                        <Smartphone size={22} />
                       </div>
+                      {/* Point clignotant rouge / or pour capter l'attention */}
+                      <span className="absolute -top-1 -right-1 size-3 rounded-full bg-rose-500 animate-blink-dot ring-2 ring-white" />
                     </div>
                     <div>
-                      <p className="font-bold leading-snug">
-                        Tournez votre iPhone à l&apos;horizontale
-                      </p>
-                      <p className="text-[11px] opacity-80 leading-snug">
-                        Basculez en mode paysage pour voir tout le mois en grand, ou touchez un jour ci-dessous.
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block size-2 rounded-full bg-amber-600 animate-ping" />
+                        <p className="font-extrabold uppercase tracking-wide text-[11px] text-[#78350f]">
+                          Tournez votre iPhone à l&apos;horizontale
+                        </p>
+                      </div>
+                      <p className="text-[11px] font-medium text-ink/75 leading-tight mt-0.5">
+                        Basculez en mode paysage (écran large) pour lire tout le mois en grand format, ou touchez un jour ci-dessous.
                       </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowRotateHint(false)}
-                    className="grid size-6 shrink-0 place-items-center rounded-full bg-white/60 text-[#8f6424] hover:bg-white"
+                    className="grid size-7 shrink-0 place-items-center rounded-full bg-white/80 text-[#8f6424] hover:bg-white shadow-2xs"
                     aria-label="Fermer le conseil"
                   >
-                    <X size={12} />
+                    <X size={13} />
                   </button>
                 </div>
               )}

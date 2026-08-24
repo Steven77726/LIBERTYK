@@ -113,6 +113,39 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 .animate-rotate-device {
-  animation: rotate-device-hint 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: rotate-device-hint 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
+
+@keyframes banner-blink-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(201, 155, 66, 0);
+    border-color: rgba(143, 100, 36, 0.3);
+    background-color: rgba(246, 236, 217, 0.95);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(201, 155, 66, 0.4), 0 6px 22px rgba(201, 155, 66, 0.3);
+    border-color: rgba(143, 100, 36, 0.85);
+    background-color: #fef3c7;
+  }
+}
+
+.animate-banner-blink {
+  animation: banner-blink-glow 2s ease-in-out infinite;
+}
+
+@keyframes attention-blink-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(1.35);
+  }
+}
+
+.animate-blink-dot {
+  animation: attention-blink-dot 1.2s ease-in-out infinite;
+}
+
 

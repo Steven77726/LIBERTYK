@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Calendar as CalendarIcon,
-  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -15,7 +14,6 @@ import {
   Moon,
   Navigation,
   Search,
-  Share2,
   Smartphone,
   Sparkles,
   Sun,
@@ -103,7 +101,6 @@ export function HebrewCalendarPage() {
     alarmMinutesBefore?: number;
   } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [copiedFeed, setCopiedFeed] = useState(false);
 
   // Chargement des données à l'ouverture et lors du changement de ville
   useEffect(() => {
@@ -249,13 +246,6 @@ export function HebrewCalendarPage() {
       alarmMinutesBefore: event.category === "fast" ? 60 : 15,
     });
     setIsModalOpen(true);
-  };
-
-  const handleCopyWebcal = () => {
-    const url = getWebcalSubscriptionUrl(selectedCity);
-    navigator.clipboard.writeText(url);
-    setCopiedFeed(true);
-    setTimeout(() => setCopiedFeed(false), 2000);
   };
 
   const monthNames = [

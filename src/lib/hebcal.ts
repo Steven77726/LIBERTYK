@@ -55,6 +55,8 @@ export type HebcalItem = {
   category?: string;
   subcat?: string;
   title: string;
+  title_orig?: string;
+  yomtov?: boolean;
   date: string;
   hebrew?: string;
   hdate?: string;
@@ -166,26 +168,49 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
 
     const items: HebcalItem[] = data.items || [];
     const events: JewishHolidayEvent[] = items
-      .filter((item) => item.category !== "parashat")
+      .filter((item) => item.category !== "parashat" && item.category !== "candles" && item.category !== "havdalah" && item.category !== "mevarchim")
       .map((item, idx: number) => {
+        const titleLower = (item.title || "").toLowerCase();
+        const origLower = (item.title_orig || "").toLowerCase();
+
+        const isMajor =
+          item.subcat === "major" ||
+          item.yomtov === true ||
+          item.category === "major" ||
+          /pessah|pesach|shavuot|chavouot|chavou’ot|sukkot|souccot|rosh hashana|hachana|kippur|kippour|shemini|chemini|simchat|sim'hat|purim|pourim|chanukah|hanoucca/i.test(titleLower) ||
+          /pessah|pesach|shavuot|chavouot|sukkot|souccot|rosh hashana|hachana|kippur|kippour|shemini|chemini|simchat|sim'hat|purim|pourim|chanukah|hanoucca/i.test(origLower);
+
+        const isFast =
+          item.category === "fast" ||
+          item.subcat === "fast" ||
+          /ta'anit|tzom|jeûne|fast|tish'a b'av|gedaliah|guedalia|tevet|tévet|tammuz|tamouz|esther/i.test(titleLower) ||
+          /ta'anit|tzom|jeûne|fast|tish'a b'av|gedaliah|tevet|tammuz|esther/i.test(origLower);
+
+        const isRoshChodesh =
+          item.category === "roshchodesh" ||
+          item.subcat === "roshchodesh" ||
+          /rosh chodesh|roch hodech/i.test(titleLower);
+
+        const isModern =
+          item.category === "modern" ||
+          item.subcat === "modern" ||
+          /shoah|choah|zikaron|atzma|atsmaout|yerushalayim|yérouchalayim/i.test(titleLower);
+
         let cat: JewishHolidayEvent["category"] = "minor";
         let catLabel = "Fête";
 
-        if (item.category === "major") {
+        if (isMajor) {
           cat = "major";
-          catLabel = "Grande Fête";
-        } else if (item.category === "fast" || item.subcat === "fast") {
+          catLabel = item.yomtov ? "Yom Tov" : "Grande Fête";
+        } else if (isFast) {
           cat = "fast";
           catLabel = "Jeûne";
-        } else if (item.category === "roshchodesh") {
+        } else if (isRoshChodesh) {
           cat = "roshchodesh";
           catLabel = "Roch Hodech";
-        } else if (item.category === "modern") {
+        } else if (isModern) {
           cat = "modern";
           catLabel = "Commémoration";
-        } else if (item.category === "candles" || item.category === "havdalah") {
-          cat = "shabbat";
-          catLabel = "Horaires";
         }
 
         return {
@@ -212,6 +237,9 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
  */
 function translateHolidayTitle(title: string): string {
   return title
+    .replace(/[\u0332\u0331]/g, "")
+    .replace(/’/g, "'")
+    .replace(/\(H’’M\)|\(CH''M\)/g, "(Hol Hamoed)")
     .replace(/^Erev\s+/i, "Veille de ")
     .replace(/^Rosh Hashana\b/i, "Roch Hachana")
     .replace(/^Yom Kippur\b/i, "Yom Kippour")
@@ -223,12 +251,15 @@ function translateHolidayTitle(title: string): string {
     .replace(/^Purim\b/i, "Pourim")
     .replace(/^Ta'anit Esther\b/i, "Jeûne d’Esther")
     .replace(/^Pesach\b/i, "Pessah")
+    .replace(/^Pessah\b/i, "Pessah")
+    .replace(/^Chavou'ot\b/i, "Chavouot")
+    .replace(/^Chavouot\b/i, "Chavouot")
+    .replace(/^Shavuot\b/i, "Chavouot")
     .replace(/^Yom HaShoah\b/i, "Yom HaChoah")
     .replace(/^Yom HaZikaron\b/i, "Yom HaZikaron")
     .replace(/^Yom HaAtzma'ut\b/i, "Yom HaAtsmaout")
     .replace(/^Lag BaOmer\b/i, "Lag BaOmer")
     .replace(/^Yom Yerushalayim\b/i, "Yom Yérouchalayim")
-    .replace(/^Shavuot\b/i, "Chavouot")
     .replace(/^Tzom Tammuz\b/i, "Jeûne du 17 Tamouz")
     .replace(/^Tish'a B'Av\b/i, "Ticha Beav (9 Av)")
     .replace(/^Tzom Gedaliah\b/i, "Jeûne de Guedalia")
@@ -444,9 +475,19 @@ function getFallbackJewishHolidays(year: number): JewishHolidayEvent[] {
       titleHe: "סֻכּוֹת",
       dateIso: `${year}-10-06`,
       category: "major",
-      categoryLabel: "Grande Fête",
+      categoryLabel: "Yom Tov",
       hebrewDate: "15 Tichri",
       description: "Fête des Cabanes, bénédictions dans la Soucca et commandement des 4 espèces.",
+    },
+    {
+      id: `shemini-atzeret-${year}`,
+      titleFr: "Chemini Atséret & Sim'hat Torah",
+      titleHe: "שְׁמִינִי עֲצֶרֶת",
+      dateIso: `${year}-10-13`,
+      category: "major",
+      categoryLabel: "Yom Tov",
+      hebrewDate: "22 Tichri",
+      description: "Fête de la clôture et réjouissance de la Torah, danses et fin du cycle de lecture.",
     },
     {
       id: `chanukah-${year}`,

@@ -45,6 +45,16 @@ export type JewishHolidayEvent = {
   categoryLabel: string;
   hebrewDate: string;
   description: string;
+  dayRank?: string;
+  entryLabel?: string;
+  entryTime?: string;
+  entryDay?: string;
+  entryIso?: string;
+  exitLabel?: string;
+  exitTime?: string;
+  exitDay?: string;
+  exitIso?: string;
+  isCrossDays?: boolean;
   candlesIso?: string;
   havdalahIso?: string;
   fastStartIso?: string;
@@ -90,12 +100,19 @@ export async function fetchShabbatTimes(city: HebcalCity): Promise<ShabbatTimes>
       parashaFr: parashaItem ? parashaItem.title.replace(/^Parashat\s+/i, "Parachat ") : "À consulter",
       parashaHe: parashaItem?.hebrew || "",
       candlesTime: formatHour(candleItem?.date),
-      candlesIso: candleItem?.date || "",
+      candlesIso: candleItem?.date || now.toISOString(),
       havdalahTime: formatHour(havdalahItem?.date),
-      havdalahIso: havdalahItem?.date || "",
+      havdalahIso: havdalahItem?.date || now.toISOString(),
       cityName: city.name,
-      dateStr: now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-      hebrewDate: data.hebrew || "Calendrier Hébraïque",
+      dateStr: candleItem?.date
+        ? new Date(candleItem.date).toLocaleDateString("fr-FR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            timeZone: city.tzid,
+          })
+        : "Vendredi",
+      hebrewDate: candleItem?.hdate || "",
     };
   } catch (err) {
     console.warn("Hebcal shabbat fetch error, using calculation fallback:", err);
@@ -108,7 +125,10 @@ export async function fetchShabbatTimes(city: HebcalCity): Promise<ShabbatTimes>
  */
 export async function fetchCurrentHebrewDate(): Promise<{ hebrew: string; dateFr: string; hy: number; hm: string; hd: number }> {
   const now = new Date();
-  const url = `https://www.hebcal.com/converter?cfg=json&gy=${now.getFullYear()}&gm=${now.getMonth() + 1}&gd=${now.getDate()}&g2h=1`;
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const url = `https://www.hebcal.com/converter?cfg=json&gy=${yyyy}&gm=${mm}&gd=${dd}&g2h=1`;
 
   try {
     const res = await fetch(url);
@@ -155,11 +175,28 @@ export function translateHebrewMonth(month: string): string {
   return map[month] || month;
 }
 
+function getHolidayDayRank(title: string): string | undefined {
+  const t = title.toLowerCase();
+  if (t.includes("veille") || t.includes("erev")) return "Veille de fête";
+  if (t.includes("1er jour") || t.includes(" i ") || t.endsWith(" i") || t.includes("1ère bougie") || t.includes("1 bougie") || t.includes("5787")) return "1er jour de Yom Tov";
+  if (t.includes("2e jour") || t.includes(" ii ") || t.endsWith(" ii") || t.includes("2 bougies") || t.includes("2ème jour")) return "2e jour de Yom Tov";
+  if (t.includes("3e jour") || t.includes(" iii ") || t.endsWith(" iii") || t.includes("3 bougies")) return "3e jour";
+  if (t.includes("4e jour") || t.includes(" iv ") || t.endsWith(" iv") || t.includes("4 bougies")) return "4e jour";
+  if (t.includes("5e jour") || t.includes(" v ") || t.endsWith(" v") || t.includes("5 bougies")) return "5e jour";
+  if (t.includes("6e jour") || t.includes(" vi ") || t.endsWith(" vi") || t.includes("6 bougies")) return "6e jour";
+  if (t.includes("7e jour") || t.includes(" vii ") || t.endsWith(" vii") || t.includes("7 bougies")) return "7e jour de Yom Tov";
+  if (t.includes("8e jour") || t.includes(" viii ") || t.endsWith(" viii") || t.includes("8 bougies")) return "8e jour (Clôture)";
+  if (t.includes("hol hamoed") || t.includes("h’’m")) return "Hol Hamoed (Demi-fête)";
+  if (t.includes("jeûne") || t.includes("ta’anit") || t.includes("taanit")) return "Jour de jeûne";
+  if (t.includes("hodech")) return "Roch Hodech";
+  return undefined;
+}
+
 /**
  * Récupère la liste des fêtes et jeûnes de l'année en cours
  */
 export async function fetchJewishHolidays(year: number, city: HebcalCity): Promise<JewishHolidayEvent[]> {
-  const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&year=${year}&month=x&ss=on&mf=on&c=on&geo=geoname&geonameid=${city.geonameid}&M=on&s=on&lg=fr`;
+  const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&year=${year}&month=x&ss=on&mf=on&c=on&geo=geoname&geonameid=${city.geonameid}&M=on&s=on&lg=fr&b=18`;
 
   try {
     const res = await fetch(url);
@@ -167,18 +204,34 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
     const data = await res.json();
 
     const items: HebcalItem[] = data.items || [];
+    const candleItems = items.filter((i) => i.category === "candles");
+    const havdalahItems = items.filter((i) => i.category === "havdalah");
+    const fastItems = items.filter((i) => (i.category === "zmanim" || i.category === "holiday") && i.subcat === "fast");
+
+    const formatHour = (isoStr?: string) => {
+      if (!isoStr) return "";
+      const d = new Date(isoStr);
+      return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: city.tzid });
+    };
+
+    const formatDayName = (isoStr?: string) => {
+      if (!isoStr) return "";
+      const d = new Date(isoStr);
+      return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: city.tzid });
+    };
+
     const events: JewishHolidayEvent[] = items
-      .filter((item) => item.category !== "parashat" && item.category !== "candles" && item.category !== "havdalah" && item.category !== "mevarchim")
+      .filter((item) => item.category !== "parashat" && item.category !== "candles" && item.category !== "havdalah" && item.category !== "mevarchim" && item.category !== "zmanim")
       .map((item, idx: number) => {
         const titleLower = (item.title || "").toLowerCase();
         const origLower = (item.title_orig || "").toLowerCase();
+        const hDateStr = item.date.split("T")[0];
+        const hDate = new Date(hDateStr);
 
-        const isMajor =
-          item.subcat === "major" ||
-          item.yomtov === true ||
-          item.category === "major" ||
-          /pessah|pesach|shavuot|chavouot|chavou’ot|sukkot|souccot|rosh hashana|hachana|kippur|kippour|shemini|chemini|simchat|sim'hat|purim|pourim|chanukah|hanoucca/i.test(titleLower) ||
-          /pessah|pesach|shavuot|chavouot|sukkot|souccot|rosh hashana|hachana|kippur|kippour|shemini|chemini|simchat|sim'hat|purim|pourim|chanukah|hanoucca/i.test(origLower);
+        const isRoshChodesh =
+          item.category === "roshchodesh" ||
+          item.subcat === "roshchodesh" ||
+          /rosh chodesh|roch hodech/i.test(titleLower);
 
         const isFast =
           item.category === "fast" ||
@@ -186,10 +239,14 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
           /ta'anit|tzom|jeûne|fast|tish'a b'av|gedaliah|guedalia|tevet|tévet|tammuz|tamouz|esther/i.test(titleLower) ||
           /ta'anit|tzom|jeûne|fast|tish'a b'av|gedaliah|tevet|tammuz|esther/i.test(origLower);
 
-        const isRoshChodesh =
-          item.category === "roshchodesh" ||
-          item.subcat === "roshchodesh" ||
-          /rosh chodesh|roch hodech/i.test(titleLower);
+        const isMajor =
+          !isRoshChodesh &&
+          !isFast &&
+          (item.subcat === "major" ||
+            item.yomtov === true ||
+            item.category === "major" ||
+            /pessah|pesach|shavuot|chavouot|chavou’ot|sukkot|souccot|soukkot|rosh hashana|hachana|hachanah|kippur|kippour|shemini|chemini|simchat|simhat|sim'hat|purim|pourim|chanukah|hanoucca/i.test(titleLower) ||
+            /pessah|pesach|shavuot|chavouot|sukkot|souccot|rosh hashana|hachana|kippur|kippour|shemini|chemini|simchat|sim'hat|purim|pourim|chanukah|hanoucca/i.test(origLower));
 
         const isModern =
           item.category === "modern" ||
@@ -213,15 +270,81 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
           catLabel = "Commémoration";
         }
 
+        const titleFr = translateHolidayTitle(item.title);
+        const dayRank = getHolidayDayRank(titleFr) || getHolidayDayRank(item.title);
+
+        let entryLabel = "Allumage";
+        let entryTime = "";
+        let entryDay = "";
+        let entryIso: string | undefined;
+        let exitLabel = "Havdala / Sortie";
+        let exitTime = "";
+        let exitDay = "";
+        let exitIso: string | undefined;
+        let isCrossDays = false;
+
+        if (isFast) {
+          entryLabel = "Début du jeûne";
+          exitLabel = "Fin du jeûne";
+          const fStart = fastItems.find((f) => f.title.includes("Début") && f.date.startsWith(hDateStr));
+          const fEnd = fastItems.find((f) => f.title.includes("Fin") && f.date.startsWith(hDateStr));
+          if (fStart) {
+            entryTime = formatHour(fStart.date);
+            entryDay = formatDayName(fStart.date);
+            entryIso = fStart.date;
+          }
+          if (fEnd) {
+            exitTime = formatHour(fEnd.date);
+            exitDay = formatDayName(fEnd.date);
+            exitIso = fEnd.date;
+          }
+        } else if (isMajor || cat === "minor") {
+          const cMatch = candleItems.find((c) => {
+            const cDate = new Date(c.date.split("T")[0]);
+            const diff = (cDate.getTime() - hDate.getTime()) / (1000 * 3600 * 24);
+            return diff === 0 || diff === -1;
+          });
+          if (cMatch) {
+            entryTime = formatHour(cMatch.date);
+            entryDay = formatDayName(cMatch.date);
+            entryIso = cMatch.date;
+          }
+
+          const hvMatch = havdalahItems.find((hv) => {
+            const hvDate = new Date(hv.date.split("T")[0]);
+            const diff = (hvDate.getTime() - hDate.getTime()) / (1000 * 3600 * 24);
+            return diff >= 0 && diff <= 2;
+          });
+          if (hvMatch) {
+            exitTime = formatHour(hvMatch.date);
+            exitDay = formatDayName(hvMatch.date);
+            exitIso = hvMatch.date;
+          }
+
+          if (entryDay && exitDay && entryDay !== exitDay) {
+            isCrossDays = true;
+          }
+        }
+
         return {
           id: `${item.title}-${item.date}-${idx}`,
-          titleFr: translateHolidayTitle(item.title),
+          titleFr,
           titleHe: item.hebrew,
           dateIso: item.date,
           category: cat,
           categoryLabel: catLabel,
           hebrewDate: item.hdate || "",
           description: getHolidayDescription(item.title, item.title_orig),
+          dayRank,
+          entryLabel,
+          entryTime,
+          entryDay,
+          entryIso,
+          exitLabel,
+          exitTime,
+          exitDay,
+          exitIso,
+          isCrossDays,
         };
       });
 
@@ -236,38 +359,55 @@ export async function fetchJewishHolidays(year: number, city: HebcalCity): Promi
  * Traduction et embellissement des titres des fêtes
  */
 function translateHolidayTitle(title: string): string {
-  return title
+  const clean = title
     .replace(/[\u0332\u0331]/g, "")
     .replace(/’/g, "'")
-    .replace(/\(H’’M\)|\(CH''M\)/g, "(Hol Hamoed)")
-    .replace(/Soukkot/g, "Souccot")
-    .replace(/Roch Hachanah\b/g, "Roch Hachana")
-    .replace(/Chemini Atzéret\b/g, "Chemini Atséret")
-    .replace(/Simhat Torah\b/g, "Sim'hat Torah")
-    .replace(/Hochanah Rabbah/g, "Hochaana Raba")
-    .replace(/H̲?anoukah\b|Chanukah\b/g, "Hanoucca")
     .replace(/^Erev\s+/i, "Veille de ")
-    .replace(/^Rosh Hashana\b/i, "Roch Hachana")
-    .replace(/^Yom Kippur\b/i, "Yom Kippour")
-    .replace(/^Sukkot\b/i, "Souccot")
-    .replace(/^Shemini Atzeret\b/i, "Chemini Atséret")
-    .replace(/^Simchat Torah\b/i, "Sim'hat Torah")
-    .replace(/^Tu BiShvat\b/i, "Tou Bichvat")
-    .replace(/^Purim\b/i, "Pourim")
-    .replace(/^Ta'anit Esther\b/i, "Jeûne d’Esther")
-    .replace(/^Pesach\b/i, "Pessah")
-    .replace(/^Chavou'ot\b/i, "Chavouot")
-    .replace(/^Shavuot\b/i, "Chavouot")
-    .replace(/^Yom HaShoah\b/i, "Yom HaChoah")
-    .replace(/^Yom HaZikaron\b/i, "Yom HaZikaron")
-    .replace(/^Yom HaAtzma'ut\b/i, "Yom HaAtsmaout")
-    .replace(/^Lag BaOmer\b/i, "Lag BaOmer")
-    .replace(/^Yom Yerushalayim\b/i, "Yom Yérouchalayim")
-    .replace(/^Tzom Tammuz\b/i, "Jeûne du 17 Tamouz")
-    .replace(/^Tish'a B'Av\b/i, "Ticha Beav (9 Av)")
-    .replace(/^Tzom Gedaliah\b/i, "Jeûne de Guedalia")
-    .replace(/^Asara B'Tevet\b/i, "Jeûne du 10 Tévet")
+    .replace(/Roch Hachanah 5787|Roch Hachanah I\b|Rosh Hashana I\b/i, "Roch Hachana (1er jour)")
+    .replace(/Roch Hachanah II\b|Rosh Hashana II\b/i, "Roch Hachana (2ème jour)")
+    .replace(/Roch Hachanah\b/i, "Roch Hachana")
+    .replace(/Soukkot VII.*|Hochanah Rabbah|Hoshana Raba/i, "Hochaana Rabba (7ème jour de Souccot)")
+    .replace(/Soukkot VI.*|Souccot VI.*/i, "Souccot (6ème jour - Hol Hamoed)")
+    .replace(/Soukkot V.*|Souccot V.*/i, "Souccot (5ème jour - Hol Hamoed)")
+    .replace(/Soukkot IV.*|Souccot IV.*/i, "Souccot (4ème jour - Hol Hamoed)")
+    .replace(/Soukkot III.*|Souccot III.*/i, "Souccot (3ème jour - Hol Hamoed)")
+    .replace(/Soukkot II\b|Souccot II\b|Sukkot II\b/i, "Souccot (2ème jour)")
+    .replace(/Soukkot I\b|Souccot I\b|Sukkot I\b/i, "Souccot (1er jour)")
+    .replace(/Chemini Atzéret\b|Shemini Atzeret\b/i, "Chémini Atseret")
+    .replace(/Simhat Torah\b|Simchat Torah\b/i, "Sim'hat Torah")
+    .replace(/Pessah VIII\b|Pesach VIII\b/i, "Pessa'h (8ème jour)")
+    .replace(/Pessah VII\b|Pesach VII\b/i, "Pessa'h (7ème jour)")
+    .replace(/Pessah VI.*|Pesach VI.*/i, "Pessa'h (6ème jour - Hol Hamoed)")
+    .replace(/Pessah V.*|Pesach V.*/i, "Pessa'h (5ème jour - Hol Hamoed)")
+    .replace(/Pessah IV.*|Pesach IV.*/i, "Pessa'h (4ème jour - Hol Hamoed)")
+    .replace(/Pessah III.*|Pesach III.*/i, "Pessa'h (3ème jour - Hol Hamoed)")
+    .replace(/Pessah II\b|Pesach II\b/i, "Pessa'h (2ème jour)")
+    .replace(/Pessah I\b|Pesach I\b/i, "Pessa'h (1er jour)")
+    .replace(/Pessah Cheni\b|Pesach Sheni\b/i, "Pessa'h Chéni")
+    .replace(/Chavou'ot II\b|Chavouot II\b|Shavuot II\b/i, "Chavouot (2ème jour)")
+    .replace(/Chavou'ot I\b|Chavouot I\b|Shavuot I\b/i, "Chavouot (1er jour)")
+    .replace(/Chavou'ot\b|Shavuot\b/i, "Chavouot")
+    .replace(/Hanoukah: 8ème jour/i, "Hanouka (8ème jour - Clôture)")
+    .replace(/Hanoukah: 8 Bougies|Chanukah: 8 Candles/i, "Hanouka (8ème jour - 8 bougies)")
+    .replace(/Hanoukah: 7 Bougies|Chanukah: 7 Candles/i, "Hanouka (7ème jour - 7 bougies)")
+    .replace(/Hanoukah: 6 Bougies|Chanukah: 6 Candles/i, "Hanouka (6ème jour - 6 bougies)")
+    .replace(/Hanoukah: 5 Bougies|Chanukah: 5 Candles/i, "Hanouka (5ème jour - 5 bougies)")
+    .replace(/Hanoukah: 4 Bougies|Chanukah: 4 Candles/i, "Hanouka (4ème jour - 4 bougies)")
+    .replace(/Hanoukah: 3 Bougies|Chanukah: 3 Candles/i, "Hanouka (3ème jour - 3 bougies)")
+    .replace(/Hanoukah: 2 Bougies|Chanukah: 2 Candles/i, "Hanouka (2ème jour - 2 bougies)")
+    .replace(/Hanoukah: 1 Bougie|Chanukah: 1 Candle/i, "Hanouka (1er jour - 1ère bougie)")
+    .replace(/Tou biChvat|Tu BiShvat/i, "Tou Bichevat")
+    .replace(/Lag BaOmer/i, "Lag Baomer")
+    .replace(/Ta'anit Esther/i, "Jeûne d'Esther")
+    .replace(/Ta'anit Bekhorot/i, "Jeûne des Premiers-nés (Ta'anit Bekhorot)")
+    .replace(/Tzom Gedaliah/i, "Jeûne de Guedalia")
+    .replace(/Asara B'Tevet/i, "Jeûne du 10 Tevet")
+    .replace(/Tzom Tammuz/i, "Jeûne du 17 Tamouz")
+    .replace(/Tich'ah beAv|Tish'a B'Av/i, "Jeûne du 9 Av (Ticha Beav)")
+    .replace(/Soukkot|Sukkot/i, "Souccot")
+    .replace(/Pessah|Pesach/i, "Pessa'h")
     .replace(/^Rosh Chodesh\s+/i, "Roch Hodech ");
+  return clean;
 }
 
 function getHolidayDescription(title: string, origTitle?: string): string {

@@ -684,82 +684,129 @@ export function HebrewCalendarPage() {
           {/* VUE 1 : CHRONOLOGIE ÉPURÉE DES FÊTES */}
           {/* ========================================================================= */}
           {viewMode === "list" && (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {filteredHolidays.map((event) => {
-                const dateObj = new Date(event.dateIso);
-                const day = dateObj.getDate();
-                const month = dateObj.toLocaleDateString("fr-FR", { month: "short" });
-                const weekday = dateObj.toLocaleDateString("fr-FR", { weekday: "long" });
-
                 const isMajor = event.category === "major";
                 const isFast = event.category === "fast";
 
                 return (
                   <article
                     key={event.id}
-                    className="flex flex-col justify-between rounded-3xl border border-black/[.06] bg-white p-6 shadow-2xs transition hover:-translate-y-0.5 hover:shadow-md"
+                    className="flex flex-col justify-between rounded-[2rem] border border-black/[.08] bg-white p-6 shadow-2xs transition hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <div>
-                      {/* En-tête de la carte */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`grid size-14 shrink-0 place-items-center rounded-2xl text-center shadow-2xs ${
-                              isMajor
-                                ? "bg-[#f6ecd9] text-[#8f6424]"
-                                : isFast
-                                ? "bg-rose-50 text-rose-700"
-                                : "bg-cream text-ink"
-                            }`}
-                          >
-                            <span className="text-xl font-black leading-none">{day}</span>
-                            <span className="text-[10px] font-bold uppercase tracking-wider">
-                              {month}
-                            </span>
-                          </div>
-                          <div>
-                            <span
-                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                                isMajor
-                                  ? "bg-amber-100/70 text-amber-800"
-                                  : isFast
-                                  ? "bg-rose-100 text-rose-800"
-                                  : "bg-neutral-100 text-ink/60"
-                              }`}
-                            >
-                              {event.categoryLabel}
-                            </span>
-                            <p className="mt-1 text-xs font-semibold capitalize text-ink/45">
-                              {weekday}
+                    <div className="space-y-4">
+                      {/* En-tête : Date complète en Français + Date en Hébreu + Badge jour */}
+                      <div className="flex items-start justify-between gap-3 border-b border-black/5 pb-3">
+                        <div>
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-moss capitalize">
+                            📅 {new Date(event.dateIso).toLocaleDateString("fr-FR", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </span>
+                          {event.hebrewDate && (
+                            <p className="font-serif text-xs font-bold text-[#8f6424] mt-0.5">
+                              {event.hebrewDate}
                             </p>
-                          </div>
+                          )}
                         </div>
 
-                        {event.hebrewDate && (
-                          <span className="font-serif text-xs font-semibold text-[#8f6424]">
-                            {event.hebrewDate}
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                              isMajor
+                                ? "bg-[#f6ecd9] text-[#8f6424] border border-[#8f6424]/20"
+                                : isFast
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-neutral-100 text-ink/70"
+                            }`}
+                          >
+                            {event.categoryLabel}
                           </span>
-                        )}
+                          {event.dayRank && (
+                            <span className="text-[10px] font-black text-ink/50 uppercase tracking-tight">
+                              {event.dayRank}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Titre & Description */}
-                      <h3 className="mt-4 text-lg font-bold text-ink">{event.titleFr}</h3>
-                      {event.titleHe && (
-                        <p className="font-serif text-xs text-ink/40">{event.titleHe}</p>
+                      {/* Nom de la fête en Français et en Hébreu */}
+                      <div>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h3 className="text-xl font-black text-ink tracking-tight">{event.titleFr}</h3>
+                          {event.titleHe && (
+                            <span className="font-serif text-sm font-bold text-[#8f6424] shrink-0">
+                              {event.titleHe}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-2 text-xs leading-relaxed text-ink/65">
+                          {event.description}
+                        </p>
+                      </div>
+
+                      {/* Horaires d'Entrée et de Sortie selon la localisation */}
+                      {(event.entryTime || event.exitTime) && (
+                        <div className="rounded-2xl bg-[#fbf8f2] border border-black/5 p-3.5 space-y-2 text-xs">
+                          <div className="flex items-center justify-between font-bold text-[#8f6424] text-[11px] uppercase tracking-wide border-b border-black/5 pb-1">
+                            <span>📍 Horaires à {selectedCity.name}</span>
+                            {event.isCrossDays && (
+                              <span className="text-rose-600 font-extrabold text-[10px]">
+                                ⚠️ Sortie différée
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-0.5">
+                            {event.entryTime ? (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-extrabold text-ink/50 uppercase flex items-center gap-1">
+                                  <Flame size={12} className="text-amber-500" /> {event.entryLabel || "Entrée"}
+                                </span>
+                                <p className="text-xs font-black text-ink">{event.entryTime}</p>
+                                {event.entryDay && (
+                                  <p className="text-[10px] text-ink/50 font-medium capitalize">{event.entryDay}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-extrabold text-ink/50 uppercase">Entrée</span>
+                                <p className="text-xs font-semibold text-ink/40">--:--</p>
+                              </div>
+                            )}
+
+                            {event.exitTime ? (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-extrabold text-ink/50 uppercase flex items-center gap-1">
+                                  <Moon size={12} className="text-sky-500" /> {event.exitLabel || "Sortie"}
+                                </span>
+                                <p className="text-xs font-black text-ink">{event.exitTime}</p>
+                                {event.exitDay && (
+                                  <p className="text-[10px] text-ink/50 font-medium capitalize">{event.exitDay}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-extrabold text-ink/50 uppercase">Sortie</span>
+                                <p className="text-xs font-semibold text-ink/40">--:--</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       )}
-                      <p className="mt-2 text-xs leading-relaxed text-ink/60">
-                        {event.description}
-                      </p>
                     </div>
 
                     {/* Bouton d'action agenda */}
-                    <div className="mt-6 pt-4 border-t border-black/5">
+                    <div className="mt-5 pt-3 border-t border-black/5">
                       <button
                         type="button"
                         onClick={() => openExportModalForHoliday(event)}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-cream py-2.5 text-xs font-bold text-ink/75 transition hover:bg-moss hover:text-white"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-moss"
                       >
-                        <CalendarIcon size={14} /> Ajouter à mon agenda
+                        <CalendarIcon size={14} /> Synchroniser sur mon mobile
                       </button>
                     </div>
                   </article>
@@ -992,7 +1039,7 @@ export function HebrewCalendarPage() {
                           <div>
                             <div className="flex items-center justify-between gap-2">
                               <span
-                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
                                   event.category === "major"
                                     ? "bg-amber-100/80 text-amber-900"
                                     : event.category === "fast"
@@ -1002,20 +1049,63 @@ export function HebrewCalendarPage() {
                               >
                                 {event.categoryLabel}
                               </span>
-                              {event.hebrewDate && (
-                                <span className="font-serif text-xs font-bold text-[#8f6424]">
-                                  {event.hebrewDate}
+                              {event.dayRank && (
+                                <span className="text-[10px] font-black text-ink/50 uppercase tracking-tight">
+                                  {event.dayRank}
                                 </span>
                               )}
                             </div>
 
-                            <h4 className="mt-3 text-lg font-bold text-ink">{event.titleFr}</h4>
-                            {event.titleHe && (
-                              <p className="font-serif text-xs text-ink/50">{event.titleHe}</p>
-                            )}
+                            <div className="mt-3 flex items-baseline justify-between gap-2">
+                              <h4 className="text-lg font-black text-ink">{event.titleFr}</h4>
+                              {event.titleHe && (
+                                <span className="font-serif text-sm font-bold text-[#8f6424] shrink-0">
+                                  {event.titleHe}
+                                </span>
+                              )}
+                            </div>
+
                             <p className="mt-2 text-xs leading-relaxed text-ink/70">
                               {event.description}
                             </p>
+
+                            {/* Horaires d'Entrée et de Sortie selon la localisation */}
+                            {(event.entryTime || event.exitTime) && (
+                              <div className="mt-3 rounded-xl bg-white p-3 border border-black/5 space-y-1.5 text-xs">
+                                <div className="flex items-center justify-between font-bold text-[#8f6424] text-[10px] uppercase tracking-wide border-b border-black/5 pb-1">
+                                  <span>📍 Horaires à {selectedCity.name}</span>
+                                  {event.isCrossDays && (
+                                    <span className="text-rose-600 font-extrabold text-[9px]">
+                                      ⚠️ Sortie différée
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                                  {event.entryTime && (
+                                    <div>
+                                      <span className="text-[9px] font-extrabold text-ink/50 uppercase flex items-center gap-1">
+                                        <Flame size={11} className="text-amber-500" /> {event.entryLabel || "Entrée"}
+                                      </span>
+                                      <p className="text-xs font-black text-ink">{event.entryTime}</p>
+                                      {event.entryDay && (
+                                        <p className="text-[9px] text-ink/50 capitalize">{event.entryDay}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {event.exitTime && (
+                                    <div>
+                                      <span className="text-[9px] font-extrabold text-ink/50 uppercase flex items-center gap-1">
+                                        <Moon size={11} className="text-sky-500" /> {event.exitLabel || "Sortie"}
+                                      </span>
+                                      <p className="text-xs font-black text-ink">{event.exitTime}</p>
+                                      {event.exitDay && (
+                                        <p className="text-[9px] text-ink/50 capitalize">{event.exitDay}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <button
@@ -1023,7 +1113,7 @@ export function HebrewCalendarPage() {
                             onClick={() => openExportModalForHoliday(event)}
                             className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-moss"
                           >
-                            <CalendarIcon size={14} /> Ajouter {event.titleFr} à mon agenda
+                            <CalendarIcon size={14} /> Synchroniser sur mon mobile
                           </button>
                         </div>
                       ))}
@@ -1118,15 +1208,62 @@ export function HebrewCalendarPage() {
                       >
                         {ev.categoryLabel}
                       </span>
-                      {ev.titleHe && (
-                        <span className="font-serif text-xs font-bold text-[#8f6424]">{ev.titleHe}</span>
+                      {ev.dayRank && (
+                        <span className="text-[10px] font-bold text-ink/50 uppercase">
+                          {ev.dayRank}
+                        </span>
                       )}
                     </div>
 
                     <div>
-                      <h4 className="text-lg font-extrabold text-ink">{ev.titleFr}</h4>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h4 className="text-lg font-extrabold text-ink">{ev.titleFr}</h4>
+                        {ev.titleHe && (
+                          <span className="font-serif text-xs font-bold text-[#8f6424] shrink-0">
+                            {ev.titleHe}
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1 text-xs leading-relaxed text-ink/70">{ev.description}</p>
                     </div>
+
+                    {/* Horaires d'Entrée et de Sortie selon la localisation */}
+                    {(ev.entryTime || ev.exitTime) && (
+                      <div className="rounded-xl bg-white p-3 border border-black/5 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between font-bold text-[#8f6424] text-[10px] uppercase tracking-wide border-b border-black/5 pb-1">
+                          <span>📍 Horaires à {selectedCity.name}</span>
+                          {ev.isCrossDays && (
+                            <span className="text-rose-600 font-extrabold text-[9px]">
+                              ⚠️ Sortie différée
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-0.5">
+                          {ev.entryTime && (
+                            <div>
+                              <span className="text-[9px] font-extrabold text-ink/50 uppercase flex items-center gap-1">
+                                <Flame size={11} className="text-amber-500" /> {ev.entryLabel || "Entrée"}
+                              </span>
+                              <p className="text-xs font-black text-ink">{ev.entryTime}</p>
+                              {ev.entryDay && (
+                                <p className="text-[9px] text-ink/50 capitalize">{ev.entryDay}</p>
+                              )}
+                            </div>
+                          )}
+                          {ev.exitTime && (
+                            <div>
+                              <span className="text-[9px] font-extrabold text-ink/50 uppercase flex items-center gap-1">
+                                <Moon size={11} className="text-sky-500" /> {ev.exitLabel || "Sortie"}
+                              </span>
+                              <p className="text-xs font-black text-ink">{ev.exitTime}</p>
+                              {ev.exitDay && (
+                                <p className="text-[9px] text-ink/50 capitalize">{ev.exitDay}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <button
                       type="button"
@@ -1136,7 +1273,7 @@ export function HebrewCalendarPage() {
                       }}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-moss"
                     >
-                      <CalendarIcon size={14} /> Synchroniser {ev.titleFr} sur mon mobile
+                      <CalendarIcon size={14} /> Synchroniser sur mon mobile
                     </button>
                   </div>
                 ))}

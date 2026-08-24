@@ -484,6 +484,20 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     }, () => undefined, { maximumAge: 300000, timeout: 5000 });
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const cuisineParam = params.get("cuisine");
+    if (cuisineParam) {
+      const formatted = cuisineParam.charAt(0).toUpperCase() + cuisineParam.slice(1);
+      setFilters((prev) => (prev.includes(formatted) ? prev : [...prev, formatted]));
+    }
+    const qParam = params.get("q") || params.get("search");
+    if (qParam) {
+      setQuery(qParam);
+    }
+  }, []);
+
   const toggleFilter = (filter: string) => setFilters((current) => current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter]);
   const applyTagFilter = (tag: string) => {
     setDetailRestaurant(null);

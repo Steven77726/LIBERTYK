@@ -15,6 +15,8 @@ export const metadata: Metadata = buildPageMetadata({
   imageAlt: "Restaurant casher Khan à Paris",
 });
 
+import { restaurants } from "@/data/restaurants";
+
 const addressTypes = [
   { label: "Restaurants", description: "Les tables incontournables", href: "/food/restaurants", icon: UtensilsCrossed, image: "/images/food/restaurants-khan.jpg" },
   { label: "Brunch", description: "Pour prendre le temps", href: "/food/brunch", icon: Coffee, image: "/images/food/brunch-marceau.jpg" },
@@ -28,23 +30,54 @@ const addressTypes = [
   { label: "Glaciers", description: "Fraîcheur et plaisir", href: "/food/glaciers", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
 ];
 
-const cuisines = [
-  { label: "Français", detail: "Élégance & tradition", emoji: "FR" },
-  { label: "Israélien", detail: "Solaire & généreux", emoji: "IL" },
-  { label: "Japonais", detail: "Précis & raffiné", emoji: "JP" },
-  { label: "Chinois", detail: "Parfumé & authentique", emoji: "CN" },
-  { label: "Thaïlandais", detail: "Vibrant & épicé", emoji: "TH" },
-  { label: "Africain", detail: "Intense & convivial", emoji: "AF" },
-  { label: "Italien", detail: "Simple & passionné", emoji: "IT" },
-  { label: "Libanais", detail: "Frais & généreux", emoji: "LB" },
-  { label: "Américain", detail: "Gourmand & iconique", emoji: "US" },
-  { label: "Marocain", detail: "Chaleureux & parfumé", emoji: "MA" },
-  { label: "Tunisien", detail: "Solaire & relevé", emoji: "TN" },
-  { label: "Ashkénaze", detail: "Mémoire & transmission", emoji: "AS" },
+const cuisineList = [
+  { label: "Français", detail: "Élégance & tradition" },
+  { label: "Israélien", detail: "Solaire & généreux" },
+  { label: "Japonais", detail: "Précis & raffiné" },
+  { label: "Chinois", detail: "Parfumé & authentique" },
+  { label: "Thaïlandais", detail: "Vibrant & épicé" },
+  { label: "Africain", detail: "Intense & convivial" },
+  { label: "Italien", detail: "Simple & passionné" },
+  { label: "Libanais", detail: "Frais & généreux" },
+  { label: "Américain", detail: "Gourmand & iconique" },
+  { label: "Marocain", detail: "Chaleureux & parfumé" },
+  { label: "Tunisien", detail: "Solaire & relevé" },
+  { label: "Ashkénaze", detail: "Mémoire & transmission" },
 ];
 
 function slugify(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, "-");
+}
+
+function getCuisineCount(label: string): number {
+  const norm = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  const target = norm(label);
+
+  const count = restaurants.filter((r) => {
+    const full = norm(
+      `${r.cuisine || ""} ${r.specialty || ""} ${r.name || ""} ${(r.tags || []).join(" ")}`
+    );
+    if (target === "francais") return full.includes("francais") || full.includes("francaise") || full.includes("gastronomique");
+    if (target === "israelien") return full.includes("israel") || full.includes("israélien") || full.includes("israelienne");
+    if (target === "japonais") return full.includes("japon") || full.includes("sushi") || full.includes("asiatique");
+    if (target === "chinois") return full.includes("chinois") || full.includes("chinoise") || full.includes("asiatique");
+    if (target === "thailandais") return full.includes("thai") || full.includes("asiatique");
+    if (target === "africain") return full.includes("africain");
+    if (target === "italien") return full.includes("italien") || full.includes("italienne") || full.includes("pizza");
+    if (target === "libanais") return full.includes("libanais") || full.includes("libanaise") || full.includes("oriental");
+    if (target === "americain") return full.includes("americain") || full.includes("burger") || full.includes("fast-food");
+    if (target === "marocain") return full.includes("maroc") || full.includes("oriental");
+    if (target === "tunisien") return full.includes("tunisi") || full.includes("oriental");
+    if (target === "ashkenaze") return full.includes("ashkenaze") || full.includes("sandwicherie") || full.includes("traiteur");
+    return full.includes(target);
+  }).length;
+
+  return count;
 }
 
 export default function FoodPage() {
@@ -80,20 +113,32 @@ export default function FoodPage() {
               <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Quelle saveur vous appelle ?</h2>
             </div>
             <div className="overflow-hidden rounded-[2rem] border border-black/[.06] bg-white p-2 shadow-soft sm:p-3">
-              {cuisines.map(({ label, detail, emoji }, index) => (
-                <Link
-                  key={label}
-                  href={`/food?cuisine=${slugify(label)}`}
-                  className={`group flex items-center gap-4 rounded-2xl px-3 py-4 transition hover:bg-cream sm:px-5 ${index !== cuisines.length - 1 ? "border-b border-black/[.055]" : ""}`}
-                >
-                  <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#f2eee5] text-[11px] font-bold tracking-[.08em] text-[#806944] transition group-hover:bg-ink group-hover:text-white">{emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold tracking-tight">{label}</h3>
-                    <p className="mt-0.5 text-xs text-ink/40">{detail}</p>
-                  </div>
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-cream text-ink/35 transition group-hover:bg-ink group-hover:text-white"><ArrowRight size={15} /></span>
-                </Link>
-              ))}
+              {cuisineList.map(({ label, detail }, index) => {
+                const count = getCuisineCount(label);
+                return (
+                  <Link
+                    key={label}
+                    href={`/food/restaurants?cuisine=${slugify(label)}`}
+                    className={`group flex items-center gap-4 rounded-2xl px-3 py-4 transition hover:bg-cream sm:px-5 ${index !== cuisineList.length - 1 ? "border-b border-black/[.055]" : ""}`}
+                  >
+                    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#f2eee5] text-base font-extrabold tracking-tight text-[#806944] transition group-hover:bg-ink group-hover:text-white shadow-2xs">
+                      {count}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold tracking-tight">{label}</h3>
+                        <span className="text-[11px] font-medium text-ink/40">
+                          ({count} restaurant{count > 1 ? "s" : ""})
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-ink/40">{detail}</p>
+                    </div>
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-cream text-ink/35 transition group-hover:bg-ink group-hover:text-white">
+                      <ArrowRight size={15} />
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
             <div className="mt-5 flex items-center gap-4 rounded-[1.75rem] bg-[#e2eae4] p-5">
               <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-moss"><Store size={20} /></span>

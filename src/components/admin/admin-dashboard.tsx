@@ -3942,15 +3942,89 @@ export function AdminDashboard() {
                     <div className="grid gap-4 lg:grid-cols-2">
                       <Field label="Nom" value={selectedEstablishment.name} onChange={(value) => updateEstablishment(selectedEstablishment.id, { name: value })} />
                       <Field label="Slug" value={selectedEstablishment.slug ?? slugify(selectedEstablishment.name)} onChange={(value) => updateEstablishment(selectedEstablishment.id, { slug: value })} />
-                      <SelectField label="Rubrique" value={selectedEstablishment.rubricId} onChange={(value) => updateEstablishment(selectedEstablishment.id, { rubricId: value, subrubricId: state.subrubrics.find((item) => item.rubricId === value)?.id ?? selectedEstablishment.subrubricId })}>
-                        {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>{rubric.name}</option>)}
+                      <SelectField 
+                        label="Rubrique" 
+                        value={selectedEstablishment.rubricId} 
+                        onChange={(value) => {
+                          const firstSub = state.subrubrics.find((item) => item.rubricId === value);
+                          updateEstablishment(selectedEstablishment.id, { 
+                            rubricId: value, 
+                            subrubricId: firstSub?.id ?? "" 
+                          });
+                        }}
+                      >
+                        {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>📁 {rubric.name}</option>)}
                       </SelectField>
-                      <SelectField label="Sous-rubrique" value={selectedEstablishment.subrubricId} onChange={(value) => {
-                        const subrubric = state.subrubrics.find((item) => item.id === value);
-                        updateEstablishment(selectedEstablishment.id, { subrubricId: value, rubricId: subrubric?.rubricId ?? selectedEstablishment.rubricId });
-                      }}>
-                        {state.subrubrics.map((subrubric) => <option key={subrubric.id} value={subrubric.id}>{state.rubrics.find((item) => item.id === subrubric.rubricId)?.name} → {subrubric.name}</option>)}
-                      </SelectField>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold uppercase tracking-[.14em] text-ink/40">Sous-rubrique</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentRubric = state.rubrics.find((r) => r.id === selectedEstablishment.rubricId);
+                              const name = window.prompt(`Nom de la nouvelle sous-rubrique pour "${currentRubric?.name || 'cette rubrique'}" :`, "Déco");
+                              if (name && name.trim()) {
+                                const rubricId = selectedEstablishment.rubricId;
+                                const parentSlug = currentRubric?.slug || rubricId;
+                                const slug = `${slugify(name.trim())}-${parentSlug}`;
+                                const newIdStr = newId("subrubric");
+                                const newSub: AdminSubrubric = {
+                                  id: newIdStr,
+                                  rubricId,
+                                  name: name.trim(),
+                                  slug,
+                                  description: `${name.trim()} sélectionnés dans Liberty K.`,
+                                  icon: name.trim(),
+                                  photo: currentRubric?.image || "/images/mariage/kinor-decor.jpg",
+                                  imageAlt: name.trim(),
+                                  showPublicly: true,
+                                  format: "Carré standard",
+                                  columnsDesktop: 3,
+                                  columnsTablet: 2,
+                                  columnsMobile: 1,
+                                  searchKeywords: [name.trim(), slug, parentSlug],
+                                  order: state.subrubrics.filter((s) => s.rubricId === rubricId).length + 1,
+                                  status: "Publié",
+                                  visible: true,
+                                  updatedAt: new Date().toISOString(),
+                                };
+                                commitState((curr) => ({
+                                  ...curr,
+                                  subrubrics: [...curr.subrubrics, newSub],
+                                  establishments: curr.establishments.map((est) =>
+                                    est.id === selectedEstablishment.id ? { ...est, subrubricId: newIdStr } : est
+                                  ),
+                                }), `Sous-rubrique "${name.trim()}" créée et associée !`, "Création");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-moss hover:underline cursor-pointer"
+                          >
+                            <Plus size={12} /> + Nouvelle sous-rubrique
+                          </button>
+                        </div>
+                        <select
+                          className="w-full rounded-2xl border border-black/5 bg-cream/35 px-4 py-3 text-xs font-semibold outline-hidden focus:bg-white focus:ring-2 focus:ring-moss"
+                          value={selectedEstablishment.subrubricId}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            const subrubric = state.subrubrics.find((item) => item.id === value);
+                            updateEstablishment(selectedEstablishment.id, { subrubricId: value, rubricId: subrubric?.rubricId ?? selectedEstablishment.rubricId });
+                          }}
+                        >
+                          {state.subrubrics.filter((sub) => sub.rubricId === selectedEstablishment.rubricId).length === 0 ? (
+                            <option value="">Aucune sous-rubrique (Cliquez sur + Nouvelle sous-rubrique)</option>
+                          ) : (
+                            state.subrubrics
+                              .filter((sub) => sub.rubricId === selectedEstablishment.rubricId)
+                              .map((subrubric) => (
+                                <option key={subrubric.id} value={subrubric.id}>
+                                  ↳ {subrubric.name}
+                                </option>
+                              ))
+                          )}
+                        </select>
+                      </div>
                       <Field label="Description courte" value={selectedEstablishment.shortDescription ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { shortDescription: value })} />
                       <Field label="Description" value={selectedEstablishment.description} textarea onChange={(value) => updateEstablishment(selectedEstablishment.id, { description: value })} />
                       <HoursEditor value={selectedEstablishment.hours} onChange={(value) => updateEstablishment(selectedEstablishment.id, { hours: value })} />

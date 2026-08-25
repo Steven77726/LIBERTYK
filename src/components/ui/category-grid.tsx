@@ -20,6 +20,13 @@ type AdminRubricPreview = {
   status: "Publié" | "Brouillon" | "Masqué";
 };
 
+const staticRubricRoutes = new Set(categories.map((category) => category.slug));
+
+function rubricHref(slug: string) {
+  if (staticRubricRoutes.has(slug)) return `/${slug}`;
+  return `/rubrique?slug=${encodeURIComponent(slug)}`;
+}
+
 export function CategoryGrid() {
   const [adminRubrics, setAdminRubrics] = useState<AdminRubricPreview[] | null>(null);
 
@@ -95,11 +102,15 @@ export function CategoryGrid() {
 
     window.addEventListener("storage", handleUpdate);
     window.addEventListener("liberty-admin-published", handleUpdate);
+    window.addEventListener("focus", handleUpdate);
+    document.addEventListener("visibilitychange", handleUpdate);
 
     return () => {
       mounted = false;
       window.removeEventListener("storage", handleUpdate);
       window.removeEventListener("liberty-admin-published", handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
+      document.removeEventListener("visibilitychange", handleUpdate);
     };
   }, []);
 
@@ -147,7 +158,7 @@ export function CategoryGrid() {
       <div className="mb-5 max-w-3xl"><p className="eyebrow">Tous vos univers</p><h2 className="text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Tout ce qui compte. <span className="text-ink/28">Au même endroit.</span></h2></div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format }) => (
-          <Link key={slug} href={`/${slug}`} className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}>
+          <Link key={slug} href={rubricHref(slug)} className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}>
             <img src={assetPath(image)} alt={imageAlt ?? label} loading="lazy" decoding="async" className="liberty-image-grade absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.055]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.20),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.91),rgba(0,0,0,.38)_48%,rgba(0,0,0,.05))]" />
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70" />

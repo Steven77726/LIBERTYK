@@ -49,6 +49,7 @@ export function SubrubricPageView({
   const description = subrubric?.description || fallbackDescription || `Les fiches publiées dans ${title}.`;
   const backLabel = rubric?.label || readableTitle(rubricSlug);
   const Icon = rubric?.icon ?? Sparkles;
+  const backHref = rubric ? `/${rubricSlug}` : `/rubrique?slug=${encodeURIComponent(rubricSlug)}`;
 
   useEffect(() => {
     let mounted = true;
@@ -165,7 +166,7 @@ export function SubrubricPageView({
   return (
     <>
       <section className="page-shell pt-8 sm:pt-12">
-        <Link href={`/${rubricSlug}`} className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-ink/50 transition hover:text-ink">
+        <Link href={backHref} className="mb-6 inline-flex items-center gap-2 text-xs font-semibold text-ink/50 transition hover:text-ink">
           <ArrowLeft size={14} /> Retour à {backLabel}
         </Link>
         <div className="relative flex flex-col gap-4 overflow-hidden rounded-[1.75rem] border border-black/[.06] bg-white/80 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">

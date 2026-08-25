@@ -120,7 +120,9 @@ function dedupe(items: SubrubricPreview[]) {
 function subrubricHref(rubricSlug: string, subrubricSlug: string) {
   if (rubricSlug === "food" && subrubricSlug === "restaurants") return "/food/restaurants";
   if (rubricSlug === "food" && subrubricSlug === "brunch") return "/food/brunch";
-  if (!categories.some((category) => category.slug === rubricSlug)) {
+  const isKnownCategory = categories.some((category) => category.slug === rubricSlug);
+  const hasStaticSubrubricPage = localSubrubrics.some((item) => item.rubricId === rubricSlug && item.slug === subrubricSlug);
+  if (!isKnownCategory || !hasStaticSubrubricPage) {
     return `/rubrique?slug=${encodeURIComponent(rubricSlug)}&subrubric=${encodeURIComponent(subrubricSlug)}`;
   }
   return `/${rubricSlug}/${subrubricSlug}`;

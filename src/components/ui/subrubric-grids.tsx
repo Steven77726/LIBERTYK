@@ -135,8 +135,54 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
           setItems(dedupe(remote.map(normalizeSubrubric)));
           return;
         }
+        // Lecture depuis le cache de l'administrateur
+        if (typeof window !== "undefined") {
+          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+              type StoredSubrubric = {
+                id: string;
+                rubricId: string;
+                slug?: string;
+                name: string;
+                description?: string;
+                icon?: string;
+                photo?: string;
+                image?: string;
+                imageAlt?: string;
+                status?: string;
+                showPublicly?: boolean;
+                order?: number;
+              };
+              const rawSubs = (parsed?.subrubrics as StoredSubrubric[]) ?? [];
+              const matched = rawSubs.filter(
+                (s) => (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}`) && s.status === "Publié" && s.showPublicly !== false
+              );
+              if (matched.length > 0) {
+                const combined = dedupe([
+                  ...fallback,
+                  ...matched.map((s) => ({
+                    id: s.id,
+                    rubricId: s.rubricId,
+                    slug: s.slug || slugify(s.name),
+                    name: s.name,
+                    description: s.description,
+                    icon: s.icon,
+                    photo: s.photo || s.image,
+                    imageAlt: s.imageAlt || s.name,
+                    visible: true,
+                    showPublicly: true,
+                    order: s.order || 1,
+                    status: "Publié" as const,
+                  })),
+                ]);
+                setItems(combined);
+                return;
+              }
+          }
+        }
       } catch {
-        // Fallback d'urgence lecture seule : données TypeScript locales.
+        // Fallback d'urgence lecture seule
       }
       if (mounted) setItems(fallback);
     }

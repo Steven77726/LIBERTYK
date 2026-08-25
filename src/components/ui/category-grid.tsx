@@ -44,6 +44,43 @@ export function CategoryGrid() {
               status: rubric.status,
             }))
           );
+          return;
+        }
+
+        // Fallback immédiat sur le cache de l'administrateur
+        if (typeof window !== "undefined") {
+          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.rubrics?.length) {
+              setAdminRubrics(
+                (parsed.rubrics as Array<{
+                  id: string;
+                  slug?: string;
+                  name: string;
+                  description?: string;
+                  image?: string;
+                  imageAlt?: string;
+                  showOnHome?: boolean;
+                  format?: AdminRubricPreview["format"];
+                  order?: number;
+                  status?: AdminRubricPreview["status"];
+                }>).map((rubric) => ({
+                  id: rubric.id,
+                  slug: rubric.slug || rubric.id,
+                  name: rubric.name,
+                  description: rubric.description || "",
+                  image: rubric.image || "",
+                  imageAlt: rubric.imageAlt || rubric.name,
+                  showOnHome: rubric.showOnHome ?? true,
+                  format: rubric.format ?? "Carré standard",
+                  order: rubric.order ?? 1,
+                  status: rubric.status ?? "Publié",
+                }))
+              );
+              return;
+            }
+          }
         }
       } catch {
         if (mounted) setAdminRubrics(null);

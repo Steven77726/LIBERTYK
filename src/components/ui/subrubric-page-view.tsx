@@ -62,22 +62,81 @@ export function SubrubricPageView({
           listPublishedEstablishments({ rubricSlug, subrubricSlug }).catch(() => null),
         ]);
         if (!mounted) return;
-        setSubrubric((remoteSubrubrics ?? []).find((item) => item.slug === subrubricSlug) ?? null);
+        let foundSubrubric = (remoteSubrubrics ?? []).find((item) => item.slug === subrubricSlug) ?? null;
+
+        // Si non trouvée dans Supabase, chercher dans le cache local admin
+        if (!foundSubrubric && typeof window !== "undefined") {
+          try {
+            const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              type LocalSub = { id: string; rubricId: string; slug?: string; name: string; description?: string; photo?: string; image?: string; imageAlt?: string; order?: number };
+              const subs = (parsed?.subrubrics as LocalSub[]) ?? [];
+              const matched = subs.find(
+                (s) => (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}`) && (s.slug === subrubricSlug || (subrubricSlug.startsWith("deco") && (s.slug || "").includes("deco")))
+              );
+              if (matched) {
+                foundSubrubric = {
+                  id: matched.id,
+                  rubricId: rubricSlug,
+                  slug: matched.slug,
+                  name: matched.name,
+                  description: matched.description || "",
+                  photo: matched.photo || matched.image || fallbackImage || "",
+                  imageAlt: matched.imageAlt || matched.name,
+                  showPublicly: true,
+                  order: matched.order || 1,
+                  status: "Publié",
+                };
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        setSubrubric(foundSubrubric);
+
         if (establishments && establishments.length > 0) {
           setItems(establishments);
         } else {
-          const fallback = localEstablishments.filter((item) => {
-            if (item.rubricId !== rubricSlug) return false;
-            const subId = item.subrubricId.toLowerCase();
-            const target = subrubricSlug.toLowerCase();
-            return (
-              subId === target ||
-              subId === `${rubricSlug}-${target}` ||
-              (target.startsWith("deco") && subId.includes("deco")) ||
-              (target.startsWith("decor") && subId.includes("decor"))
-            );
-          });
-          setItems(fallback.length > 0 ? fallback : (establishments ?? []));
+          // Chercher dans le cache admin local
+          let localAdminMatches: EstablishmentRecord[] = [];
+          if (typeof window !== "undefined") {
+            try {
+              const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                const rawEsts = (parsed?.establishments as EstablishmentRecord[]) ?? [];
+                localAdminMatches = rawEsts.filter((est) => {
+                  if (est.rubricId !== rubricSlug) return false;
+                  if (est.status === "Masqué") return false;
+                  const subId = (est.subrubricId || "").toLowerCase();
+                  const target = subrubricSlug.toLowerCase();
+                  return subId === target || subId === `${rubricSlug}-${target}` || (target.startsWith("deco") && subId.includes("deco"));
+                });
+              }
+            } catch {
+              // ignore
+            }
+          }
+
+          if (localAdminMatches.length > 0) {
+            setItems(localAdminMatches);
+          } else {
+            const fallback = localEstablishments.filter((item) => {
+              if (item.rubricId !== rubricSlug) return false;
+              const subId = item.subrubricId.toLowerCase();
+              const target = subrubricSlug.toLowerCase();
+              return (
+                subId === target ||
+                subId === `${rubricSlug}-${target}` ||
+                (target.startsWith("deco") && subId.includes("deco")) ||
+                (target.startsWith("decor") && subId.includes("decor"))
+              );
+            });
+            setItems(fallback.length > 0 ? fallback : (establishments ?? []));
+          }
         }
       } catch (loadError) {
         if (!mounted) return;
@@ -96,7 +155,7 @@ export function SubrubricPageView({
       mounted = false;
       window.removeEventListener("liberty-admin-published", refresh);
     };
-  }, [rubricSlug, subrubricSlug]);
+  }, [rubricSlug, subrubricSlug, fallbackImage]);
 
   const countLabel = useMemo(() => {
     if (loading) return "Chargement…";

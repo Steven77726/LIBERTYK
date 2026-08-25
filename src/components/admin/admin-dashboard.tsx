@@ -1312,6 +1312,97 @@ function Field({
   );
 }
 
+function KeywordChipsField({
+  label,
+  terms,
+  onChange,
+  placeholder = "Tapez un mot-clé puis Entrée ou virgule",
+  help,
+}: {
+  label: string;
+  terms: string[];
+  onChange: (terms: string[]) => void;
+  placeholder?: string;
+  help?: string;
+}) {
+  const [draft, setDraft] = useState("");
+  const normalizedTerms = terms.map((term) => term.trim()).filter(Boolean);
+
+  const commitTerms = (rawValue: string) => {
+    const incoming = cleanTextList(rawValue);
+    if (!incoming.length) {
+      setDraft("");
+      return;
+    }
+
+    const seen = new Set<string>();
+    const merged = [...normalizedTerms, ...incoming].filter((term) => {
+      const key = term.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    onChange(merged);
+    setDraft("");
+  };
+
+  const removeTerm = (termToRemove: string) => {
+    onChange(normalizedTerms.filter((term) => term !== termToRemove));
+  };
+
+  return (
+    <div>
+      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">{label}</span>
+      <div className="rounded-2xl border border-black/10 bg-white px-3 py-2 transition focus-within:border-moss/40 focus-within:ring-4 focus-within:ring-moss/10">
+        <div className="flex flex-wrap items-center gap-2">
+          {normalizedTerms.map((term) => (
+            <button
+              key={term}
+              type="button"
+              onClick={() => removeTerm(term)}
+              className="rounded-full bg-sage px-3 py-1.5 text-xs font-semibold text-moss transition hover:bg-rose-50 hover:text-rose-600"
+              aria-label={`Supprimer ${term}`}
+            >
+              {term} ×
+            </button>
+          ))}
+          <input
+            value={draft}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value.includes(",")) commitTerms(value);
+              else setDraft(value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === ",") {
+                event.preventDefault();
+                commitTerms(draft);
+              }
+              if (event.key === "Backspace" && !draft && normalizedTerms.length) {
+                event.preventDefault();
+                onChange(normalizedTerms.slice(0, -1));
+              }
+            }}
+            onBlur={() => {
+              if (draft.trim()) commitTerms(draft);
+            }}
+            onPaste={(event) => {
+              const pasted = event.clipboardData.getData("text");
+              if (/[\n,]/.test(pasted)) {
+                event.preventDefault();
+                commitTerms(`${draft}${draft ? "," : ""}${pasted}`);
+              }
+            }}
+            placeholder={normalizedTerms.length ? "Ajouter…" : placeholder}
+            className="min-w-[180px] flex-1 bg-transparent px-1 py-1.5 text-sm outline-none placeholder:text-ink/30"
+          />
+        </div>
+      </div>
+      {help && <p className="mt-2 text-xs leading-5 text-ink/45">{help}</p>}
+    </div>
+  );
+}
+
 function SelectField({
   label,
   value,
@@ -4289,26 +4380,12 @@ export function AdminDashboard() {
 
                     <div className="grid gap-5 lg:grid-cols-2">
                       <div>
-                        <Field
+                        <KeywordChipsField
                           label="Recherches clients"
-                          value={selectedEstablishment.customerSearches.join("\n")}
-                          textarea
-                          onChange={(value) => updateEstablishment(selectedEstablishment.id, { customerSearches: cleanTextList(value) })}
+                          terms={selectedEstablishment.customerSearches}
+                          onChange={(terms) => updateEstablishment(selectedEstablishment.id, { customerSearches: terms })}
+                          help="Tapez un mot ou une expression puis Entrée ou virgule. Ces mots servent uniquement à Liberty IA et au classement."
                         />
-                        {selectedEstablishment.customerSearches.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {selectedEstablishment.customerSearches.map((term) => (
-                              <button
-                                key={term}
-                                onClick={() => updateEstablishment(selectedEstablishment.id, { customerSearches: selectedEstablishment.customerSearches.filter((item) => item !== term) })}
-                                className="rounded-full bg-sage px-3 py-1.5 text-xs font-semibold text-moss"
-                              >
-                                {term} ×
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <p className="mt-2 text-xs leading-5 text-ink/45">Ajoutez les mots ou expressions que les utilisateurs sont susceptibles de saisir dans la barre de recherche. Ces mots servent uniquement à Liberty IA et au classement.</p>
                       </div>
                       <div>
                         <div className="mb-2 flex items-center justify-between">
@@ -4385,26 +4462,12 @@ export function AdminDashboard() {
                         <span className={`w-fit rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(item.status)}`}>{item.status}</span>
                       </div>
                       <div className="mt-4">
-                        <Field
+                        <KeywordChipsField
                           label="Recherches clients"
-                          value={item.customerSearches.join("\n")}
-                          textarea
-                          onChange={(value) => updateEstablishment(item.id, { customerSearches: cleanTextList(value) })}
+                          terms={item.customerSearches}
+                          onChange={(terms) => updateEstablishment(item.id, { customerSearches: terms })}
+                          help="Exemples : entrecôte, bassari 17e, brunch terrasse, avocado toast, tequila casher. Ces termes ne sont pas affichés publiquement."
                         />
-                        {item.customerSearches.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {item.customerSearches.map((term) => (
-                              <button
-                                key={term}
-                                onClick={() => updateEstablishment(item.id, { customerSearches: item.customerSearches.filter((search) => search !== term) })}
-                                className="rounded-full bg-sage px-3 py-1.5 text-xs font-semibold text-moss"
-                              >
-                                {term} ×
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <p className="mt-2 text-xs leading-5 text-ink/45">Exemples : entrecôte, bassari 17e, brunch terrasse, avocado toast, tequila casher. Ces termes ne sont pas affichés publiquement.</p>
                       </div>
                       <FormActionBar
                         disabled={Boolean(savingAction || rubricsOperation)}

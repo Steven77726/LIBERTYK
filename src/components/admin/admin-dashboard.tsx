@@ -425,9 +425,27 @@ const visibilityLabels: Array<{ key: string; label: string }> = [
 
 const weekDays = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
 
+function isUnsafeTransientImageUrl(value: string | undefined | null) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.startsWith("data:") || trimmed.startsWith("blob:");
+}
+
+function safeImageUrl(value: string | undefined | null) {
+  const trimmed = value?.trim() ?? "";
+  return isUnsafeTransientImageUrl(trimmed) ? "" : trimmed;
+}
+
+function persistAdminStateSnapshot(state: AdminState) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn("Liberty Admin: état local trop lourd ou indisponible, stockage local ignoré.", error);
+  }
+}
+
 function normalizePhotoSlots(mainPhoto: string | undefined, photos: string[] | undefined, slots = 2) {
-  const main = mainPhoto?.trim() ?? "";
-  const clean = (photos ?? []).map((photo) => photo?.trim()).filter(Boolean) as string[];
+  const main = safeImageUrl(mainPhoto);
+  const clean = (photos ?? []).map((photo) => safeImageUrl(photo)).filter(Boolean) as string[];
   const unique = clean.filter((photo, index, list) => photo !== main && list.indexOf(photo) === index).slice(0, slots);
   return [...unique, ...Array(Math.max(0, slots - unique.length)).fill("")];
 }
@@ -541,10 +559,12 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
   return {
     ...seed,
     ...state,
-    rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), showOnHome: item.showOnHome ?? true, format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
+    rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), image: safeImageUrl(item.image), imageAlt: item.imageAlt ?? item.name, showOnHome: item.showOnHome ?? true, format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
     subrubrics: (state.subrubrics ?? seed.subrubrics).map((item) => ({
       ...item,
       slug: item.slug ?? slugify(item.name),
+      photo: safeImageUrl(item.photo),
+      imageAlt: item.imageAlt ?? item.name,
       visible: item.visible ?? item.showPublicly ?? true,
       showPublicly: item.showPublicly ?? item.visible ?? true,
       format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard",
@@ -561,6 +581,7 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
     establishments: (state.establishments ?? seed.establishments).map((item) => ({
       ...item,
       slug: item.slug ?? slugify(item.name),
+      mainPhoto: safeImageUrl(item.mainPhoto),
       shortDescription: item.shortDescription ?? item.description.slice(0, 120),
       photos: normalizePhotoSlots(item.mainPhoto, item.photos, 4),
       photoAlts: [...(item.photoAlts ?? []), "", ""].slice(0, 4),
@@ -577,8 +598,8 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
       visible: item.visible ?? true,
       fieldVisibility: { ...defaultFieldVisibility, ...(item.fieldVisibility ?? {}) },
     })),
-    banners: (state.banners ?? seed.banners).map((item) => ({ ...item, internalName: item.internalName ?? item.title, imageAlt: item.imageAlt ?? item.title, sponsored: item.sponsored ?? false })),
-    notifications: (state.notifications ?? seed.notifications).map((item) => ({ ...item, status: ["Brouillon", "Programmée", "Envoyée", "Annulée"].includes(item.status) ? item.status : "Brouillon" })),
+    banners: (state.banners ?? seed.banners).map((item) => ({ ...item, image: safeImageUrl(item.image), internalName: item.internalName ?? item.title, imageAlt: item.imageAlt ?? item.title, sponsored: item.sponsored ?? false })),
+    notifications: (state.notifications ?? seed.notifications).map((item) => ({ ...item, image: safeImageUrl(item.image), status: ["Brouillon", "Programmée", "Envoyée", "Annulée"].includes(item.status) ? item.status : "Brouillon" })),
     pageSections: state.pageSections ?? [
       { id: "home-search", page: "Home Page", title: "Barre de recherche", type: "Recherche", order: 1, locked: true, status: "Publié" },
       { id: "home-food", page: "Home Page", title: "Food", type: "Rubrique", linkedId: "food", order: 2, status: "Publié" },
@@ -865,7 +886,7 @@ function useAdminState() {
   }, []);
 
   useEffect(() => {
-    if (hydrated) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (hydrated) persistAdminStateSnapshot(state);
   }, [hydrated, state]);
 
   return [state, setState] as const;
@@ -1488,6 +1509,7 @@ function EmptyPhoto({ label = "Image" }: { label?: string }) {
 
 function PreviewImage({ src, alt }: { src: string; alt: string }) {
   if (!src) return <EmptyPhoto label="Photo à compléter" />;
+  if (isUnsafeTransientImageUrl(src)) return <EmptyPhoto label="Photo non enregistrée" />;
   return <img src={src} alt={alt} className="aspect-[4/3] w-full rounded-2xl object-cover" />;
 }
 
@@ -2157,7 +2179,7 @@ export function AdminDashboard() {
         ...current,
         rubrics: current.rubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)),
       });
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      persistAdminStateSnapshot(next);
       window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
       window.dispatchEvent(new Event("storage"));
       return next;
@@ -2170,7 +2192,7 @@ export function AdminDashboard() {
         ...current,
         subrubrics: current.subrubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)),
       });
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      persistAdminStateSnapshot(next);
       window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
       window.dispatchEvent(new Event("storage"));
       return next;
@@ -2183,7 +2205,7 @@ export function AdminDashboard() {
         ...current,
         establishments: current.establishments.map((item) => (item.id === id ? { ...item, ...patch } : item)),
       });
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      persistAdminStateSnapshot(next);
       window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
       window.dispatchEvent(new Event("storage"));
       return next;
@@ -2576,7 +2598,7 @@ export function AdminDashboard() {
     setAdminMessage(`${actionLabel} en cours…`);
     setState((current) => {
       const next = normalizeAdminState(updater(current));
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      persistAdminStateSnapshot(next);
       window.dispatchEvent(new Event("liberty-admin-published"));
       if (auth.configured && hasAdminAccess) {
         saveAdminStateToSupabase(next).then((result) => {
@@ -2689,7 +2711,7 @@ export function AdminDashboard() {
           ? current.rubrics.map((item) => (item.id === rubric.id ? rubric : item))
           : [rubric, ...current.rubrics],
       });
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      persistAdminStateSnapshot(next);
       window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
       window.dispatchEvent(new Event("storage"));
       return next;
@@ -2711,7 +2733,7 @@ export function AdminDashboard() {
           ? current.subrubrics.map((item) => (item.id === subrubric.id ? subrubric : item))
           : [subrubric, ...current.subrubrics],
       });
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      persistAdminStateSnapshot(next);
       window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
       window.dispatchEvent(new Event("storage"));
       return next;
@@ -3044,7 +3066,7 @@ export function AdminDashboard() {
           ? current.establishments.map((item) => (item.id === establishment.id ? establishment : item))
           : [establishment, ...current.establishments],
       });
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      persistAdminStateSnapshot(next);
       window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
       window.dispatchEvent(new Event("storage"));
       return next;

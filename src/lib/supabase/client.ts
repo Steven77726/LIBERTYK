@@ -9,17 +9,6 @@ export function getSupabaseConfig(): { url: string; key: string } | null {
   if (envSupabaseUrl && envSupabaseAnonKey) {
     return { url: envSupabaseUrl, key: envSupabaseAnonKey };
   }
-  if (typeof window !== "undefined") {
-    try {
-      const storedUrl = localStorage.getItem("liberty_supabase_url");
-      const storedKey = localStorage.getItem("liberty_supabase_anon_key");
-      if (storedUrl && storedKey) {
-        return { url: storedUrl, key: storedKey };
-      }
-    } catch {
-      // Ignorer
-    }
-  }
   return null;
 }
 
@@ -40,10 +29,11 @@ export function getSupabaseBrowserClient() {
 
 export function setCustomSupabaseCredentials(url: string, anonKey: string) {
   if (typeof window === "undefined") return;
+  // Legacy helper kept for compatibility with older Admin settings screens.
+  // Production runtime must use only the build-time public environment variables
+  // to avoid writing Admin changes to a stale or wrong Supabase project.
   localStorage.setItem("liberty_supabase_url", url.trim());
   localStorage.setItem("liberty_supabase_anon_key", anonKey.trim());
-  browserClient = null;
-  window.location.reload();
 }
 
 export function getAuthRedirectUrl(path = "/mon-compte") {

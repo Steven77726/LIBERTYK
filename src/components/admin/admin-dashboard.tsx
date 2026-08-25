@@ -1451,12 +1451,6 @@ function ImageUploadField({ label, value, onChange, folder = "admin", id, requir
           onChange={async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
-            try {
-              const preview = URL.createObjectURL(file);
-              onChange(preview);
-            } catch {
-              // ignore
-            }
             setMessage("Envoi en cours…");
             setUploading(true);
             try {
@@ -1797,6 +1791,12 @@ export function AdminDashboard() {
   const rubricsBusy = Boolean(savingAction || rubricsOperation || (hasAdminAccess && !rubricsSupabaseLoaded));
   const subrubricsBusy = Boolean(savingAction || rubricsOperation || (hasAdminAccess && !subrubricsSupabaseLoaded));
   const establishmentsBusy = Boolean(savingAction || rubricsOperation || (hasAdminAccess && !establishmentsSupabaseLoaded));
+  const requireAdminWrite = () => {
+    if (!auth.configured) return true;
+    if (hasAdminAccess) return true;
+    setAdminMessage("Connexion administrateur Supabase requise : reconnectez-vous dans l’Admin avant d’enregistrer.");
+    return false;
+  };
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded || rubricsSupabaseLoaded) return;
@@ -2721,6 +2721,7 @@ export function AdminDashboard() {
 
   const saveRubricDraft = async (rubric: AdminRubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`draft-${rubric.id}`);
     setSavingAction("Sauvegarde rubrique");
     const draft = { ...rubric, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
@@ -2745,6 +2746,7 @@ export function AdminDashboard() {
 
   const publishRubric = async (rubric: AdminRubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const slug = rubric.slug || slugify(rubric.name);
     if (!requireFields([["nom", rubric.name], ["slug", slug], ["description", rubric.description], ["icône", rubric.icon], ["image principale", rubric.image], ["texte alternatif", rubric.imageAlt], ["ordre d’affichage", rubric.order]])) return;
     if (!confirmSeoPublication("category", rubric.id)) return;
@@ -2772,6 +2774,7 @@ export function AdminDashboard() {
 
   const duplicateRubric = async (rubric: AdminRubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`duplicate-${rubric.id}`);
     setSavingAction("Duplication rubrique");
     try {
@@ -2796,6 +2799,7 @@ export function AdminDashboard() {
 
   const hideRubric = async (rubric: AdminRubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`hide-${rubric.id}`);
     setSavingAction("Masquage rubrique");
     try {
@@ -2817,6 +2821,7 @@ export function AdminDashboard() {
 
   const trashRubric = async (rubric: AdminRubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`trash-${rubric.id}`);
     setSavingAction("Corbeille rubrique");
     try {
@@ -2835,6 +2840,7 @@ export function AdminDashboard() {
 
   const reorderRubric = async (id: string, direction: -1 | 1) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const sorted = [...state.rubrics].sort((a, b) => a.order - b.order);
     const index = sorted.findIndex((item) => item.id === id);
     const targetIndex = index + direction;
@@ -2861,6 +2867,7 @@ export function AdminDashboard() {
 
   const saveSubrubricDraft = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const slug = subrubric.slug || slugify(subrubric.name);
     const draftErrors: Record<string, string> = {};
     if (!String(subrubric.rubricId ?? "").trim()) draftErrors.rubricId = "Choisissez la rubrique parente.";
@@ -2902,6 +2909,7 @@ export function AdminDashboard() {
 
   const publishSubrubric = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const { slug, errors } = validateSubrubricForPublish(subrubric);
     if (Object.keys(errors).length) {
       setSubrubricValidationErrors((current) => ({ ...current, [subrubric.id]: errors }));
@@ -2934,6 +2942,7 @@ export function AdminDashboard() {
 
   const duplicateSubrubric = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`subduplicate-${subrubric.id}`);
     setSavingAction("Duplication sous-rubrique");
     try {
@@ -2958,6 +2967,7 @@ export function AdminDashboard() {
 
   const hideSubrubric = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`subhide-${subrubric.id}`);
     setSavingAction("Masquage sous-rubrique");
     const hidden = { ...subrubric, status: "Masqué" as AdminStatus, visible: false, showPublicly: false, updatedAt: new Date().toISOString() };
@@ -2979,6 +2989,7 @@ export function AdminDashboard() {
 
   const trashSubrubric = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`subtrash-${subrubric.id}`);
     setSavingAction("Corbeille sous-rubrique");
     try {
@@ -2997,6 +3008,7 @@ export function AdminDashboard() {
 
   const reorderSubrubric = async (id: string, direction: -1 | 1) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const current = state.subrubrics.find((item) => item.id === id);
     if (!current) return;
     const sorted = [...state.subrubrics].filter((item) => item.rubricId === current.rubricId).sort((a, b) => a.order - b.order);
@@ -3100,6 +3112,7 @@ export function AdminDashboard() {
 
   const saveEstablishmentDraft = async (establishment: AdminEstablishment) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const slug = establishment.slug || slugify(establishment.name);
     if (!requireFields([["nom", establishment.name], ["slug", slug], ["description courte", establishment.shortDescription], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
     if (!validateUniqueEstablishmentSlug(establishment, slug) || !validateCoordinates(establishment)) return;
@@ -3127,6 +3140,7 @@ export function AdminDashboard() {
 
   const publishEstablishment = async (establishment: AdminEstablishment) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const slug = establishment.slug || slugify(establishment.name);
     if (!requireFields([["nom", establishment.name], ["slug", slug], ["description courte", establishment.shortDescription], ["description", establishment.description], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
     if (!validateUniqueEstablishmentSlug(establishment, slug) || !validateCoordinates(establishment)) return;
@@ -3155,6 +3169,7 @@ export function AdminDashboard() {
 
   const duplicateEstablishment = async (establishment: AdminEstablishment) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`establishment-duplicate-${establishment.id}`);
     setSavingAction("Duplication fiche");
     try {
@@ -3182,6 +3197,7 @@ export function AdminDashboard() {
 
   const hideEstablishment = async (establishment: AdminEstablishment) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`establishment-hide-${establishment.id}`);
     setSavingAction("Masquage fiche");
     const hidden = { ...establishment, status: "Masqué" as AdminStatus, visible: false, updatedAt: new Date().toISOString() };
@@ -3203,6 +3219,7 @@ export function AdminDashboard() {
 
   const trashEstablishment = async (establishment: AdminEstablishment) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     setRubricsOperation(`establishment-trash-${establishment.id}`);
     setSavingAction("Corbeille fiche");
     try {
@@ -3221,6 +3238,7 @@ export function AdminDashboard() {
 
   const reorderEstablishment = async (id: string, direction: -1 | 1) => {
     if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
     const sorted = [...state.establishments].sort((a, b) => a.order - b.order);
     const index = sorted.findIndex((item) => item.id === id);
     const targetIndex = index + direction;
@@ -3246,6 +3264,7 @@ export function AdminDashboard() {
   };
 
   const saveTagDraft = async (tag: AdminTag) => {
+    if (!requireAdminWrite()) return;
     setSavingAction("Enregistrement du tag…");
     const draft = { ...tag, status: "Brouillon" as AdminStatus };
     try {
@@ -3262,6 +3281,7 @@ export function AdminDashboard() {
   };
 
   const publishTag = async (tag: AdminTag) => {
+    if (!requireAdminWrite()) return;
     if (!requireFields([["nom", tag.label], ["ordre", tag.order]])) return;
     setSavingAction("Publication du tag…");
     const published = { ...tag, status: "Publié" as AdminStatus };
@@ -3279,6 +3299,7 @@ export function AdminDashboard() {
   };
 
   const hideTag = async (tag: AdminTag) => {
+    if (!requireAdminWrite()) return;
     setSavingAction("Masquage du tag…");
     try {
       const hidden = auth.configured && hasAdminAccess ? await hideVisibleTag(tag as VisibleTagRecord) : { ...tag, status: "Masqué" as AdminStatus };
@@ -3294,6 +3315,7 @@ export function AdminDashboard() {
   };
 
   const trashTag = async (tag: AdminTag) => {
+    if (!requireAdminWrite()) return;
     setSavingAction("Suppression du tag…");
     try {
       if (auth.configured && hasAdminAccess) await moveVisibleTagToTrash(tag as VisibleTagRecord);

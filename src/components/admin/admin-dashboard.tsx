@@ -3384,6 +3384,49 @@ export function AdminDashboard() {
 
   if (!simpleAdminGranted) return null;
 
+  if (auth.loading) {
+    return (
+      <section className="page-shell py-16">
+        <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 text-center shadow-soft">
+          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
+          <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Vérification Supabase</h1>
+          <p className="mt-3 text-sm leading-6 text-ink/50">Nous vérifions votre session administrateur avant d’ouvrir le Dashboard.</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!auth.user) {
+    return (
+      <section className="page-shell py-16">
+        <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 shadow-soft">
+          <span className="grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
+          <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Connexion administrateur</h1>
+          <p className="mt-3 text-sm leading-6 text-ink/50">Connectez-vous avec un compte ayant le rôle admin. Les modifications seront ensuite enregistrées directement dans Supabase.</p>
+          <form onSubmit={(event) => { event.preventDefault(); void signInAdminWithEmail(); }} className="mt-7 grid gap-3">
+            <input value={adminEmail} onChange={(event) => setAdminEmail(event.target.value)} type="email" placeholder="Email admin" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" autoComplete="email" />
+            <input value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} type="password" placeholder="Mot de passe" className="rounded-2xl bg-cream px-4 py-3 text-sm outline-none" autoComplete="current-password" />
+            <button type="submit" disabled={adminLoginLoading} className="rounded-2xl bg-ink py-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{adminLoginLoading ? "Connexion…" : "Connexion Email"}</button>
+            {adminLoginMessage && <p role="status" aria-live="polite" className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/55">{adminLoginMessage}</p>}
+          </form>
+        </div>
+      </section>
+    );
+  }
+
+  if (!auth.isAdmin) {
+    return (
+      <section className="page-shell py-16">
+        <div className="mx-auto max-w-xl rounded-4xl bg-white p-10 text-center shadow-soft">
+          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-cream text-ink"><ShieldCheck size={22} /></span>
+          <h1 className="mt-6 text-3xl font-semibold tracking-[-.04em]">Accès non autorisé</h1>
+          <p className="mt-3 text-sm leading-6 text-ink/50">Votre compte est connecté mais ne possède pas le rôle admin. Aucune modification Admin n’est autorisée.</p>
+          <button type="button" onClick={() => void signOutAdmin()} className="mt-6 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Se déconnecter</button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <>
     <section className="page-shell py-8">
@@ -3589,8 +3632,8 @@ export function AdminDashboard() {
                   </Panel>
                   <Panel title="Actions rapides" subtitle="Création directe des contenus.">
                     <div className="mt-5 grid gap-3">
-                      <QuickAction label="Ajouter une rubrique" onClick={addRubric} />
-                      <QuickAction label="Créer une sous-rubrique" onClick={addSubrubric} />
+                      <QuickAction label="Ajouter une rubrique" onClick={addRubric} disabled={rubricsBusy} />
+                      <QuickAction label="Créer une sous-rubrique" onClick={addSubrubric} disabled={subrubricsBusy} />
                       <QuickAction label="Ajouter un établissement" onClick={addEstablishment} disabled={establishmentsBusy} />
                       <QuickAction label="Créer un tag visible" onClick={addTag} />
                       <QuickAction label="Ajouter une certification" onClick={addCertification} />

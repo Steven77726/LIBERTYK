@@ -10,11 +10,22 @@ export function Footer() {
     <footer className="mt-28 border-t border-black/5 bg-[#0f1714] text-white">
       <div className="page-shell grid gap-12 py-16 sm:py-20 md:grid-cols-[1.5fr_1fr_1fr_1.1fr]">
         {/* Colonne 1 : Marque & Mission */}
-        <div className="space-y-5">
+        <div className="space-y-4 max-w-md">
           <Logo light />
-          <p className="max-w-sm text-xs sm:text-sm leading-6 text-white/60 font-medium">
-            L&apos;annuaire et le guide d&apos;excellence des établissements cachers en France. Retrouvez en un clic les meilleures tables, salons de thé, traiteurs et artisans certifiés.
-          </p>
+          <div className="space-y-2 text-xs sm:text-[13px] leading-relaxed text-white/70 font-medium">
+            <p>
+              <strong className="text-white font-bold">Liberty K</strong>, le guide incontournable des meilleures adresses, expériences et services de la communauté juive en France.
+            </p>
+            <p className="text-white/60">
+              Découvrez une sélection de lieux, de professionnels et de services choisis pour leur qualité et leur savoir-faire.
+            </p>
+            <p className="text-white/60">
+              Trouvez facilement ce qui correspond à vos envies, vos besoins et aux moments qui comptent vraiment pour vous.
+            </p>
+            <p className="text-[#d5bb7d] font-semibold pt-1">
+              Une communauté, mille possibilités, réunies au même endroit pour vous simplifier la vie.
+            </p>
+          </div>
           <div className="flex items-center gap-3 pt-2">
             <a
               href="https://instagram.com"

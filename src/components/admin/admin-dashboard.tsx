@@ -1449,18 +1449,24 @@ function ImageUploadField({ label, value, onChange, folder = "admin", id, requir
           onChange={async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
+            try {
+              const preview = URL.createObjectURL(file);
+              onChange(preview);
+            } catch {
+              // ignore
+            }
             setMessage("Envoi en cours…");
             const result = await uploadLibertyImage(file, folder);
             if (result.url) {
               onChange(result.url);
-              setMessage("Image envoyée.");
+              setMessage("✅ Image mise à jour instantanément.");
             } else {
               setMessage(result.error ?? "Erreur lors de l'envoi.");
             }
           }}
         />
       </label>
-      {message && <p className="mt-1 text-[11px] text-ink/35">{message}</p>}
+      {message && <p className="mt-1 text-[11px] font-semibold text-moss">{message}</p>}
     </div>
   );
 }
@@ -2638,32 +2644,40 @@ export function AdminDashboard() {
   };
 
   const applyRubricLocally = (rubric: AdminRubric, successMessage: string) => {
-    skipNextAdminStateSave.current = true;
-    setState((current) => normalizeAdminState({
-      ...current,
-      rubrics: current.rubrics.some((item) => item.id === rubric.id)
-        ? current.rubrics.map((item) => (item.id === rubric.id ? rubric : item))
-        : [rubric, ...current.rubrics],
-    }));
-    window.dispatchEvent(new Event("liberty-admin-published"));
+    setState((current) => {
+      const next = normalizeAdminState({
+        ...current,
+        rubrics: current.rubrics.some((item) => item.id === rubric.id)
+          ? current.rubrics.map((item) => (item.id === rubric.id ? rubric : item))
+          : [rubric, ...current.rubrics],
+      });
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
     setAdminMessage(successMessage);
   };
 
   const applySubrubricLocally = (subrubric: AdminSubrubric, successMessage: string) => {
-    skipNextAdminStateSave.current = true;
     setSubrubricValidationErrors((current) => {
       if (!current[subrubric.id]) return current;
       const next = { ...current };
       delete next[subrubric.id];
       return next;
     });
-    setState((current) => normalizeAdminState({
-      ...current,
-      subrubrics: current.subrubrics.some((item) => item.id === subrubric.id)
-        ? current.subrubrics.map((item) => (item.id === subrubric.id ? subrubric : item))
-        : [subrubric, ...current.subrubrics],
-    }));
-    window.dispatchEvent(new Event("liberty-admin-published"));
+    setState((current) => {
+      const next = normalizeAdminState({
+        ...current,
+        subrubrics: current.subrubrics.some((item) => item.id === subrubric.id)
+          ? current.subrubrics.map((item) => (item.id === subrubric.id ? subrubric : item))
+          : [subrubric, ...current.subrubrics],
+      });
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
     setAdminMessage(successMessage);
   };
 
@@ -2973,14 +2987,18 @@ export function AdminDashboard() {
   };
 
   const applyEstablishmentLocally = (establishment: AdminEstablishment, message: string) => {
-    skipNextAdminStateSave.current = true;
-    setState((current) => normalizeAdminState({
-      ...current,
-      establishments: current.establishments.some((item) => item.id === establishment.id)
-        ? current.establishments.map((item) => (item.id === establishment.id ? establishment : item))
-        : [establishment, ...current.establishments],
-    }));
-    window.dispatchEvent(new Event("liberty-admin-published"));
+    setState((current) => {
+      const next = normalizeAdminState({
+        ...current,
+        establishments: current.establishments.some((item) => item.id === establishment.id)
+          ? current.establishments.map((item) => (item.id === establishment.id ? establishment : item))
+          : [establishment, ...current.establishments],
+      });
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
     setAdminMessage(message);
   };
 

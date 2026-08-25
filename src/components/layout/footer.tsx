@@ -8,11 +8,11 @@ import { openCookiePreferences } from "@/components/ui/cookie-banner";
 export function Footer() {
   return (
     <footer className="mt-28 border-t border-black/5 bg-[#0f1714] text-white">
-      <div className="page-shell grid gap-12 py-16 sm:py-20 md:grid-cols-[1.5fr_1fr_1fr_1.1fr]">
-        {/* Colonne 1 : Marque & Mission */}
-        <div className="space-y-4 max-w-md">
+      <div className="page-shell grid gap-12 py-16 sm:py-20 md:grid-cols-[2fr_1fr]">
+        {/* Colonne 1 : Marque & Mission Slogan */}
+        <div className="space-y-5 max-w-xl">
           <Logo light />
-          <div className="space-y-2 text-xs sm:text-[13px] leading-relaxed text-white/70 font-medium">
+          <div className="space-y-2.5 text-xs sm:text-[13px] leading-relaxed text-white/70 font-medium">
             <p>
               <strong className="text-white font-bold">Liberty K</strong>, le guide incontournable des meilleures adresses, expériences et services de la communauté juive en France.
             </p>
@@ -26,6 +26,7 @@ export function Footer() {
               Une communauté, mille possibilités, réunies au même endroit pour vous simplifier la vie.
             </p>
           </div>
+
           <div className="flex items-center gap-3 pt-2">
             <a
               href="https://instagram.com"
@@ -55,80 +56,12 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Colonne 2 : Univers & Adresses */}
-        <div className="space-y-4">
-          <p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-[#d5bb7d]">
-            Guide & Adresses
-          </p>
-          <ul className="space-y-2.5 text-xs font-medium text-white/65">
-            <li>
-              <Link href="/food/restaurants" className="transition hover:text-white">
-                Restaurants Cachers
-              </Link>
-            </li>
-            <li>
-              <Link href="/food/brunch" className="transition hover:text-white">
-                Brunch & Salons de thé
-              </Link>
-            </li>
-            <li>
-              <Link href="/food/patisseries" className="transition hover:text-white">
-                Pâtisseries & Boulangeries
-              </Link>
-            </li>
-            <li>
-              <Link href="/food/traiteurs" className="transition hover:text-white">
-                Traiteurs & Réceptions
-              </Link>
-            </li>
-            <li>
-              <Link href="/vin-spiritueux" className="transition hover:text-white">
-                Vins & Grands Crus
-              </Link>
-            </li>
-            <li>
-              <Link href="/calendrier-juif" className="transition hover:text-white">
-                Horaires Chabbat & Fêtes
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* Colonne 3 : Espace Membre & Pro */}
-        <div className="space-y-4">
-          <p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-[#d5bb7d]">
-            Espace & Services
-          </p>
-          <ul className="space-y-2.5 text-xs font-medium text-white/65">
-            <li>
-              <Link href="/mes-favoris" className="transition hover:text-white">
-                Mes Favoris ❤️
-              </Link>
-            </li>
-            <li>
-              <Link href="/mon-compte" className="transition hover:text-white">
-                Mon Compte Sécurisé
-              </Link>
-            </li>
-            <li>
-              <Link href="/admin" className="transition hover:text-white">
-                Espace Restaurateur / Admin
-              </Link>
-            </li>
-            <li>
-              <Link href="/recherche" className="transition hover:text-white">
-                Recherche Intelligente
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* Colonne 4 : Légal & Conformité RGPD */}
-        <div className="space-y-4">
+        {/* Colonne 2 : Légal, Transparence & Cookies */}
+        <div className="space-y-4 md:pl-8">
           <p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-[#d5bb7d]">
             Légal & Transparence
           </p>
-          <ul className="space-y-2.5 text-xs font-medium text-white/65">
+          <ul className="space-y-3 text-xs font-medium text-white/65">
             <li>
               <Link href="/mentions-legales" className="transition hover:text-white">
                 Mentions Légales (LCEN)

@@ -4,8 +4,8 @@ import { CardSubrubricGrid } from "@/components/ui/subrubric-grids";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Shopping — Boutiques et marques",
-  description: "Explorez les boutiques, vêtements, judaïca, maison et belles adresses shopping sélectionnées par Liberty.",
+  title: "Shopping — Boutiques et marques · Liberty K",
+  description: "Explorez les boutiques, vêtements, judaïca, maison et belles adresses shopping sélectionnées par Liberty K.",
   path: "/shopping",
   image: "/images/shopping/azamra.jpg",
   imageAlt: "Boutique Azamra",

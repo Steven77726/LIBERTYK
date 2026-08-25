@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 export const SITE_ORIGIN = "https://steven77726.github.io";
 export const SITE_BASE_PATH = "/LIBERTYK";
 export const SITE_URL = `${SITE_ORIGIN}${SITE_BASE_PATH}`;
-export const SITE_NAME = "Liberty";
-export const DEFAULT_TITLE = "Liberty — L'univers juif et casher";
+export const SITE_NAME = "Liberty K";
+export const DEFAULT_TITLE = "Liberty K — Le guide d'excellence de la communauté juive";
 export const DEFAULT_DESCRIPTION =
-  "Le meilleur de l'univers juif et casher, réuni dans une expérience simple, inspirante et exigeante.";
+  "Liberty K, le guide incontournable des meilleures adresses, expériences et services de la communauté juive en France.";
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/images/food/restaurants-khan.jpg`;
 
 export function absoluteUrl(path = "/") {

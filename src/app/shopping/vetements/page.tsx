@@ -4,8 +4,8 @@ import { AzamraCard } from "@/components/shops/azamra-card";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Vêtements — Shopping Liberty",
-  description: "Découvrez les enseignes de vêtements et boutiques mode de Liberty, dont Azamra.",
+  title: "Vêtements — Shopping Liberty K",
+  description: "Découvrez les enseignes de vêtements et boutiques mode de Liberty K, dont Azamra.",
   path: "/shopping/vetements",
   image: "/images/shopping/azamra.jpg",
   imageAlt: "Boutique Azamra",

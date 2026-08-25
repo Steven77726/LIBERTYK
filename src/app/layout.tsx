@@ -10,10 +10,10 @@ import { DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE, DEFAULT_TITLE, SITE_NAME, SITE_O
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
-  title: { default: "Liberty — L'univers juif et casher", template: "%s | Liberty" },
+  title: { default: "Liberty K — Le guide d'excellence de la communauté juive", template: "%s | Liberty K" },
   description: DEFAULT_DESCRIPTION,
   applicationName: SITE_NAME,
-  keywords: ["casher", "kosher", "restaurant casher", "Liberty", "Paris", "voyage casher", "vin casher", "communauté juive"],
+  keywords: ["casher", "cacher", "kosher", "restaurant casher", "Liberty K", "Paris", "voyage casher", "vin casher", "communauté juive"],
   alternates: { canonical: SITE_URL },
   openGraph: {
     type: "website",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     title: DEFAULT_TITLE,
     description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
-    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: "Liberty, l'univers juif et casher" }],
+    images: [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: "Liberty K, le guide de la communauté juive et du cacher" }],
   },
   twitter: {
     card: "summary_large_image",

@@ -99,7 +99,7 @@ export function CookieBanner() {
                   Respect de votre vie privée
                 </h3>
                 <p className="text-xs leading-relaxed text-ink/65">
-                  Libertyk utilise des cookies pour assurer le bon fonctionnement de la plateforme, sécuriser votre compte et mémoriser vos favoris conformément au RGPD.
+                  Liberty K utilise des cookies pour assurer le bon fonctionnement de la plateforme, sécuriser votre compte et mémoriser vos favoris conformément au RGPD.
                 </p>
               </div>
             </div>

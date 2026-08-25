@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const category = categoryBySlug[slug];
   return category
     ? buildPageMetadata({
-        title: `${category.label} — Liberty`,
+        title: `${category.label} — Liberty K`,
         description: category.description,
         path: `/${category.slug}`,
         image: category.image,

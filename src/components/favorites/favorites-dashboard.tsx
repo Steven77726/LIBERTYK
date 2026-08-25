@@ -116,7 +116,7 @@ export function FavoritesDashboard() {
           <h2 className="mt-6 text-2xl font-bold tracking-[-.04em]">Aucun favori pour le moment</h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink/50">Cliquez sur le cœur d’une adresse ou d’une fiche pour la retrouver automatiquement ici.</p>
           {error && <p className="mx-auto mt-4 max-w-md rounded-2xl bg-rose-50 p-3 text-xs text-rose-700">{error}</p>}
-          <Link href="/" className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-ink px-6 py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss">Explorer les adresses Liberty <ArrowRight size={14} /></Link>
+          <Link href="/" className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-ink px-6 py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss">Explorer les adresses Liberty K <ArrowRight size={14} /></Link>
         </div>
       </div>
     );

@@ -7,8 +7,8 @@ import { AiSearch } from "@/components/search/ai-search";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
-  title: "Liberty — L'univers juif et casher",
-  description: "Explorez restaurants casher, sorties, voyages, shopping, vins, religion, enfants et services utiles dans une seule plateforme premium.",
+  title: "Liberty K — Le guide d'excellence de la communauté juive",
+  description: "Explorez restaurants cachers, sorties, voyages, shopping, vins, religion, enfants et services utiles sur Liberty K.",
   path: "/",
 });
 
@@ -27,7 +27,7 @@ export default function HomePage() {
           <div className="relative mx-auto max-w-5xl text-center">
             <h1 className="text-[clamp(2rem,4vw,3.7rem)] font-semibold leading-[.92] tracking-[-.065em]">
               Demandez.{" "}
-              <span className="bg-gradient-to-r from-white/45 via-white via-45% to-[#e7d39a] bg-clip-text text-transparent drop-shadow-[0_12px_45px_rgba(255,255,255,.12)]">Liberty trouve.</span>
+              <span className="bg-gradient-to-r from-white/45 via-white via-45% to-[#e7d39a] bg-clip-text text-transparent drop-shadow-[0_12px_45px_rgba(255,255,255,.12)]">Liberty K trouve.</span>
             </h1>
 
             <AiSearch />
@@ -41,7 +41,7 @@ export default function HomePage() {
         <div className="flex flex-col items-center rounded-[2rem] bg-ink px-6 py-10 text-center text-white sm:py-12">
           <Sparkles size={20} className="mb-4 text-gold" />
           <h2 className="max-w-3xl text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Une seule application.<br /><span className="text-white/35">Tout un monde à découvrir.</span></h2>
-          <Link href="/mon-compte" className="mt-5 flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-semibold text-ink">Rejoindre Liberty <ArrowRight size={14} /></Link>
+          <Link href="/mon-compte" className="mt-5 flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-semibold text-ink">Rejoindre Liberty K <ArrowRight size={14} /></Link>
         </div>
       </section>
     </>

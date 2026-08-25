@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { absoluteUrl, buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Calendrier Hébraïque & Horaires de Chabbat — Liberty",
+  title: "Calendrier Hébraïque & Horaires de Chabbat — Liberty K",
   description:
     "Consultez en temps réel les horaires de Chabbat géolocalisés, la Paracha de la semaine et les fêtes juives avec export Google Calendar et Apple Calendar.",
   path: "/calendrier",

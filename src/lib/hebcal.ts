@@ -587,7 +587,7 @@ export function generateGoogleCalendarUrl(event: {
     action: "TEMPLATE",
     text: event.title,
     dates: `${start}/${end}`,
-    details: `${event.description}\n\nVia Liberty — Le Guide Art de Vivre & Communauté`,
+    details: `${event.description}\n\nVia Liberty K — Le Guide Art de Vivre & Communauté`,
     location: event.location || "France",
   });
 
@@ -615,13 +615,13 @@ export function downloadIcsFile(event: {
     ? formatIcsDate(event.endDateIso)
     : formatIcsDate(new Date(new Date(event.startDateIso).getTime() + 2 * 3600 * 1000).toISOString());
   const now = formatIcsDate(new Date().toISOString());
-  const uid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}@liberty-guide.fr`;
+  const uid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}@libertyk.com`;
   const alarmMin = event.alarmMinutesBefore ?? 15;
 
   const icsContent = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Liberty//Calendrier Hebraique//FR",
+    "PRODID:-//Liberty K//Calendrier Hebraique//FR",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
@@ -636,7 +636,7 @@ export function downloadIcsFile(event: {
     "BEGIN:VALARM",
     `TRIGGER:-PT${alarmMin}M`,
     "ACTION:DISPLAY",
-    `DESCRIPTION:Rappel Liberty : ${event.title}`,
+    `DESCRIPTION:Rappel Liberty K : ${event.title}`,
     "END:VALARM",
     "END:VEVENT",
     "END:VCALENDAR",

@@ -14,8 +14,8 @@ const AdminDashboard = dynamic(
 );
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Dashboard Administrateur",
-  description: "Espace privé d'administration Liberty.",
+  title: "Dashboard Administrateur — Liberty K",
+  description: "Espace privé d'administration Liberty K.",
   path: "/admin",
   noIndex: true,
 });

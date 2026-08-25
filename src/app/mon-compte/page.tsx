@@ -3,8 +3,8 @@ import { AccountDashboard } from "@/components/account/account-dashboard";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Mon Compte & Mes Favoris — Liberty",
-  description: "Espace personnel Liberty : retrouvez vos favoris, sélections et préférences.",
+  title: "Mon Compte & Mes Favoris — Liberty K",
+  description: "Espace personnel Liberty K : retrouvez vos favoris, sélections et préférences.",
   path: "/mon-compte",
   noIndex: true,
 });

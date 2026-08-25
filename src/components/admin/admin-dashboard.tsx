@@ -3338,8 +3338,8 @@ export function AdminDashboard() {
           <div className="min-w-0 flex-1 p-5 sm:p-8 lg:p-10">
             <header className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <p className="text-sm text-ink/45">Administration Liberty</p>
-                <h1 className="mt-1 text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Gérer Liberty sans toucher au code</h1>
+                <p className="text-sm text-ink/45">Administration Liberty K</p>
+                <h1 className="mt-1 text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Gérer Liberty K sans toucher au code</h1>
                 <p className="mt-2 text-xs text-ink/40">
                   {auth.configured ? `${auth.user?.email ?? "Admin"} · connecté à Supabase` : "Mode local actif · connectez Supabase pour publier sur tous les appareils."}
                   {adminMessage ? ` · ${adminMessage}` : ""}

@@ -188,7 +188,7 @@ export function AuthModal() {
               </span>
 
               <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink">
-                {options.reason === "favorite" ? "Enregistrez vos favoris" : "Mon compte Libertyk"}
+                {options.reason === "favorite" ? "Enregistrez vos favoris" : "Mon compte Liberty K"}
               </h2>
 
               <p className="mt-1.5 text-xs leading-relaxed text-ink/60">

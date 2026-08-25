@@ -4,8 +4,8 @@ import { SearchResultsPage } from "@/components/search/search-results-page";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Résultats de recherche · Liberty",
-  description: "Découvrez tous les restaurants, brunchs, traiteurs, boutiques et adresses casher correspondant à votre recherche.",
+  title: "Résultats de recherche · Liberty K",
+  description: "Découvrez tous les restaurants, brunchs, traiteurs, boutiques et adresses cachers correspondant à votre recherche sur Liberty K.",
   path: "/recherche",
 });
 

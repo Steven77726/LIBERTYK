@@ -87,8 +87,26 @@ function createSubrubric(rubricId: string, name: string, order: number, image: s
   };
 }
 
+const specificSubrubricImages: Record<string, { image: string; description: string }> = {
+  "mariage-decor": {
+    image: "/images/mariage/kinor-decor.jpg",
+    description: "Créations florales, scénographie et décors de mariage d'exception.",
+  },
+};
+
 const categorySubrubrics = categories.flatMap((category) =>
-  category.featured.map((item, index) => createSubrubric(category.slug, item, index + 1, category.image)),
+  category.featured.map((item, index) => {
+    const slug = slugify(item);
+    const key = `${category.slug}-${slug}`;
+    const specific = specificSubrubricImages[key];
+    return createSubrubric(
+      category.slug,
+      item,
+      index + 1,
+      specific?.image ?? category.image,
+      specific?.description
+    );
+  }),
 );
 
 const foodSubrubrics = foodExtra.map((name, index) => {

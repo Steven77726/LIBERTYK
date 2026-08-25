@@ -242,4 +242,23 @@ const patisserieItems: SearchItem[] = [{
   ranking: { sponsored: true, popularity: 95, favorites: 42, reviewCount: 28 },
 }];
 
-export const searchIndex: SearchItem[] = [...restaurantItems, ...brunchItems, ...wineItems, ...shopItems, ...patisserieItems, ...categoryItems];
+const weddingItems: SearchItem[] = [{
+  id: "wedding-kinor-decor",
+  title: "Kinor Decor",
+  subtitle: "Décoration & Scénographie de Mariage",
+  category: "Mariage",
+  subcategory: "Décor",
+  href: "/mariage/decor",
+  image: "/images/mariage/kinor-decor.jpg",
+  customerSearches: [
+    "Kinor Decor", "Kinor", "Décoration mariage", "Houppa", "Scénographie", "Fleurs mariage", "Mariage juif", "Décor",
+  ],
+  keywords: buildInvisibleKeywords([
+    "Kinor Decor", "Kinor", "Décoration mariage", "Houppa", "Fleurs", "Mariage", "Scénographie florale", "Prestataire mariage",
+  ], { category: "mariage decor decoration fleurs", location: "Paris France" }),
+  location: { city: "Paris" },
+  filters: { openNow: null, price: "Sur devis" },
+  ranking: { sponsored: true, popularity: 98, favorites: 68, reviewCount: 68 },
+}];
+
+export const searchIndex: SearchItem[] = [...restaurantItems, ...brunchItems, ...wineItems, ...shopItems, ...patisserieItems, ...weddingItems, ...categoryItems];

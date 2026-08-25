@@ -815,6 +815,31 @@ const placeDatabase: Record<string, Partial<GooglePlaceDetails>> = {
     openingHours: { lundi: "11:30–16:00, 18:30–23:00", mardi: "11:30–16:00, 18:30–23:00", mercredi: "11:30–16:00, 18:30–23:00", jeudi: "11:30–16:00, 18:30–23:30", vendredi: "11:00–15:30", samedi: "Fermé", dimanche: "12:00–23:00" },
     openNow: true,
   },
+  "kinor decor": {
+    placeId: "ChIJ_kinor_decor",
+    name: "Kinor Decor",
+    formattedAddress: "Paris & Île-de-France (Déplacements France & International)",
+    postalCode: "75000",
+    arrondissement: "Paris",
+    city: "Paris",
+    latitude: 48.8566,
+    longitude: 2.3522,
+    phone: "06 52 87 95 55",
+    website: "https://www.instagram.com/kinor_decor_officiel/",
+    googleMapsUrl: "https://www.google.com/search?sca_esv=1b85b69310503e88&sxsrf=APpeQnsOvxdev7phQ8H3vkU2NhyVwZ8ksQ:1787648744860&q=kinor+decor",
+    rating: 5.0,
+    userRatingsTotal: 68,
+    photos: [
+      "/images/mariage/kinor-decor.jpg",
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=1200&q=85",
+    ],
+    reviews: [
+      { author: "Sarah & David B.", rating: 5, text: "Une scénographie florale et une Houppa d'une beauté à couper le souffle pour notre mariage. Merci Kinor Decor !", relativeTime: "Il y a 2 semaines" },
+      { author: "Deborah L.", rating: 5, text: "Prestataire exceptionnel. Professionnalisme, goût exquis et décors féeriques.", relativeTime: "Il y a 1 mois" },
+    ],
+    openingHours: { lundi: "09:00–19:30", mardi: "09:00–19:30", mercredi: "09:00–19:30", jeudi: "09:00–20:00", vendredi: "09:00–15:00", samedi: "Fermé", dimanche: "10:00–19:00" },
+    openNow: true,
+  },
 };
 
 export function getThematicPhotos(name = "", type = ""): string[] {

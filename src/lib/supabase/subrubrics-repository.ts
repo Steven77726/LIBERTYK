@@ -207,6 +207,16 @@ export async function listAllSubrubricsForAdmin() {
 async function upsertSubrubric(subrubric: SubrubricRecord, statusOverride?: StatusDb) {
   const supabase = getClientOrThrow();
   const payload = await subrubricToPayload(subrubric, statusOverride);
+  if (isUuid(subrubric.id)) {
+    const { data: updated, error: updateError } = await supabase
+      .from("subrubrics")
+      .update(payload)
+      .eq("id", subrubric.id)
+      .select(selectColumns)
+      .maybeSingle<SubrubricRow>();
+    if (updateError) throw new Error(readableError(updateError));
+    if (updated) return rowToSubrubric(updated);
+  }
   const { data, error } = await supabase
     .from("subrubrics")
     .upsert(payload, { onConflict: "external_id" })

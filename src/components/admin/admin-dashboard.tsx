@@ -1437,15 +1437,17 @@ function FormActionBar({
 
 function ImageUploadField({ label, value, onChange, folder = "admin", id, required = false, error }: { label: string; value: string; onChange: (value: string) => void; folder?: string; id?: string; required?: boolean; error?: string }) {
   const [message, setMessage] = useState("");
+  const [uploading, setUploading] = useState(false);
   return (
     <div>
       <Field id={id} label={label} value={value} onChange={onChange} placeholder="URL locale, externe ou Supabase Storage" required={required} error={error} />
-      <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-full bg-cream px-3 py-2 text-[11px] font-semibold text-ink/55 transition hover:bg-sage hover:text-moss">
-        <ImageIcon size={13} /> Envoyer une image
+      <label className={`mt-2 inline-flex items-center gap-2 rounded-full bg-cream px-3 py-2 text-[11px] font-semibold text-ink/55 transition hover:bg-sage hover:text-moss ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+        <ImageIcon size={13} /> {uploading ? "Envoi en cours…" : "Envoyer une image"}
         <input
           type="file"
           accept="image/*"
           className="hidden"
+          disabled={uploading}
           onChange={async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
@@ -1456,17 +1458,25 @@ function ImageUploadField({ label, value, onChange, folder = "admin", id, requir
               // ignore
             }
             setMessage("Envoi en cours…");
-            const result = await uploadLibertyImage(file, folder);
-            if (result.url) {
-              onChange(result.url);
-              setMessage("✅ Image mise à jour instantanément.");
-            } else {
-              setMessage(result.error ?? "Erreur lors de l'envoi.");
+            setUploading(true);
+            try {
+              const result = await uploadLibertyImage(file, folder);
+              if (result.url) {
+                onChange(result.url);
+                setMessage("✅ Image mise à jour instantanément.");
+              } else {
+                setMessage(result.error || "Impossible d’envoyer l’image.");
+              }
+            } catch (uploadError) {
+              setMessage(uploadError instanceof Error ? uploadError.message : "Impossible d’envoyer l’image.");
+            } finally {
+              setUploading(false);
+              event.target.value = "";
             }
           }}
         />
       </label>
-      {message && <p className="mt-1 text-[11px] font-semibold text-moss">{message}</p>}
+      {message && <p role="status" aria-live="polite" className={`mt-1 text-[11px] ${/impossible|erreur|échec|failed|policy|denied/i.test(message) ? "font-semibold text-rose-600" : "text-ink/35"}`}>{message}</p>}
     </div>
   );
 }
@@ -1783,7 +1793,10 @@ export function AdminDashboard() {
     }
   }, []);
 
-  const hasAdminAccess = simpleAdminGranted && (!auth.configured || auth.isAdmin);
+  const hasAdminAccess = simpleAdminGranted && auth.configured && auth.isAdmin;
+  const rubricsBusy = Boolean(savingAction || rubricsOperation || (hasAdminAccess && !rubricsSupabaseLoaded));
+  const subrubricsBusy = Boolean(savingAction || rubricsOperation || (hasAdminAccess && !subrubricsSupabaseLoaded));
+  const establishmentsBusy = Boolean(savingAction || rubricsOperation || (hasAdminAccess && !establishmentsSupabaseLoaded));
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded || rubricsSupabaseLoaded) return;
@@ -2326,8 +2339,8 @@ export function AdminDashboard() {
   };
 
   const addRubric = () => {
-    if (savingAction || rubricsOperation) {
-      setAdminMessage("Une opération est déjà en cours. Réessayez dans quelques secondes.");
+    if (rubricsBusy) {
+      setAdminMessage(hasAdminAccess && !rubricsSupabaseLoaded ? "Chargement des rubriques Supabase en cours…" : "Une opération est déjà en cours. Réessayez dans quelques secondes.");
       return;
     }
     skipNextAdminStateSave.current = true;
@@ -2377,8 +2390,8 @@ export function AdminDashboard() {
   };
 
   const addSubrubric = () => {
-    if (savingAction || rubricsOperation) {
-      setAdminMessage("Une opération est déjà en cours. Réessayez dans quelques secondes.");
+    if (subrubricsBusy) {
+      setAdminMessage(hasAdminAccess && !subrubricsSupabaseLoaded ? "Chargement des sous-rubriques Supabase en cours…" : "Une opération est déjà en cours. Réessayez dans quelques secondes.");
       return;
     }
     if (!state.rubrics.length) {
@@ -2434,6 +2447,10 @@ export function AdminDashboard() {
   };
 
   const addEstablishment = () => {
+    if (establishmentsBusy) {
+      setAdminMessage(hasAdminAccess && !establishmentsSupabaseLoaded ? "Chargement des établissements Supabase en cours…" : "Une opération est déjà en cours. Réessayez dans quelques secondes.");
+      return;
+    }
     skipNextAdminStateSave.current = true;
     setState((current) => {
       const firstSubrubric = current.subrubrics[0];
@@ -3574,7 +3591,7 @@ export function AdminDashboard() {
                     <div className="mt-5 grid gap-3">
                       <QuickAction label="Ajouter une rubrique" onClick={addRubric} />
                       <QuickAction label="Créer une sous-rubrique" onClick={addSubrubric} />
-                      <QuickAction label="Ajouter un établissement" onClick={addEstablishment} />
+                      <QuickAction label="Ajouter un établissement" onClick={addEstablishment} disabled={establishmentsBusy} />
                       <QuickAction label="Créer un tag visible" onClick={addTag} />
                       <QuickAction label="Ajouter une certification" onClick={addCertification} />
                       <QuickAction label="Gérer les photos" onClick={() => goToSection("photos")} />
@@ -3585,7 +3602,7 @@ export function AdminDashboard() {
             )}
 
             {active === "rubrics" && (
-              <Panel title="Rubriques" subtitle="Ajouter, modifier, masquer, publier et organiser les catégories principales." actionLabel="Créer une rubrique" onAction={addRubric}>
+              <Panel title="Rubriques" subtitle="Ajouter, modifier, masquer, publier et organiser les catégories principales." actionLabel="Créer une rubrique" onAction={addRubric} actionDisabled={rubricsBusy}>
                 {(rubricsOperation || (!rubricsSupabaseLoaded && auth.configured)) && (
                   <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
                     {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des rubriques Supabase…"}
@@ -3670,7 +3687,7 @@ export function AdminDashboard() {
             )}
 
             {active === "subrubrics" && (
-              <Panel title="Sous-rubriques" subtitle="Créer autant de sous-rubriques que nécessaire pour chaque rubrique." actionLabel="Créer une sous-rubrique" onAction={addSubrubric}>
+              <Panel title="Sous-rubriques" subtitle="Créer autant de sous-rubriques que nécessaire pour chaque rubrique." actionLabel="Créer une sous-rubrique" onAction={addSubrubric} actionDisabled={subrubricsBusy}>
                 {(rubricsOperation || (!subrubricsSupabaseLoaded && auth.configured)) && (
                   <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
                     {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des sous-rubriques Supabase…"}
@@ -3825,7 +3842,7 @@ export function AdminDashboard() {
 
             {active === "establishments" && selectedEstablishment && (
               <div className="mt-8 grid gap-5 xl:grid-cols-[330px_1fr]">
-                <Panel title="Établissements" subtitle={`${filteredEstablishments.length} fiches disponibles`} actionLabel="Ajouter" onAction={addEstablishment}>
+                <Panel title="Établissements" subtitle={`${filteredEstablishments.length} fiches disponibles`} actionLabel="Ajouter" onAction={addEstablishment} actionDisabled={establishmentsBusy}>
                   {(rubricsOperation || (!establishmentsSupabaseLoaded && auth.configured)) && (
                     <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
                       {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des établissements Supabase…"}
@@ -5230,12 +5247,14 @@ function Panel({
   children,
   actionLabel,
   onAction,
+  actionDisabled = false,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   actionLabel?: string;
   onAction?: () => void;
+  actionDisabled?: boolean;
 }) {
   return (
     <section className="mt-8 rounded-4xl bg-white/70 p-5 shadow-sm backdrop-blur sm:p-6">
@@ -5245,7 +5264,12 @@ function Panel({
           {subtitle && <p className="mt-1 text-sm text-ink/45">{subtitle}</p>}
         </div>
         {actionLabel && onAction && (
-          <button onClick={onAction} className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5">
+          <button
+            type="button"
+            disabled={actionDisabled}
+            onClick={onAction}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+          >
             <Plus size={16} /> {actionLabel}
           </button>
         )}
@@ -5255,9 +5279,14 @@ function Panel({
   );
 }
 
-function QuickAction({ label, onClick }: { label: string; onClick: () => void }) {
+function QuickAction({ label, onClick, disabled = false }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button onClick={onClick} className="flex items-center justify-between rounded-2xl bg-white px-4 py-4 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:shadow-sm">
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="flex items-center justify-between rounded-2xl bg-white px-4 py-4 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45"
+    >
       {label}
       <Plus size={16} />
     </button>

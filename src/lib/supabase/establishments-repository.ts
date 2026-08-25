@@ -457,13 +457,15 @@ async function upsertPhotos(establishmentId: string, establishment: Establishmen
   const urls = [establishment.mainPhoto, ...(establishment.photos ?? [])]
     .map((url) => url?.trim())
     .filter((url, index, list): url is string => Boolean(url) && list.indexOf(url) === index);
-  const { error: deleteError } = await supabase
-    .from("photos")
-    .delete()
-    .eq("entity_type", "establishment")
-    .eq("entity_id", establishmentId);
-  if (deleteError) throw new Error(readableError(deleteError));
-  if (!urls.length) return;
+  if (!urls.length) {
+    const { error: deleteError } = await supabase
+      .from("photos")
+      .delete()
+      .eq("entity_type", "establishment")
+      .eq("entity_id", establishmentId);
+    if (deleteError) throw new Error(readableError(deleteError));
+    return;
+  }
   const payload = urls.map((url, index) => ({
     entity_type: "establishment",
     entity_id: establishmentId,
@@ -471,13 +473,36 @@ async function upsertPhotos(establishmentId: string, establishment: Establishmen
     alt: index === 0 ? establishment.name : establishment.photoAlts?.[index - 1] || establishment.name,
     display_order: index + 1,
   }));
-  const { error } = await supabase.from("photos").insert(payload);
+  const { data: inserted, error } = await supabase.from("photos").insert(payload).select("id").returns<Array<{ id: string }>>();
   if (error) throw new Error(readableError(error));
+  const insertedIds = (inserted ?? []).map((photo) => photo.id);
+  if (!insertedIds.length) return;
+  const { error: deleteError } = await supabase
+    .from("photos")
+    .delete()
+    .eq("entity_type", "establishment")
+    .eq("entity_id", establishmentId)
+    .not("id", "in", `(${insertedIds.join(",")})`);
+  if (deleteError) throw new Error(readableError(deleteError));
 }
 
 async function upsertEstablishment(establishment: EstablishmentRecord, statusOverride?: StatusDb) {
   const supabase = getClientOrThrow();
   const payload = await establishmentToPayload(establishment, statusOverride);
+  if (isUuid(establishment.id)) {
+    const { data: updated, error: updateError } = await supabase
+      .from("establishments")
+      .update(payload)
+      .eq("id", establishment.id)
+      .select(selectColumns)
+      .maybeSingle<EstablishmentRow>();
+    if (updateError) throw new Error(readableError(updateError));
+    if (updated) {
+      await upsertPhotos(updated.id, establishment);
+      const photos = await getPhotos([updated.id]);
+      return rowToEstablishment(updated, photos.get(updated.id));
+    }
+  }
   const { data, error } = await supabase
     .from("establishments")
     .upsert(payload, { onConflict: "external_id" })

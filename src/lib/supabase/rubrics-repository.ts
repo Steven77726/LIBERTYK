@@ -163,6 +163,16 @@ export async function listAllRubricsForAdmin() {
 export async function createRubric(rubric: RubricRecord) {
   const supabase = getClientOrThrow();
   const payload = rubricToPayload(rubric, "draft");
+  if (isUuid(rubric.id)) {
+    const { data: updated, error: updateError } = await supabase
+      .from("rubrics")
+      .update(payload)
+      .eq("id", rubric.id)
+      .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+      .maybeSingle<RubricRow>();
+    if (updateError) throw new Error(readableError(updateError));
+    if (updated) return rowToRubric(updated);
+  }
   const { data, error } = await supabase
     .from("rubrics")
     .upsert(payload, { onConflict: "external_id" })
@@ -175,6 +185,16 @@ export async function createRubric(rubric: RubricRecord) {
 export async function updateRubric(rubric: RubricRecord) {
   const supabase = getClientOrThrow();
   const payload = rubricToPayload(rubric);
+  if (isUuid(rubric.id)) {
+    const { data: updated, error: updateError } = await supabase
+      .from("rubrics")
+      .update(payload)
+      .eq("id", rubric.id)
+      .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+      .maybeSingle<RubricRow>();
+    if (updateError) throw new Error(readableError(updateError));
+    if (updated) return rowToRubric(updated);
+  }
   const { data, error } = await supabase
     .from("rubrics")
     .upsert(payload, { onConflict: "external_id" })
@@ -222,9 +242,20 @@ export async function moveRubricToTrash(rubric: RubricRecord) {
 
 export async function restoreRubric(rubric: RubricRecord) {
   const supabase = getClientOrThrow();
+  const payload = rubricToPayload({ ...rubric, status: rubric.status === "Masqué" ? "Brouillon" : rubric.status });
+  if (isUuid(rubric.id)) {
+    const { data: updated, error: updateError } = await supabase
+      .from("rubrics")
+      .update(payload)
+      .eq("id", rubric.id)
+      .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+      .maybeSingle<RubricRow>();
+    if (updateError) throw new Error(readableError(updateError));
+    if (updated) return rowToRubric(updated);
+  }
   const { data, error } = await supabase
     .from("rubrics")
-    .upsert(rubricToPayload({ ...rubric, status: rubric.status === "Masqué" ? "Brouillon" : rubric.status }), { onConflict: "external_id" })
+    .upsert(payload, { onConflict: "external_id" })
     .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
     .single<RubricRow>();
   if (error) throw new Error(readableError(error));

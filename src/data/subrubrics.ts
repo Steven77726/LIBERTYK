@@ -66,14 +66,37 @@ const foodExtra = [
   "Glaciers",
 ];
 
-function createSubrubric(rubricId: string, name: string, order: number, image: string, description?: string): LocalSubrubric {
-  const slug = slugify(name);
+const subrubricSlugOverrides: Record<string, string> = {
+  "mariage-Déco": "deco-mariage",
+  "mariage-Traiteur Mariage": "traiteur-mariage",
+  "mariage-Salle de Réception": "salle-de-reception",
+  "mariage-Photographe / Vidéaste": "photographe-videaste",
+  "mariage-Orchestre / DJ": "orchestre-dj",
+};
+
+const specificSubrubricImages: Record<string, { image: string; description: string }> = {
+  "mariage-deco-mariage": {
+    image: "/images/mariage/kinor-decor.jpg",
+    description: "Créations florales, scénographie et décors de mariage d'exception.",
+  },
+  "mariage-decor": {
+    image: "/images/mariage/kinor-decor.jpg",
+    description: "Créations florales, scénographie et décors de mariage d'exception.",
+  },
+  "mariage-deco": {
+    image: "/images/mariage/kinor-decor.jpg",
+    description: "Créations florales, scénographie et décors de mariage d'exception.",
+  },
+};
+
+function createSubrubric(rubricId: string, name: string, order: number, image: string, description?: string, customSlug?: string): LocalSubrubric {
+  const slug = customSlug || subrubricSlugOverrides[`${rubricId}-${name}`] || slugify(name);
   return {
     id: `${rubricId}-${slug}`,
     rubricId,
     slug,
     name,
-    description: description || `${name} sélectionnés dans Liberty.`,
+    description: description || `${name} sélectionnés dans Liberty K.`,
     icon: name,
     image,
     imageAlt: name,
@@ -87,24 +110,18 @@ function createSubrubric(rubricId: string, name: string, order: number, image: s
   };
 }
 
-const specificSubrubricImages: Record<string, { image: string; description: string }> = {
-  "mariage-decor": {
-    image: "/images/mariage/kinor-decor.jpg",
-    description: "Créations florales, scénographie et décors de mariage d'exception.",
-  },
-};
-
 const categorySubrubrics = categories.flatMap((category) =>
   category.featured.map((item, index) => {
-    const slug = slugify(item);
+    const slug = subrubricSlugOverrides[`${category.slug}-${item}`] || slugify(item);
     const key = `${category.slug}-${slug}`;
-    const specific = specificSubrubricImages[key];
+    const specific = specificSubrubricImages[key] || specificSubrubricImages[`${category.slug}-${slugify(item)}`];
     return createSubrubric(
       category.slug,
       item,
       index + 1,
       specific?.image ?? category.image,
-      specific?.description
+      specific?.description,
+      slug
     );
   }),
 );
@@ -116,5 +133,12 @@ const foodSubrubrics = foodExtra.map((name, index) => {
 
 const map = new Map<string, LocalSubrubric>();
 [...categorySubrubrics, ...foodSubrubrics].forEach((item) => map.set(item.id, item));
+
+// Ajouter des alias de compatibilité pour éviter tout conflit de mapping CMS
+if (map.has("mariage-deco-mariage")) {
+  const base = map.get("mariage-deco-mariage")!;
+  map.set("mariage-decor", { ...base, id: "mariage-decor", slug: "decor" });
+  map.set("mariage-deco", { ...base, id: "mariage-deco", slug: "deco" });
+}
 
 export const localSubrubrics = [...map.values()];

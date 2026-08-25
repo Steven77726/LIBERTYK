@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowUpRight, MapPin, Sparkles } from "lucide-react";
 import { assetPath } from "@/lib/assets";
 import { categoryBySlug } from "@/data/categories";
+import { localEstablishments } from "@/data/establishments";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
@@ -58,11 +59,26 @@ export function SubrubricPageView({
       try {
         const [remoteSubrubrics, establishments] = await Promise.all([
           listPublishedSubrubrics(rubricSlug).catch(() => []),
-          listPublishedEstablishments({ rubricSlug, subrubricSlug }),
+          listPublishedEstablishments({ rubricSlug, subrubricSlug }).catch(() => null),
         ]);
         if (!mounted) return;
         setSubrubric((remoteSubrubrics ?? []).find((item) => item.slug === subrubricSlug) ?? null);
-        setItems(establishments ?? []);
+        if (establishments && establishments.length > 0) {
+          setItems(establishments);
+        } else {
+          const fallback = localEstablishments.filter((item) => {
+            if (item.rubricId !== rubricSlug) return false;
+            const subId = item.subrubricId.toLowerCase();
+            const target = subrubricSlug.toLowerCase();
+            return (
+              subId === target ||
+              subId === `${rubricSlug}-${target}` ||
+              (target.startsWith("deco") && subId.includes("deco")) ||
+              (target.startsWith("decor") && subId.includes("decor"))
+            );
+          });
+          setItems(fallback.length > 0 ? fallback : (establishments ?? []));
+        }
       } catch (loadError) {
         if (!mounted) return;
         setItems([]);

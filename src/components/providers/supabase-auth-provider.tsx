@@ -64,6 +64,7 @@ function mirrorSupabaseUser(user: User | null) {
 }
 
 import { AuthModal } from "@/components/auth/auth-modal";
+import { CookieBanner } from "@/components/ui/cookie-banner";
 
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -249,6 +250,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     <SupabaseAuthContext.Provider value={value}>
       {children}
       <AuthModal />
+      <CookieBanner />
     </SupabaseAuthContext.Provider>
   );
 }

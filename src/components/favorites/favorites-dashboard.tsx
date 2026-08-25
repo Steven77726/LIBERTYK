@@ -10,15 +10,31 @@ import {
   toggleFavorite,
   type FavoriteRecord,
 } from "@/lib/favorites/favorites-service";
+import {
+  getCurrentUser,
+  openAuthModal,
+  authStateChangedEvent,
+  type LibertyUser,
+} from "@/lib/auth/auth-service";
 
 export function FavoritesDashboard() {
+  const [currentUser, setCurrentUser] = useState<LibertyUser | null>(null);
   const [items, setItems] = useState<FavoriteRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
+    const sync = async () => {
+      const user = getCurrentUser();
+      if (mounted) setCurrentUser(user);
+      if (!user) {
+        if (mounted) {
+          setItems([]);
+          setLoading(false);
+        }
+        return;
+      }
       try {
         setError("");
         const favorites = await listFavorites();
@@ -29,11 +45,14 @@ export function FavoritesDashboard() {
         if (mounted) setLoading(false);
       }
     };
-    load();
-    window.addEventListener(favoritesChangedEvent, load);
+
+    sync();
+    window.addEventListener(favoritesChangedEvent, sync);
+    window.addEventListener(authStateChangedEvent, sync);
     return () => {
       mounted = false;
-      window.removeEventListener(favoritesChangedEvent, load);
+      window.removeEventListener(favoritesChangedEvent, sync);
+      window.removeEventListener(authStateChangedEvent, sync);
     };
   }, []);
 
@@ -60,6 +79,31 @@ export function FavoritesDashboard() {
     return (
       <div className="grid min-h-[420px] place-items-center rounded-[2rem] bg-white p-8 text-center shadow-soft">
         <p className="text-sm font-semibold text-ink/45">Chargement de vos favoris…</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="grid min-h-[420px] place-items-center rounded-[2rem] bg-white p-8 text-center shadow-soft">
+        <div className="max-w-md">
+          <span className="mx-auto grid size-16 place-items-center rounded-full bg-[#f6ecd9] text-[#8f6424] shadow-xs">
+            <Heart size={28} className="text-[#a54b4b]" fill="#a54b4b" />
+          </span>
+          <h2 className="mt-6 text-2xl font-bold tracking-[-.04em] text-ink">
+            Connectez-vous pour voir vos favoris
+          </h2>
+          <p className="mx-auto mt-3 text-sm leading-6 text-ink/60">
+            Vous devez être connecté(e) pour que vos favoris soient enregistrés et synchronisés sur tous vos appareils.
+          </p>
+          <button
+            type="button"
+            onClick={() => openAuthModal({ reason: "favorite" })}
+            className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-ink px-6 py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss"
+          >
+            Se connecter ou créer un compte <ArrowRight size={14} />
+          </button>
+        </div>
       </div>
     );
   }

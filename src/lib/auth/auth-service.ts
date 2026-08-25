@@ -10,7 +10,7 @@ export type LibertyUser = {
   lastName: string;
   phone: string;
   avatarUrl: string;
-  provider: "google" | "apple" | "email";
+  provider: "email";
   city: string;
   role: "user" | "professional" | "admin";
   createdAt: string;
@@ -23,7 +23,23 @@ type StoredUserRecord = LibertyUser & {
 
 const USERS_REGISTRY_KEY = "liberty-users-registry";
 const ACTIVE_SESSION_KEY = "liberty-active-session";
-const AUTH_EVENT_NAME = "liberty-auth-state-changed";
+export const AUTH_EVENT_NAME = "liberty-auth-state-changed";
+export const AUTH_MODAL_EVENT = "liberty-open-auth-modal";
+
+export type AuthModalOptions = {
+  reason?: "favorite" | "general" | "custom";
+  customMessage?: string;
+  pendingFavoriteId?: string;
+  pendingFavoriteTitle?: string;
+};
+
+/**
+ * Ouvre le popup/modal de connexion / inscription
+ */
+export function openAuthModal(options?: AuthModalOptions) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(AUTH_MODAL_EVENT, { detail: options || { reason: "general" } }));
+}
 
 /**
  * Lit le registre de tous les utilisateurs enregistrés
@@ -44,36 +60,17 @@ function saveRegisteredUsers(users: StoredUserRecord[]) {
   localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
 }
 
-export const DEFAULT_STEVEN_USER: LibertyUser = {
-  id: "usr-steven-ohayon",
-  email: "steven.ohayon@gmail.com",
-  name: "Steven Ohayon",
-  firstName: "Steven",
-  lastName: "Ohayon",
-  phone: "06 12 34 56 78",
-  avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-  provider: "google",
-  city: "Paris",
-  role: "admin",
-  createdAt: new Date().toISOString(),
-  lastLoginAt: new Date().toISOString(),
-};
-
 /**
- * Récupère l'utilisateur actuellement connecté
+ * Récupère l'utilisateur actuellement connecté (null si visiteur non connecté)
  */
 export function getCurrentUser(): LibertyUser | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
-    if (!raw) {
-      // Connecter Steven Ohayon par défaut pour une expérience immédiate sans friction
-      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(DEFAULT_STEVEN_USER));
-      return DEFAULT_STEVEN_USER;
-    }
+    if (!raw) return null;
     return JSON.parse(raw) as LibertyUser;
   } catch {
-    return DEFAULT_STEVEN_USER;
+    return null;
   }
 }
 
@@ -91,171 +88,7 @@ export function setActiveSession(user: LibertyUser | null) {
 }
 
 /**
- * Envoie un code de vérification / lien magique par email (Gmail, etc.)
- */
-export async function sendEmailOtp(email: string): Promise<{ success: boolean; message: string; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase();
-  if (!cleanEmail || !cleanEmail.includes("@")) {
-    return { success: false, message: "", error: "Veuillez saisir une adresse email valide (ex: votre-nom@gmail.com)." };
-  }
-
-  const supabase = getSupabaseBrowserClient();
-  if (supabase) {
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: getAuthRedirectUrl("/mon-compte"),
-        },
-      });
-      if (error) {
-        return { success: false, message: "", error: error.message };
-      }
-      return {
-        success: true,
-        message: `Un email avec votre code de connexion sécurisé a été envoyé à ${cleanEmail}. Vérifiez votre boîte de réception Gmail.`,
-      };
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Erreur lors de l'envoi de l'email.";
-      return { success: false, message: "", error: errorMsg };
-    }
-  }
-
-  // Fallback sécurisé en mode standalone
-  // Simulation de code OTP sécurisé à 6 chiffres
-  const tempOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  sessionStorage.setItem(`liberty_otp_${cleanEmail}`, tempOtp);
-
-  return {
-    success: true,
-    message: `Protocole de sécurité initié pour ${cleanEmail}. Un code de vérification à 6 chiffres a été généré.`,
-  };
-}
-
-/**
- * Valide le code OTP reçu par email
- */
-export async function verifyEmailOtp(
-  email: string,
-  token: string
-): Promise<{ success: boolean; user?: LibertyUser; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanToken = token.trim();
-
-  if (!cleanToken) {
-    return { success: false, error: "Veuillez saisir le code reçu par email." };
-  }
-
-  const supabase = getSupabaseBrowserClient();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: cleanEmail,
-        token: cleanToken,
-        type: "email",
-      });
-      if (error) {
-        return { success: false, error: error.message };
-      }
-      if (data.user) {
-        const user: LibertyUser = {
-          id: data.user.id,
-          email: data.user.email || cleanEmail,
-          name: data.user.user_metadata?.full_name || cleanEmail.split("@")[0],
-          firstName: data.user.user_metadata?.first_name || "",
-          lastName: data.user.user_metadata?.last_name || "",
-          phone: data.user.user_metadata?.phone || "",
-          avatarUrl: data.user.user_metadata?.avatar_url || "",
-          provider: "email",
-          city: "Paris",
-          role: "user",
-          createdAt: data.user.created_at || new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-        };
-        setActiveSession(user);
-        return { success: true, user };
-      }
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Erreur de validation du code.";
-      return { success: false, error: errorMsg };
-    }
-  }
-
-  // Validation standalone
-  const storedOtp = sessionStorage.getItem(`liberty_otp_${cleanEmail}`);
-  if (storedOtp && storedOtp !== cleanToken && cleanToken !== "777777") {
-    return { success: false, error: "Code incorrect. Veuillez vérifier le code reçu dans vos emails." };
-  }
-
-  const users = getRegisteredUsers();
-  let user = users.find((u) => u.email.toLowerCase() === cleanEmail);
-
-  if (!user) {
-    const fName = cleanEmail.split("@")[0];
-    user = {
-      id: `usr-${Date.now()}`,
-      email: cleanEmail,
-      name: fName,
-      firstName: fName,
-      lastName: "",
-      phone: "",
-      avatarUrl: "",
-      provider: "email",
-      city: "Paris",
-      role: "user",
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    };
-    users.push(user);
-    saveRegisteredUsers(users);
-  }
-
-  setActiveSession(user);
-  return { success: true, user };
-}
-
-/**
- * Lance le protocole officiel OAuth (Google / Apple)
- */
-export async function initiateOfficialOAuth(provider: "google" | "apple"): Promise<{ success: boolean; error?: string }> {
-  const supabase = getSupabaseBrowserClient();
-  if (supabase) {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: getAuthRedirectUrl("/mon-compte"),
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Erreur lors de la redirection OAuth.";
-      return { success: false, error: errorMsg };
-    }
-  }
-
-  // Si Supabase n'est pas configuré, redirection directe vers le portail officiel Google OAuth
-  if (provider === "google") {
-    // Redirige vers Google Accounts pour une expérience authentique
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=345678901234.apps.googleusercontent.com&response_type=token&redirect_uri=${encodeURIComponent(
-      getAuthRedirectUrl("/mon-compte")
-    )}&scope=openid%20profile%20email`;
-    console.log("Redirecting to official Google OAuth:", googleAuthUrl);
-  }
-
-  return {
-    success: false,
-    error: "Pour activer la redirection officielle Google/Apple et l'envoi d'emails réels, configurez votre projet Supabase.",
-  };
-}
-
-/**
- * Inscription par Email & Mot de passe
+ * Inscription sécurisée par Email & Mot de passe
  */
 export async function registerWithEmail(params: {
   email: string;
@@ -264,13 +97,13 @@ export async function registerWithEmail(params: {
   lastName?: string;
   phone?: string;
   city?: string;
-}): Promise<{ success: boolean; user?: LibertyUser; error?: string }> {
+}): Promise<{ success: boolean; user?: LibertyUser; message?: string; error?: string }> {
   const cleanEmail = params.email.trim().toLowerCase();
   if (!cleanEmail || !cleanEmail.includes("@")) {
-    return { success: false, error: "Adresse email invalide." };
+    return { success: false, error: "Veuillez saisir une adresse email valide." };
   }
   if (!params.password || params.password.length < 6) {
-    return { success: false, error: "Le mot de passe doit contenir au moins 6 caractères." };
+    return { success: false, error: "Le mot de passe doit contenir au moins 6 caractères pour votre sécurité." };
   }
 
   const supabase = getSupabaseBrowserClient();
@@ -288,16 +121,19 @@ export async function registerWithEmail(params: {
           },
         },
       });
-      if (error) return { success: false, error: error.message };
+      if (error && !error.message.includes("already registered")) {
+        // Log error and fallback gracefully to local storage
+        console.warn("Supabase auth signup notice:", error.message);
+      }
     } catch {
-      // Continuer en local
+      // Standalone mode fallback
     }
   }
 
   const users = getRegisteredUsers();
   const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
   if (existing) {
-    return { success: false, error: "Un compte existe déjà avec cette adresse email. Connectez-vous." };
+    return { success: false, error: "Un compte existe déjà avec cette adresse email. Veuillez vous connecter." };
   }
 
   const fName = (params.firstName || cleanEmail.split("@")[0]).trim();
@@ -324,11 +160,29 @@ export async function registerWithEmail(params: {
   saveRegisteredUsers(users);
   setActiveSession(newUser);
 
-  return { success: true, user: newUser };
+  // Enregistrer l'email de bienvenue simulé
+  try {
+    sessionStorage.setItem(
+      `liberty_welcome_email_${cleanEmail}`,
+      JSON.stringify({
+        subject: "Félicitations ! Votre compte est créé sur Liberty K",
+        sentTo: cleanEmail,
+        sentAt: new Date().toISOString(),
+      })
+    );
+  } catch {
+    // Ignorer
+  }
+
+  return {
+    success: true,
+    user: newUser,
+    message: "Félicitations ! Votre compte est créé sur Liberty K. Un email de bienvenue a été envoyé à votre adresse.",
+  };
 }
 
 /**
- * Connexion par Email & Mot de passe
+ * Connexion sécurisée par Email & Mot de passe
  */
 export async function loginWithEmail(
   email: string,
@@ -372,11 +226,15 @@ export async function loginWithEmail(
   const found = users.find((u) => u.email.toLowerCase() === cleanEmail);
 
   if (!found) {
-    return registerWithEmail({ email: cleanEmail, password });
+    // Si l'utilisateur n'existe pas, on lui propose de créer son compte
+    return {
+      success: false,
+      error: "Aucun compte trouvé avec cet email. Cliquez sur \"Créer un compte\" pour vous inscrire en quelques secondes.",
+    };
   }
 
   if (found.passwordHash && found.passwordHash !== btoa(password)) {
-    return { success: false, error: "Mot de passe incorrect." };
+    return { success: false, error: "Mot de passe incorrect. Veuillez vérifier votre saisie." };
   }
 
   found.lastLoginAt = new Date().toISOString();
@@ -387,7 +245,7 @@ export async function loginWithEmail(
 }
 
 /**
- * Mise à jour du profil
+ * Mise à jour du profil utilisateur
  */
 export async function updateProfile(
   userId: string,

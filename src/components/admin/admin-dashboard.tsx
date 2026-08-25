@@ -1455,7 +1455,7 @@ function ImageUploadField({ label, value, onChange, folder = "admin", id, requir
               onChange(result.url);
               setMessage("Image envoyée.");
             } else {
-              setMessage(result.error);
+              setMessage(result.error ?? "Erreur lors de l'envoi.");
             }
           }}
         />

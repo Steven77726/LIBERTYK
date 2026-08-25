@@ -7,13 +7,13 @@ import {
   Check,
   ChevronRight,
   Heart,
-  KeyRound,
   Lock,
   LogOut,
   Mail,
   MapPin,
   Send,
   Shield,
+  ShieldCheck,
   Sparkles,
   Trash2,
   User,
@@ -22,10 +22,10 @@ import {
 } from "lucide-react";
 import {
   getCurrentUser,
+  loginWithEmail,
   logoutUser,
-  sendEmailOtp,
+  registerWithEmail,
   updateProfile,
-  verifyEmailOtp,
   authStateChangedEvent,
   type LibertyUser,
 } from "@/lib/auth/auth-service";
@@ -38,25 +38,19 @@ import {
 import { assetPath } from "@/lib/assets";
 import { POPULAR_CITIES } from "@/lib/hebcal";
 
-const LOCAL_SESSION_KEY = "liberty-active-session";
-
 export function AccountDashboard() {
   const [currentUser, setCurrentUser] = useState<LibertyUser | null>(null);
   const [activeTab, setActiveTab] = useState<"favorites" | "profile" | "preferences" | "security">("favorites");
 
-  // Email OTP Authentication Step ('input_email' | 'input_code')
-  const [authStep, setAuthStep] = useState<"input_email" | "input_code">("input_email");
+  // Auth form states (Email + Password only)
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [message, setMessage] = useState("");
+  const [password, setPassword] = useState("");
+  const [regFirstName, setRegFirstName] = useState("");
+  const [regLastName, setRegLastName] = useState("");
   const [fieldError, setFieldError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-
-  // Social Modal (Google / Apple)
-  const [socialModal, setSocialModal] = useState<"google" | "apple" | null>(null);
-  const [socialEmail, setSocialEmail] = useState("");
-  const [socialName, setSocialName] = useState("");
 
   // Profile Form
   const [firstName, setFirstName] = useState("");
@@ -93,14 +87,6 @@ export function AccountDashboard() {
     };
   }, []);
 
-  // Timer pour le renvoi d'email OTP
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
-
   // Charger les favoris
   const refreshFavorites = async () => {
     try {
@@ -119,135 +105,52 @@ export function AccountDashboard() {
     return () => {
       window.removeEventListener(favoritesChangedEvent, refreshFavorites);
     };
-  }, []);
+  }, [currentUser]);
 
   // =========================================================================
-  // ACTIONS D'AUTHENTIFICATION FLUIDES & SÉCURISÉES
+  // ACTIONS D'AUTHENTIFICATION EMAIL & MOT DE PASSE SÉCURISÉES
   // =========================================================================
 
-  // 1. Connexion Google Instantanée en 1 clic
-  const handleOpenGoogle = () => {
-    const user: LibertyUser = {
-      id: "usr-steven-ohayon",
-      email: "steven.ohayon@gmail.com",
-      name: "Steven Ohayon",
-      firstName: "Steven",
-      lastName: "Ohayon",
-      phone: "06 12 34 56 78",
-      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-      provider: "google",
-      city: "Paris",
-      role: "admin",
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    };
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(user));
-    window.dispatchEvent(new CustomEvent(authStateChangedEvent, { detail: user }));
-    setCurrentUser(user);
-  };
-
-  // 2. Connexion Apple Instantanée en 1 clic
-  const handleOpenApple = () => {
-    const user: LibertyUser = {
-      id: "usr-apple-steven",
-      email: "steven.ohayon@icloud.com",
-      name: "Steven Ohayon",
-      firstName: "Steven",
-      lastName: "Ohayon",
-      phone: "06 12 34 56 78",
-      avatarUrl: "",
-      provider: "apple",
-      city: "Paris",
-      role: "user",
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    };
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(user));
-    window.dispatchEvent(new CustomEvent(authStateChangedEvent, { detail: user }));
-    setCurrentUser(user);
-  };
-
-  // 3. Valider la connexion Google / Apple
-  const handleConfirmSocialAuth = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanMail = (socialEmail.trim() || (socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur@icloud.com")).toLowerCase();
-    const cleanName = socialName.trim() || (socialModal === "google" ? "Steven Ohayon" : "Membre Apple Liberty");
-    const nameParts = cleanName.split(" ");
-
-    const user: LibertyUser = {
-      id: `${socialModal}-${Date.now()}`,
-      email: cleanMail,
-      name: cleanName,
-      firstName: nameParts[0] || "Membre",
-      lastName: nameParts.slice(1).join(" ") || "Liberty",
-      phone: "06 12 34 56 78",
-      avatarUrl:
-        socialModal === "google"
-          ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-          : "",
-      provider: socialModal || "google",
-      city: "Paris",
-      role: "user",
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(user));
-    window.dispatchEvent(new CustomEvent(authStateChangedEvent, { detail: user }));
-    setCurrentUser(user);
-    setSocialModal(null);
-  };
-
-  // 4. Envoi du Code de Sécurité par Email (Gmail, etc.)
-  const handleSendOtpEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes("@")) {
-      setFieldError("Veuillez renseigner une adresse email valide (ex: votre-nom@gmail.com).");
-      return;
-    }
-
-    setSubmitting(true);
     setFieldError("");
-    setMessage("");
+    setSuccessMessage("");
+    setSubmitting(true);
 
-    const res = await sendEmailOtp(cleanEmail);
+    const res = await loginWithEmail(email, password);
     setSubmitting(false);
 
-    if (res.success) {
-      setMessage(res.message);
-      setAuthStep("input_code");
-      setCountdown(60);
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
     } else {
-      setFieldError(res.error || "Impossible d'envoyer l'email de vérification.");
+      setFieldError(res.error || "Email ou mot de passe incorrect.");
     }
   };
 
-  // 5. Validation du Code Reçu par Email
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanToken = otpCode.trim();
-    if (!cleanToken) {
-      setFieldError("Veuillez saisir le code de sécurité à 6 chiffres reçu dans vos emails.");
-      return;
-    }
-
-    setSubmitting(true);
     setFieldError("");
+    setSuccessMessage("");
+    setSubmitting(true);
 
-    const res = await verifyEmailOtp(email, cleanToken);
+    const res = await registerWithEmail({
+      email,
+      password,
+      firstName: regFirstName,
+      lastName: regLastName,
+      city: selectedCity,
+    });
     setSubmitting(false);
 
-    if (res.success) {
-      setMessage("Authentification réussie !");
-      setAuthStep("input_email");
-      setOtpCode("");
+    if (res.success && res.user) {
+      setSuccessMessage(res.message || "Félicitations ! Votre compte est créé sur Liberty K.");
+      setCurrentUser(res.user);
     } else {
-      setFieldError(res.error || "Code invalide. Veuillez réessayer.");
+      setFieldError(res.error || "Impossible de créer votre compte.");
     }
   };
 
-  // 6. Enregistrement du Profil
+  // Enregistrement du Profil
   const handleSaveProfile = async () => {
     if (!currentUser) return;
     setSavingProfile(true);
@@ -268,14 +171,14 @@ export function AccountDashboard() {
     }
   };
 
-  // 7. Déconnexion
+  // Déconnexion
   const handleSignOut = async () => {
     await logoutUser();
     setEmail("");
-    setOtpCode("");
-    setAuthStep("input_email");
-    setMessage("");
+    setPassword("");
     setFieldError("");
+    setSuccessMessage("");
+    setFavorites([]);
   };
 
   const handleRemoveFavorite = async (item: FavoriteRecord) => {
@@ -284,7 +187,7 @@ export function AccountDashboard() {
   };
 
   // =========================================================================
-  // ÉCRAN 1 : FORMULAIRE DE CONNEXION SÉCURISÉ & DIRECT
+  // ÉCRAN 1 : FORMULAIRE DE CONNEXION SÉCURISÉ & DIRECT (EMAIL + MOT DE PASSE)
   // =========================================================================
   if (!currentUser) {
     return (
@@ -294,72 +197,58 @@ export function AccountDashboard() {
             <Lock size={22} />
           </span>
           <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-            Connexion à mon compte
+            {authMode === "login" ? "Connexion à mon compte" : "Créer mon compte"}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-ink/60">
-            Connectez-vous avec votre compte Google (Gmail), Apple ou recevez votre code de vérification par email.
+            {authMode === "login"
+              ? "Connectez-vous simplement et en toute sécurité avec votre adresse email et mot de passe."
+              : "Créez votre compte en quelques secondes pour sauvegarder vos favoris et accéder à tous les services Libertyk."}
           </p>
         </div>
 
-        {/* Boutons Google & Apple directs */}
-        <div className="grid gap-3">
+        {/* Onglets Connexion / Inscription */}
+        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-cream p-1.5 text-xs font-bold shadow-2xs">
           <button
             type="button"
-            onClick={handleOpenGoogle}
-            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-[#4285F4] hover:bg-[#4285F4]/5 hover:shadow-sm"
+            onClick={() => {
+              setAuthMode("login");
+              setFieldError("");
+              setSuccessMessage("");
+            }}
+            className={`rounded-xl py-3 transition ${
+              authMode === "login" ? "bg-white text-ink shadow-xs" : "text-ink/50 hover:text-ink"
+            }`}
           >
-            <svg className="size-4 shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            Continuer avec Google (Gmail)
+            Se connecter
           </button>
-
           <button
             type="button"
-            onClick={handleOpenApple}
-            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white py-3.5 px-4 text-xs font-bold text-ink shadow-2xs transition hover:border-ink hover:bg-black/5"
+            onClick={() => {
+              setAuthMode("register");
+              setFieldError("");
+              setSuccessMessage("");
+            }}
+            className={`rounded-xl py-3 transition ${
+              authMode === "register" ? "bg-white text-ink shadow-xs" : "text-ink/50 hover:text-ink"
+            }`}
           >
-            <svg className="size-4 shrink-0 fill-current text-ink" viewBox="0 0 170 170">
-              <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.04-7.67-7.81-11.96-14.34-6.3-9.57-11.05-20.73-14.25-33.48-3.2-12.75-4.81-24.3-4.81-34.64 0-14.88 3.72-27.18 11.16-36.9 7.44-9.72 17.08-14.69 28.92-14.9 5.37 0 11.16 1.34 17.38 4.02 6.22 2.68 10.23 4.08 12.03 4.2 1.68-.22 5.92-1.63 12.74-4.2 6.81-2.58 12.69-3.77 17.65-3.58 12.83.66 22.86 5.32 30.08 13.98-10.97 6.64-16.32 15.75-16.06 27.34.22 9.07 3.74 16.63 10.56 22.68 6.82 6.05 14.89 9.38 24.2 9.99-2.23 6.94-4.89 13.88-7.97 20.82zM119.22 31.85c0-7.39 2.68-14.28 8.04-20.67 5.36-6.39 12.03-10.36 20.02-11.18.22 1.12.34 2.18.34 3.19 0 7.39-2.73 14.37-8.19 20.93-5.46 6.56-12.19 10.45-20.21 11.66-.22-1.34-.34-2.65-.34-3.93z" />
-            </svg>
-            Continuer avec Apple
+            Créer un compte
           </button>
         </div>
 
-        <div className="relative flex items-center justify-center">
-          <div className="w-full border-t border-black/10" />
-          <span className="absolute bg-white px-3 text-xs font-semibold text-ink/40">
-            ou par code de vérification par email
-          </span>
-        </div>
-
-        {/* ÉTAPE 1 : ENTRER L'EMAIL */}
-        {authStep === "input_email" && (
+        {/* FORMULAIRE DE CONNEXION */}
+        {authMode === "login" && (
           <form
-            onSubmit={handleSendOtpEmail}
-            className="space-y-4 rounded-3xl border border-black/10 bg-white p-6 shadow-xs"
+            onSubmit={handleLoginSubmit}
+            className="space-y-4 rounded-3xl border border-black/10 bg-white p-6 sm:p-8 shadow-xs"
           >
             <div>
-              <label className="text-xs font-bold text-ink/60">Votre adresse Email (Gmail, etc.)</label>
-              <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3">
+              <label className="text-xs font-bold text-ink/60">Adresse Email</label>
+              <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3.5 focus-within:ring-2 focus-within:ring-ink/10">
                 <Mail size={16} className="text-ink/40" />
                 <input
                   type="email"
+                  required
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -372,150 +261,153 @@ export function AccountDashboard() {
               </div>
             </div>
 
-            {fieldError && <p className="text-center text-xs font-semibold text-rose-600">{fieldError}</p>}
-            {message && <p className="text-center text-xs font-semibold text-moss">{message}</p>}
+            <div>
+              <label className="text-xs font-bold text-ink/60">Mot de passe</label>
+              <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3.5 focus-within:ring-2 focus-within:ring-ink/10">
+                <Lock size={16} className="text-ink/40" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFieldError("");
+                  }}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="ml-3 w-full bg-transparent text-xs font-medium text-ink outline-none placeholder:text-ink/35"
+                />
+              </div>
+            </div>
+
+            {fieldError && <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in">{fieldError}</p>}
+            {successMessage && <p className="text-center text-xs font-semibold text-moss animate-in fade-in">{successMessage}</p>}
 
             <button
               type="submit"
               disabled={submitting}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
             >
-              <Send size={14} />
-              {submitting ? "Envoi du code sécurisé…" : "M'envoyer mon code de connexion par email"}
-            </button>
-          </form>
-        )}
-
-        {/* ÉTAPE 2 : SAISIR LE CODE */}
-        {authStep === "input_code" && (
-          <form
-            onSubmit={handleVerifyOtp}
-            className="space-y-5 rounded-3xl border border-black/10 bg-white p-6 shadow-xs"
-          >
-            <div className="text-center">
-              <span className="inline-flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-moss">
-                <KeyRound size={18} />
-              </span>
-              <h3 className="mt-2 text-base font-bold text-ink">Code de vérification envoyé</h3>
-              <p className="mt-1 text-xs text-ink/60">
-                Saisissez le code envoyé à <strong className="text-ink">{email}</strong>.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-center block text-xs font-bold text-ink/60">Code de sécurité à 6 chiffres</label>
-              <input
-                type="text"
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => {
-                  setOtpCode(e.target.value);
-                  setFieldError("");
-                }}
-                placeholder="• • • • • •"
-                className="w-full text-center tracking-[0.4em] font-mono text-xl font-bold rounded-2xl bg-cream py-3.5 text-ink outline-none focus:bg-white focus:ring-2 focus:ring-moss/20"
-              />
-            </div>
-
-            {fieldError && <p className="text-center text-xs font-semibold text-rose-600">{fieldError}</p>}
-            {message && <p className="text-center text-xs font-semibold text-moss">{message}</p>}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
-            >
-              <Check size={16} />
-              {submitting ? "Vérification du code…" : "Valider et me connecter"}
+              <Lock size={14} />
+              {submitting ? "Connexion en cours…" : "Se connecter"}
             </button>
 
-            <div className="flex items-center justify-between text-xs pt-1">
+            <p className="text-center text-xs text-ink/50 pt-1">
+              Pas encore de compte ?{" "}
               <button
                 type="button"
                 onClick={() => {
-                  setAuthStep("input_email");
+                  setAuthMode("register");
                   setFieldError("");
-                  setMessage("");
                 }}
-                className="font-semibold text-ink/50 hover:text-ink"
+                className="font-bold text-moss underline"
               >
-                ← Changer d&apos;email
+                Créer un compte
               </button>
-
-              <button
-                type="button"
-                onClick={handleSendOtpEmail}
-                disabled={countdown > 0}
-                className="font-bold text-moss hover:underline disabled:opacity-40"
-              >
-                {countdown > 0 ? `Renvoyer (${countdown}s)` : "Renvoyer le code"}
-              </button>
-            </div>
+            </p>
           </form>
         )}
 
-        {/* MODALE CONNEXION GOOGLE / APPLE DIRECTE */}
-        {socialModal && (
-          <div
-            className="fixed inset-0 z-[130] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm"
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) setSocialModal(null);
-            }}
+        {/* FORMULAIRE DE CRÉATION DE COMPTE */}
+        {authMode === "register" && (
+          <form
+            onSubmit={handleRegisterSubmit}
+            className="space-y-4 rounded-3xl border border-black/10 bg-white p-6 sm:p-8 shadow-xs"
           >
-            <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
-              <button
-                type="button"
-                onClick={() => setSocialModal(null)}
-                className="absolute right-5 top-5 grid size-8 place-items-center rounded-full bg-cream text-ink/50 hover:bg-ink hover:text-white"
-              >
-                <X size={15} />
-              </button>
-
-              <div className="text-center">
-                <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-blue-50 text-xl text-[#4285F4]">
-                  {socialModal === "google" ? "G" : ""}
-                </span>
-                <h3 className="mt-3 text-lg font-bold text-ink">
-                  Connexion avec {socialModal === "google" ? "Google (Gmail)" : "Apple"}
-                </h3>
-                <p className="mt-1 text-xs text-ink/60">
-                  Renseignez votre compte pour synchroniser immédiatement vos favoris et vos alertes.
-                </p>
-              </div>
-
-              <form onSubmit={handleConfirmSocialAuth} className="mt-6 space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-ink/50">Votre Nom & Prénom</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-bold text-ink/60">Prénom</label>
+                <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3 focus-within:ring-2 focus-within:ring-ink/10">
+                  <User size={15} className="text-ink/40" />
                   <input
                     type="text"
-                    value={socialName}
-                    onChange={(e) => setSocialName(e.target.value)}
-                    placeholder={socialModal === "google" ? "Steven Ohayon" : "Membre Liberty"}
-                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
+                    required
+                    value={regFirstName}
+                    onChange={(e) => setRegFirstName(e.target.value)}
+                    placeholder="Prénom"
+                    className="ml-2 w-full bg-transparent text-xs font-medium text-ink outline-none placeholder:text-ink/35"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-ink/50">
-                    Adresse {socialModal === "google" ? "Gmail" : "Email"}
-                  </label>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-ink/60">Nom</label>
+                <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3 focus-within:ring-2 focus-within:ring-ink/10">
                   <input
-                    type="email"
-                    value={socialEmail}
-                    onChange={(e) => setSocialEmail(e.target.value)}
-                    placeholder={socialModal === "google" ? "steven.ohayon@gmail.com" : "utilisateur@icloud.com"}
-                    className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
+                    type="text"
+                    value={regLastName}
+                    onChange={(e) => setRegLastName(e.target.value)}
+                    placeholder="Nom"
+                    className="w-full bg-transparent text-xs font-medium text-ink outline-none placeholder:text-ink/35"
                   />
                 </div>
-
-                <button
-                  type="submit"
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss"
-                >
-                  <Check size={15} /> Confirmer et me connecter
-                </button>
-              </form>
+              </div>
             </div>
-          </div>
+
+            <div>
+              <label className="text-xs font-bold text-ink/60">Adresse Email</label>
+              <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3 focus-within:ring-2 focus-within:ring-ink/10">
+                <Mail size={16} className="text-ink/40" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldError("");
+                  }}
+                  placeholder="ex: votre-adresse@gmail.com"
+                  autoComplete="email"
+                  className="ml-3 w-full bg-transparent text-xs font-medium text-ink outline-none placeholder:text-ink/35"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-ink/60">Mot de passe (min. 6 caractères)</label>
+              <div className="mt-1.5 flex items-center rounded-2xl bg-cream px-4 py-3 focus-within:ring-2 focus-within:ring-ink/10">
+                <Lock size={16} className="text-ink/40" />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFieldError("");
+                  }}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  className="ml-3 w-full bg-transparent text-xs font-medium text-ink outline-none placeholder:text-ink/35"
+                />
+              </div>
+            </div>
+
+            {fieldError && <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in">{fieldError}</p>}
+            {successMessage && <p className="text-center text-xs font-semibold text-moss animate-in fade-in">{successMessage}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
+            >
+              <ShieldCheck size={16} />
+              {submitting ? "Création du compte…" : "Créer mon compte"}
+            </button>
+
+            <p className="text-center text-xs text-ink/50 pt-1">
+              Déjà un compte ?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("login");
+                  setFieldError("");
+                }}
+                className="font-bold text-moss underline"
+              >
+                Se connecter
+              </button>
+            </p>
+          </form>
         )}
       </div>
     );
@@ -550,12 +442,12 @@ export function AccountDashboard() {
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-ink sm:text-2xl">{currentUser.name}</h2>
               <span className="rounded-full bg-[#f6ecd9] px-2.5 py-0.5 text-[10px] font-bold text-[#8f6424]">
-                Membre Privilège Vérifié
+                Compte Membre Vérifié
               </span>
             </div>
             <p className="text-xs text-ink/50">{currentUser.email}</p>
             <p className="mt-0.5 text-[11px] text-ink/40">
-              Connecté via {currentUser.provider === "google" ? "Google (Gmail)" : currentUser.provider === "apple" ? "Apple" : "Email sécurisé"} • Ville : {currentUser.city || "Paris"}
+              Connexion sécurisée Email • Ville : {currentUser.city || "Paris"}
             </p>
           </div>
         </div>
@@ -598,89 +490,89 @@ export function AccountDashboard() {
       </div>
 
       {/* ========================================================================= */}
-      {/* ONGLET 1 : RÉPERTOIRE DES FAVORIS */}
+      {/* ONGLET 1 : MES FAVORIS ENREGISTRÉS                                         */}
       {/* ========================================================================= */}
       {activeTab === "favorites" && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-ink">Mes Adresses & Coups de Cœur</h3>
+              <h3 className="text-lg font-bold text-ink">Mes Adresses Préférées</h3>
               <p className="text-xs text-ink/50">
-                Vos sélections enregistrées pour un accès instantané sur tous vos appareils.
+                Vos favoris sont sauvegardés sur votre compte et synchronisés.
               </p>
             </div>
             <Link
-              href="/mes-favoris"
-              className="flex items-center gap-1.5 rounded-2xl bg-cream px-4 py-2 text-xs font-bold text-ink hover:bg-ink hover:text-white transition"
+              href="/food/restaurants"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-moss hover:underline"
             >
-              Voir la page complète <ChevronRight size={14} />
+              Découvrir plus d&apos;adresses <ChevronRight size={14} />
             </Link>
           </div>
 
           {loadingFavorites ? (
-            <div className="grid min-h-40 place-items-center rounded-3xl bg-white p-8 text-center text-xs text-ink/40">
-              Chargement de vos favoris…
+            <div className="grid min-h-60 place-items-center rounded-3xl bg-white p-8 shadow-xs">
+              <p className="text-xs font-semibold text-ink/40">Chargement de vos favoris…</p>
             </div>
           ) : favorites.length === 0 ? (
-            <div className="grid min-h-60 place-items-center rounded-3xl border border-dashed border-black/10 bg-white/60 p-8 text-center">
-              <div>
-                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#f6ecd9] text-[#8f6424]">
-                  <Heart size={22} />
+            <div className="grid min-h-64 place-items-center rounded-3xl border border-dashed border-black/10 bg-white p-8 text-center shadow-xs">
+              <div className="max-w-sm">
+                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[#f6ecd9] text-[#8f6424]">
+                  <Heart size={20} />
                 </span>
-                <p className="mt-4 text-base font-bold text-ink">Aucun favori enregistré pour le moment</p>
-                <p className="mt-1 max-w-sm text-xs leading-relaxed text-ink/50">
-                  Parcourez nos restaurants, boutiques et activités et cliquez sur le cœur pour les garder à portée de main.
+                <h4 className="mt-3 text-base font-bold text-ink">Aucun favori enregistré</h4>
+                <p className="mt-1 text-xs text-ink/50 leading-relaxed">
+                  Naviguez sur le site et cliquez sur le cœur ❤️ d&apos;un restaurant, salon de thé ou boutique pour l&apos;ajouter ici.
                 </p>
                 <Link
-                  href="/"
-                  className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-ink px-5 py-3 text-xs font-bold text-white shadow-md hover:bg-moss transition"
+                  href="/food/restaurants"
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-xs font-bold text-white transition hover:bg-moss"
                 >
-                  <Sparkles size={14} /> Explorer le Guide Liberty
+                  Explorer les restaurants cachers
                 </Link>
               </div>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {favorites.map((fav) => (
-                <article
-                  key={fav.establishmentId}
-                  className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-black/5 bg-white shadow-2xs transition hover:shadow-md"
+              {favorites.map((item) => (
+                <div
+                  key={item.id}
+                  className="group relative overflow-hidden rounded-3xl border border-black/5 bg-white p-4 shadow-xs transition hover:shadow-md"
                 >
-                  <Link href={fav.href} className="block">
-                    <div className="relative aspect-[16/10] overflow-hidden bg-cream">
-                      <img
-                        src={assetPath(fav.image)}
-                        alt=""
-                        className="size-full object-cover transition duration-500 group-hover:scale-105"
-                      />
-                      <span className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-white/90 text-rose-500 shadow-2xs">
-                        <Heart size={14} fill="currentColor" />
-                      </span>
-                    </div>
-                    <div className="p-4">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#8f6424]">
-                        {fav.category} {fav.subcategory ? `· ${fav.subcategory}` : ""}
-                      </p>
-                      <h4 className="mt-1 truncate text-base font-bold text-ink">{fav.title}</h4>
-                      <p className="truncate text-xs text-ink/45">{fav.city || "Paris"}</p>
-                    </div>
-                  </Link>
-                  <div className="flex items-center justify-between border-t border-black/5 p-3">
-                    <Link
-                      href={fav.href}
-                      className="rounded-xl bg-ink px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-moss"
-                    >
-                      Consulter
-                    </Link>
+                  <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-cream">
+                    <img
+                      src={assetPath(item.image)}
+                      alt={item.title}
+                      className="size-full object-cover transition duration-500 group-hover:scale-105"
+                    />
                     <button
                       type="button"
-                      onClick={() => handleRemoveFavorite(fav)}
-                      className="flex items-center gap-1 text-xs font-semibold text-rose-500 hover:text-rose-700"
+                      onClick={() => handleRemoveFavorite(item)}
+                      title="Retirer des favoris"
+                      className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full bg-white/90 text-rose-600 shadow-sm transition hover:bg-rose-600 hover:text-white"
                     >
-                      <Trash2 size={13} /> Retirer
+                      <Trash2 size={13} />
                     </button>
                   </div>
-                </article>
+
+                  <div className="mt-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-moss">
+                      {item.subcategory || item.category}
+                    </span>
+                    <h4 className="mt-0.5 text-sm font-bold text-ink line-clamp-1">{item.title}</h4>
+                    <p className="mt-0.5 flex items-center gap-1 text-[11px] text-ink/50">
+                      <MapPin size={11} /> {item.city || "Paris"}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-black/5 flex items-center justify-between">
+                    <Link
+                      href={item.href}
+                      className="text-xs font-bold text-ink hover:text-moss inline-flex items-center gap-1"
+                    >
+                      Consulter la fiche <ChevronRight size={12} />
+                    </Link>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -688,138 +580,165 @@ export function AccountDashboard() {
       )}
 
       {/* ========================================================================= */}
-      {/* ONGLET 2 : MON PROFIL & COORDONNÉES */}
+      {/* ONGLET 2 : MON PROFIL                                                      */}
       {/* ========================================================================= */}
       {activeTab === "profile" && (
-        <div className="max-w-2xl rounded-3xl border border-black/5 bg-white p-6 shadow-sm sm:p-8 space-y-6">
+        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-xs sm:p-8 space-y-6">
           <div>
-            <h3 className="text-xl font-bold text-ink">Informations Personnelles</h3>
-            <p className="text-xs text-ink/50">Mettez à jour vos coordonnées pour vos réservations et vos préférences.</p>
+            <h3 className="text-lg font-bold text-ink">Informations Personnelles</h3>
+            <p className="text-xs text-ink/50">
+              Gérez vos coordonnées pour personnaliser votre expérience sur Libertyk.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
+            <div>
               <label className="text-xs font-bold text-ink/60">Prénom</label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none focus:bg-white focus:ring-2 focus:ring-moss/20"
+                className="mt-1.5 w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
               />
             </div>
-            <div className="space-y-1.5">
+            <div>
               <label className="text-xs font-bold text-ink/60">Nom</label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none focus:bg-white focus:ring-2 focus:ring-moss/20"
+                className="mt-1.5 w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            <div>
               <label className="text-xs font-bold text-ink/60">Adresse Email</label>
               <input
                 type="email"
+                disabled
                 value={currentUser.email}
-                readOnly
-                className="w-full rounded-2xl bg-cream/50 px-4 py-3 text-xs font-medium text-ink/50 outline-none cursor-not-allowed"
+                className="mt-1.5 w-full rounded-2xl bg-black/5 px-4 py-3 text-xs font-medium text-ink/50 outline-none cursor-not-allowed"
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-ink/60">Téléphone (SMS & Réservations)</label>
+            <div>
+              <label className="text-xs font-bold text-ink/60">Téléphone</label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="06 00 00 00 00"
-                className="w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none focus:bg-white focus:ring-2 focus:ring-moss/20"
+                placeholder="06 12 34 56 78"
+                className="mt-1.5 w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-bold text-ink/60">Ville Principale (pour horaires Chabbat & Fêtes)</label>
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className="mt-1.5 w-full rounded-2xl bg-cream px-4 py-3 text-xs font-medium text-ink outline-none"
+              >
+                {POPULAR_CITIES.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name} ({c.country})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           {profileMessage && (
-            <p className="flex items-center gap-2 rounded-2xl bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
-              <Check size={15} /> {profileMessage}
+            <p className="rounded-xl bg-emerald-50 p-3 text-center text-xs font-bold text-moss">
+              {profileMessage}
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={handleSaveProfile}
-            disabled={savingProfile}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-ink px-6 py-3.5 text-xs font-bold text-white shadow-md transition hover:bg-moss disabled:opacity-60"
-          >
-            {savingProfile ? "Enregistrement…" : "Enregistrer les modifications"}
-          </button>
+          <div className="pt-2 flex justify-end">
+            <button
+              type="button"
+              disabled={savingProfile}
+              onClick={handleSaveProfile}
+              className="flex items-center gap-2 rounded-2xl bg-ink px-6 py-3 text-xs font-bold text-white transition hover:bg-moss disabled:opacity-60"
+            >
+              <Check size={14} /> {savingProfile ? "Enregistrement…" : "Enregistrer les modifications"}
+            </button>
+          </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* ONGLET 3 : MES ALERTES & CHABBAT */}
+      {/* ONGLET 3 : PRÉFÉRENCES & CHABBAT                                          */}
       {/* ========================================================================= */}
       {activeTab === "preferences" && (
-        <div className="max-w-2xl rounded-3xl border border-black/5 bg-white p-6 shadow-sm sm:p-8 space-y-6">
+        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-xs sm:p-8 space-y-6">
           <div>
-            <h3 className="text-xl font-bold text-ink">Préférences du Calendrier Hébraïque</h3>
-            <p className="text-xs text-ink/50">Choisissez votre ville par défaut pour les horaires de Chabbat et fêtes.</p>
+            <h3 className="text-lg font-bold text-ink">Alertes & Notifications</h3>
+            <p className="text-xs text-ink/50">
+              Paramétrez la réception des horaires d&apos;entrée et de sortie de Chabbat et des fêtes juives.
+            </p>
           </div>
 
           <div className="space-y-3">
-            <label className="text-xs font-bold text-ink/60 flex items-center gap-1.5">
-              <MapPin size={14} className="text-moss" /> Ville par défaut
-            </label>
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-xs font-bold text-ink shadow-2xs outline-none"
-            >
-              {POPULAR_CITIES.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name} ({c.country})
-                </option>
-              ))}
-            </select>
+            {[
+              {
+                title: "Horaires de Chabbat par email",
+                desc: "Recevez les horaires d&apos;allumage des bougies et de Havdala chaque vendredi matin.",
+              },
+              {
+                title: "Alertes Fêtes & Yom Tov",
+                desc: "Notifications 48h avant chaque fête (Roch Hachana, Kippour, Souccot, Pessa&apos;h...).",
+              },
+              {
+                title: "Nouveaux restaurants cachers",
+                desc: "Soyez informé(e) des nouvelles ouvertures cachers dans votre ville.",
+              },
+            ].map((pref, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between rounded-2xl border border-black/5 bg-cream/40 p-4"
+              >
+                <div>
+                  <h4 className="text-xs font-bold text-ink">{pref.title}</h4>
+                  <p className="text-[11px] text-ink/50 mt-0.5">{pref.desc}</p>
+                </div>
+                <input
+                  type="checkbox"
+                  defaultChecked
+                  className="size-4 rounded text-moss focus:ring-moss"
+                />
+              </div>
+            ))}
           </div>
-
-          <div className="rounded-2xl bg-[#f6ecd9] p-4 text-xs text-[#8f6424]">
-            💡 Les rappels de Chabbat seront automatiquement synchronisés 15 minutes avant l&apos;allumage des bougies pour cette ville.
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSaveProfile}
-            className="rounded-2xl bg-ink px-6 py-3 text-xs font-bold text-white shadow-md transition hover:bg-moss"
-          >
-            Mémoriser ma ville préférée
-          </button>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* ONGLET 4 : SÉCURITÉ DU COMPTE */}
+      {/* ONGLET 4 : SÉCURITÉ & DONNÉES                                              */}
       {/* ========================================================================= */}
       {activeTab === "security" && (
-        <div className="max-w-2xl rounded-3xl border border-black/5 bg-white p-6 shadow-sm sm:p-8 space-y-6">
+        <div className="rounded-3xl border border-black/5 bg-white p-6 shadow-xs sm:p-8 space-y-6">
           <div>
-            <h3 className="text-xl font-bold text-ink">Sécurité & Confidentialité</h3>
-            <p className="text-xs text-ink/50">Votre session est chiffrée et protégée conformément aux normes RGPD et PKCE.</p>
-          </div>
-
-          <div className="space-y-3 rounded-2xl bg-cream/70 p-4 text-xs text-ink/75">
-            <p className="flex items-center gap-2 font-bold text-ink">
-              <Lock size={14} className="text-moss" /> Statut de sécurité : Authentifié & Chiffré
+            <h3 className="text-lg font-bold text-ink">Sécurité & Confidentialité</h3>
+            <p className="text-xs text-ink/50">
+              Vos données sont protégées et chiffrées selon les standards de sécurité les plus stricts.
             </p>
-            <p>Fournisseur d&apos;accès : {currentUser.provider === "google" ? "Compte Google (Gmail)" : currentUser.provider === "apple" ? "Compte Apple" : "Email sécurisé"}</p>
-            <p>Adresse vérifiée : {currentUser.email}</p>
           </div>
 
-          <div className="pt-2">
+          <div className="rounded-2xl bg-emerald-50/70 p-4 flex items-start gap-3">
+            <ShieldCheck size={20} className="text-moss shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-bold text-moss">Connexion Email Sécurisée</h4>
+              <p className="text-[11px] text-ink/65 mt-0.5 leading-relaxed">
+                Votre compte est protégé par votre mot de passe chiffré. Vos favoris et données personnelles sont strictement confidentiels.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-black/5 flex justify-between items-center">
             <button
               type="button"
               onClick={handleSignOut}
-              className="rounded-2xl bg-rose-50 px-5 py-3 text-xs font-bold text-rose-600 transition hover:bg-rose-100"
+              className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 px-5 py-2.5 text-xs font-bold text-rose-600 transition hover:bg-rose-100"
             >
-              Fermer ma session active
+              <LogOut size={14} /> Se déconnecter de tous les appareils
             </button>
           </div>
         </div>

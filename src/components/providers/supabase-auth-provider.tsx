@@ -63,6 +63,8 @@ function mirrorSupabaseUser(user: User | null) {
   }));
 }
 
+import { AuthModal } from "@/components/auth/auth-modal";
+
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<LibertyRole>("user");
@@ -243,7 +245,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     };
   }, [loading, profile, profileLoadError, role, session]);
 
-  return <SupabaseAuthContext.Provider value={value}>{children}</SupabaseAuthContext.Provider>;
+  return (
+    <SupabaseAuthContext.Provider value={value}>
+      {children}
+      <AuthModal />
+    </SupabaseAuthContext.Provider>
+  );
 }
 
 export function useSupabaseAuth() {

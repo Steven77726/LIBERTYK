@@ -10,6 +10,7 @@ import {
   type LibertyReview,
 } from "@/lib/client-store";
 import { favoritesChangedEvent, isFavorite, toggleFavorite } from "@/lib/favorites/favorites-service";
+import { getCurrentUser, openAuthModal } from "@/lib/auth/auth-service";
 
 type EntityActionTarget = {
   id: string;
@@ -43,6 +44,16 @@ export function LikeButton({ entity, className = "" }: { entity: EntityActionTar
 
   const toggle = async () => {
     if (pending) return;
+    const user = getCurrentUser();
+    if (!user) {
+      openAuthModal({
+        reason: "favorite",
+        pendingFavoriteId: entity.id,
+        pendingFavoriteTitle: entity.title,
+      });
+      return;
+    }
+
     const previous = favorite;
     setPending(true);
     setFavorite(!previous);
@@ -50,8 +61,15 @@ export function LikeButton({ entity, className = "" }: { entity: EntityActionTar
       const next = await toggleFavorite(entity.id);
       setFavorite(next);
       trackEvent(next ? "favorite_added" : "favorite_removed", entity.title, entity.id);
-    } catch {
+    } catch (err) {
       setFavorite(previous);
+      if (err instanceof Error && err.message === "AUTH_REQUIRED") {
+        openAuthModal({
+          reason: "favorite",
+          pendingFavoriteId: entity.id,
+          pendingFavoriteTitle: entity.title,
+        });
+      }
     } finally {
       setPending(false);
     }

@@ -2139,21 +2139,42 @@ export function AdminDashboard() {
   }, [events, selectedEstablishment]);
 
   const updateRubric = (id: string, patch: Partial<AdminRubric>) => {
-    skipNextAdminStateSave.current = true;
-    setState((current) => ({ ...current, rubrics: current.rubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+    setState((current) => {
+      const next = normalizeAdminState({
+        ...current,
+        rubrics: current.rubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      });
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
   };
 
   const updateSubrubric = (id: string, patch: Partial<AdminSubrubric>) => {
-    skipNextAdminStateSave.current = true;
-    setState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+    setState((current) => {
+      const next = normalizeAdminState({
+        ...current,
+        subrubrics: current.subrubrics.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      });
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
   };
 
   const updateEstablishment = (id: string, patch: Partial<AdminEstablishment>) => {
-    skipNextAdminStateSave.current = true;
-    setState((current) => ({
-      ...current,
-      establishments: current.establishments.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    }));
+    setState((current) => {
+      const next = normalizeAdminState({
+        ...current,
+        establishments: current.establishments.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+      });
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
   };
 
   const updateBanner = (id: string, patch: Partial<AdminBanner>) =>
@@ -3004,36 +3025,59 @@ export function AdminDashboard() {
 
   const syncAllEstablishmentPhotosWithGoogle = () => {
     let count = 0;
-    setState((current) => {
+    commitState((current) => {
       const nextEstablishments = current.establishments.map((est) => {
         const googleData = getEstablishmentGoogleBusiness(est.name);
-        if (googleData && googleData.photos && googleData.photos.length > 0) {
+        if (googleData) {
           count++;
+          const formattedHours = Object.entries(googleData.openingHours || {})
+            .map(([day, val]) => `${day}: ${val}`)
+            .join("\n");
           return {
             ...est,
-            mainPhoto: googleData.photos[0] || est.mainPhoto,
-            photos: googleData.photos.slice(1, 5).concat(est.photos || []).slice(0, 4),
+            mainPhoto: googleData.photos?.[0] || est.mainPhoto,
+            photos: (googleData.photos || []).slice(1, 5).concat(est.photos || []).slice(0, 4),
+            address: est.address || googleData.formattedAddress,
+            city: est.city || googleData.city,
+            postalCode: est.postalCode || googleData.postalCode,
+            phone: est.phone || googleData.phone,
+            latitude: String(googleData.latitude || est.latitude),
+            longitude: String(googleData.longitude || est.longitude),
+            hours: est.hours || formattedHours,
           };
         }
         return est;
       });
-      return normalizeAdminState({ ...current, establishments: nextEstablishments });
-    });
-    window.dispatchEvent(new Event("liberty-admin-published"));
-    setAdminMessage(`✅ ${count} fiches synchronisées avec leurs photos Google Business officielles !`);
+      return { ...current, establishments: nextEstablishments };
+    }, `✅ ${count} fiches synchronisées avec leurs données Google Maps officielles !`, "Synchronisation Google");
   };
 
   const syncSingleEstablishmentPhotos = (establishmentId: string) => {
     const target = state.establishments.find((e) => e.id === establishmentId);
     if (!target) return;
     const googleData = getEstablishmentGoogleBusiness(target.name);
-    if (googleData && googleData.photos && googleData.photos.length > 0) {
-      updateEstablishment(target.id, {
-        mainPhoto: googleData.photos[0] || target.mainPhoto,
-        photos: googleData.photos.slice(1, 5).concat(target.photos || []).slice(0, 4),
-      });
-      window.dispatchEvent(new Event("liberty-admin-published"));
-      setAdminMessage(`✅ Photos Google synchronisées pour « ${target.name} » !`);
+    if (googleData) {
+      const formattedHours = Object.entries(googleData.openingHours || {})
+        .map(([day, val]) => `${day}: ${val}`)
+        .join("\n");
+      commitState((current) => ({
+        ...current,
+        establishments: current.establishments.map((item) => {
+          if (item.id !== establishmentId) return item;
+          return {
+            ...item,
+            mainPhoto: googleData.photos?.[0] || item.mainPhoto,
+            photos: (googleData.photos || []).slice(1, 5).concat(item.photos || []).slice(0, 4),
+            address: item.address || googleData.formattedAddress,
+            city: item.city || googleData.city,
+            postalCode: item.postalCode || googleData.postalCode,
+            phone: item.phone || googleData.phone,
+            latitude: String(googleData.latitude || item.latitude),
+            longitude: String(googleData.longitude || item.longitude),
+            hours: item.hours || formattedHours,
+          };
+        }),
+      }), `✅ Données et photos Google synchronisées pour « ${target.name} » !`, "Synchronisation Google");
     }
   };
 

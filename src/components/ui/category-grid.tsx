@@ -6,6 +6,7 @@ import { ArrowUpRight, Store } from "lucide-react";
 import { categories } from "@/data/categories";
 import { assetPath } from "@/lib/assets";
 import { listPublishedRubrics, type RubricRecord } from "@/lib/supabase/rubrics-repository";
+import { listPublishedSubrubricCountsByRubric } from "@/lib/supabase/subrubrics-repository";
 
 type AdminRubricPreview = {
   id: string;
@@ -18,6 +19,7 @@ type AdminRubricPreview = {
   format?: "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
   order: number;
   status: "Publié" | "Brouillon" | "Masqué";
+  subrubricCount?: number;
 };
 
 const staticRubricRoutes = new Set(categories.map((category) => category.slug));
@@ -35,7 +37,10 @@ export function CategoryGrid() {
 
     async function loadRubrics() {
       try {
-        const publishedRubrics = await listPublishedRubrics();
+        const [publishedRubrics, subrubricCounts] = await Promise.all([
+          listPublishedRubrics(),
+          listPublishedSubrubricCountsByRubric().catch(() => null),
+        ]);
         if (mounted && publishedRubrics?.length) {
           setAdminRubrics(
             publishedRubrics.map((rubric: RubricRecord) => ({
@@ -49,6 +54,7 @@ export function CategoryGrid() {
               format: rubric.format,
               order: rubric.order,
               status: rubric.status,
+              subrubricCount: subrubricCounts?.[rubric.slug ?? rubric.id] ?? subrubricCounts?.[rubric.id] ?? 0,
             }))
           );
           return;
@@ -125,6 +131,7 @@ export function CategoryGrid() {
         format: "Carré standard" as const,
         icon: category.icon,
         softColor: category.softColor,
+        subrubricCount: 0,
       }));
     }
     return adminRubrics
@@ -141,6 +148,7 @@ export function CategoryGrid() {
           format: rubric.format ?? "Carré standard",
           icon: fallback?.icon ?? Store,
           softColor: fallback?.softColor ?? "#e2eae4",
+          subrubricCount: rubric.subrubricCount ?? 0,
         };
       });
   }, [adminRubrics]);
@@ -157,11 +165,14 @@ export function CategoryGrid() {
     <section className="page-shell py-8 sm:py-10">
       <div className="mb-5 max-w-3xl"><p className="eyebrow">Tous vos univers</p><h2 className="text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Tout ce qui compte. <span className="text-ink/28">Au même endroit.</span></h2></div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format }) => (
+        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format, subrubricCount }) => (
           <Link key={slug} href={rubricHref(slug)} className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}>
             <img src={assetPath(image)} alt={imageAlt ?? label} loading="lazy" decoding="async" className="liberty-image-grade absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.055]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.20),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.91),rgba(0,0,0,.38)_48%,rgba(0,0,0,.05))]" />
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70" />
+            <span className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-full border border-white/20 bg-white/15 text-xs font-semibold text-white/75 shadow-[0_10px_28px_rgba(0,0,0,.16)] backdrop-blur-xl" aria-label={`${subrubricCount} sous-rubriques disponibles`}>
+              {subrubricCount}
+            </span>
             <div className="absolute inset-x-0 bottom-0 p-4">
               <div className="mb-2.5 flex items-center justify-between">
                 <span className="grid size-8 place-items-center rounded-xl border border-white/20 bg-white/15 shadow-[0_10px_28px_rgba(0,0,0,.18)] backdrop-blur-xl transition duration-300 group-hover:scale-105" style={{ color: softColor }}><Icon size={15} strokeWidth={2.2} /></span>

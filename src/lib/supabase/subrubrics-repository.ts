@@ -53,6 +53,12 @@ type SubrubricRow = {
   rubrics?: { id: string; external_id: string | null; slug: string | null } | null;
 };
 
+type SubrubricCountRow = {
+  id: string;
+  rubric_id: string;
+  rubrics?: { id: string; external_id: string | null; slug: string | null } | null;
+};
+
 type RubricLookupRow = {
   id: string;
   external_id: string | null;
@@ -190,6 +196,29 @@ export async function listPublishedSubrubrics(parentRubricSlug?: string) {
   return (data ?? [])
     .filter((row) => !parentRubricSlug || row.rubrics?.slug === parentRubricSlug || row.rubrics?.external_id === parentRubricSlug || row.rubric_id === parentRubricSlug)
     .map(rowToSubrubric);
+}
+
+export async function listPublishedSubrubricCountsByRubric() {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("subrubrics")
+    .select("id,rubric_id,rubrics(id,external_id,slug)")
+    .eq("status", "published")
+    .eq("show_publicly", true)
+    .is("deleted_at", null)
+    .returns<SubrubricCountRow[]>();
+  if (error) throw new Error(readableError(error));
+
+  const counts: Record<string, number> = {};
+  (data ?? []).forEach((row) => {
+    [row.rubric_id, row.rubrics?.id, row.rubrics?.external_id, row.rubrics?.slug]
+      .filter(Boolean)
+      .forEach((key) => {
+        counts[key as string] = (counts[key as string] ?? 0) + 1;
+      });
+  });
+  return counts;
 }
 
 export async function listAllSubrubricsForAdmin() {

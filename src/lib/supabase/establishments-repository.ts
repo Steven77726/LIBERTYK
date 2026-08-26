@@ -65,6 +65,14 @@ type EstablishmentRow = {
   subrubrics?: { id: string; external_id: string | null; slug: string | null } | null;
 };
 
+type EstablishmentCountRow = {
+  id: string;
+  rubric_id: string | null;
+  subrubric_id: string | null;
+  rubrics?: { id: string; external_id: string | null; slug: string | null } | null;
+  subrubrics?: { id: string; external_id: string | null; slug: string | null } | null;
+};
+
 type PhotoRow = {
   id: string;
   entity_id: string;
@@ -537,6 +545,31 @@ export async function listPublishedEstablishments(filters?: EstablishmentFilters
   const photos = await getPhotos(rows.map((row) => row.id));
   const tagMap = await getVisibleTagMap();
   return rows.map((row) => rowToEstablishment(row, photos.get(row.id), tagMap));
+}
+
+export async function listPublishedEstablishmentCountsBySubrubric(rubricSlug?: string) {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("establishments")
+    .select("id,rubric_id,subrubric_id,rubrics(id,external_id,slug),subrubrics(id,external_id,slug)")
+    .eq("status", "published")
+    .eq("is_visible", true)
+    .is("deleted_at", null)
+    .returns<EstablishmentCountRow[]>();
+  if (error) throw new Error(readableError(error));
+
+  const counts: Record<string, number> = {};
+  (data ?? [])
+    .filter((row) => !rubricSlug || row.rubrics?.slug === rubricSlug || row.rubrics?.external_id === rubricSlug || row.rubric_id === rubricSlug)
+    .forEach((row) => {
+      [row.subrubric_id, row.subrubrics?.id, row.subrubrics?.external_id, row.subrubrics?.slug]
+        .filter(Boolean)
+        .forEach((key) => {
+          counts[key as string] = (counts[key as string] ?? 0) + 1;
+        });
+    });
+  return counts;
 }
 
 export async function listAllEstablishmentsForAdmin() {

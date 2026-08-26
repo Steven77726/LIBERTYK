@@ -20,6 +20,7 @@ import { categories } from "@/data/categories";
 import { localSubrubrics } from "@/data/subrubrics";
 import { assetPath } from "@/lib/assets";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
+import { listPublishedEstablishmentCountsBySubrubric } from "@/lib/supabase/establishments-repository";
 
 type SubrubricPreview = {
   id: string;
@@ -206,22 +207,65 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
   return items ?? fallback;
 }
 
+function usePublishedEstablishmentCounts(rubricSlug: string) {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const remoteCounts = await listPublishedEstablishmentCountsBySubrubric(rubricSlug);
+        if (mounted) setCounts(remoteCounts ?? {});
+      } catch {
+        if (mounted) setCounts({});
+      }
+    }
+    void load();
+
+    const refresh = () => void load();
+    window.addEventListener("storage", refresh);
+    window.addEventListener("liberty-admin-published", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      mounted = false;
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("liberty-admin-published", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [rubricSlug]);
+
+  return counts;
+}
+
+function countForSubrubric(counts: Record<string, number>, item: SubrubricPreview) {
+  return counts[item.id] ?? counts[item.slug ?? ""] ?? 0;
+}
+
+function countLabel(count: number) {
+  return `${count} fiche${count > 1 ? "s" : ""}`;
+}
+
 export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
   const items = usePublishedSubrubrics(rubricSlug, fallback);
+  const counts = usePublishedEstablishmentCounts(rubricSlug);
 
   return (
     <div className="mt-8 grid gap-3 sm:grid-cols-3">
-      {items.map((item, index) => (
+      {items.map((item, index) => {
+        const establishmentCount = countForSubrubric(counts, item);
+        return (
         <Link key={item.id} href={subrubricHref(rubricSlug, item.slug ?? slugify(item.name))} className="group flex items-center justify-between rounded-3xl border border-black/5 bg-white p-6 transition hover:-translate-y-1 hover:shadow-soft">
           <div>
             <span className="text-xs text-ink/35">{String(index + 1).padStart(2, "0")}</span>
             <h3 className="mt-5 text-lg font-semibold">{item.name}</h3>
             {item.description && <p className="mt-1 text-xs text-ink/40">{item.description}</p>}
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-ink/30">{countLabel(establishmentCount)}</p>
           </div>
           <span className="grid size-10 place-items-center rounded-full bg-cream transition group-hover:bg-ink group-hover:text-white"><ChevronRight size={17} /></span>
         </Link>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -229,6 +273,7 @@ export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
 export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubrubricCard[] }) {
   const fallback = useMemo(() => localSubrubricsFor("food"), []);
   const items = usePublishedSubrubrics("food", fallback);
+  const counts = usePublishedEstablishmentCounts("food");
 
   const cards = items.map((item) => {
     const slug = item.slug ?? slugify(item.name);
@@ -239,12 +284,13 @@ export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubr
       href: subrubricHref("food", slug),
       image: item.photo || fallbackCard?.image || "/images/food/restaurants-khan.jpg",
       icon: foodIconBySlug[slug] || Store,
+      establishmentCount: countForSubrubric(counts, item),
     };
   });
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {cards.map(({ label, description, icon: Icon, image, href }, index) => (
+      {cards.map(({ label, description, icon: Icon, image, href, establishmentCount }, index) => (
         <Link
           key={`${href}-${label}`}
           href={href}
@@ -257,6 +303,7 @@ export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubr
               <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={18} /></span>
               <h3 className="text-xl font-semibold tracking-tight">{label}</h3>
               <p className="mt-1 text-xs text-white/55">{description}</p>
+              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">{countLabel(establishmentCount)}</p>
             </div>
             <span className="grid size-10 shrink-0 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowRight size={17} /></span>
           </div>
@@ -277,6 +324,7 @@ export function CardSubrubricGrid({
 }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
   const items = usePublishedSubrubrics(rubricSlug, fallback);
+  const counts = usePublishedEstablishmentCounts(rubricSlug);
 
   const cards = items.map((item) => {
     const slug = item.slug ?? slugify(item.name);
@@ -287,12 +335,13 @@ export function CardSubrubricGrid({
       href: subrubricHref(rubricSlug, slug),
       image: item.photo || fallbackCard?.image || categories.find((category) => category.slug === rubricSlug)?.image || "/images/food/restaurants-khan.jpg",
       icon: genericIconBySlug[slug] || Store,
+      establishmentCount: countForSubrubric(counts, item),
     };
   });
 
   return (
     <div className={`mt-9 grid gap-5 ${columns}`}>
-      {cards.map(({ title, description, href, icon: Icon, image }) => (
+      {cards.map(({ title, description, href, icon: Icon, image, establishmentCount }) => (
         <Link key={href} href={href} className="group relative min-h-[390px] overflow-hidden rounded-[2rem] text-white shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
           <img src={assetPath(image)} alt={title} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
@@ -300,6 +349,7 @@ export function CardSubrubricGrid({
             <span className="mb-5 grid size-11 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={19} /></span>
             <h2 className="text-2xl font-semibold">{title}</h2>
             <p className="mt-2 text-sm text-white/60">{description}</p>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">{countLabel(establishmentCount)}</p>
             <span className="mt-5 grid size-9 place-items-center rounded-full bg-white text-ink"><ArrowRight size={15} /></span>
           </div>
         </Link>

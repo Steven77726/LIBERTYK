@@ -1,5 +1,5 @@
 import {
-  Baby, CalendarDays, CarFront, Dumbbell,
+  Baby, CalendarDays, CarFront, Dumbbell, HeartPulse,
   HandPlatter, Landmark, Plane, ShoppingBag,
   Sparkles, Utensils, Wine, Droplets,
 } from "lucide-react";
@@ -10,6 +10,7 @@ export const categories: Category[] = [
   { slug: "sorties", label: "Sorties", eyebrow: "À vivre", description: "Les meilleures idées pour sortir, vibrer et se retrouver.", icon: Sparkles, color: "#795486", softColor: "#eee5f1", image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=85", featured: ["Événements", "Concerts", "Dégustations de vins", "Soirées célibataires"] },
   { slug: "voyages", label: "Voyages", eyebrow: "S'évader", description: "Destinations, hôtels et séjours pensés pour voyager sereinement.", icon: Plane, color: "#2c6c80", softColor: "#e0eff2", image: "https://images.unsplash.com/photo-1539020140153-e479b8c22e70?auto=format&fit=crop&w=1200&q=85", featured: ["Hôtels", "Séjours", "Guides"] },
   { slug: "shopping", label: "Shopping", eyebrow: "À découvrir", description: "Marques, boutiques et nouveautés choisies pour vous.", icon: ShoppingBag, color: "#9a5a68", softColor: "#f3e2e7", image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=85", featured: ["Mode", "Maison", "Beauté"] },
+  { slug: "soins-feminin", label: "Soins féminin", shortLabel: "Soins", eyebrow: "Beauté", description: "Professionnelles beauté, soins, coiffure, maquillage et bien-être.", icon: HeartPulse, color: "#9a5a68", softColor: "#f7e7ec", image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=1200&q=85", featured: ["Maquillage", "Coiffure", "Lissage", "Massage", "Onglerie", "Cils & Sourcils", "Épilation", "Soins du visage", "Soins du corps"] },
   { slug: "vin-spiritueux", label: "Vin & Spiritueux", shortLabel: "Vins", eyebrow: "À déguster", description: "Bouteilles d'exception, domaines et conseils de connaisseurs.", icon: Wine, color: "#773b45", softColor: "#f0e0e3", image: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=1200&q=85", featured: ["Sélections", "Domaines", "Conseils"] },
   { slug: "mariage", label: "Mariage", eyebrow: "Le grand jour", description: "Tous les talents et inspirations pour célébrer votre histoire.", icon: HandPlatter, color: "#aa785d", softColor: "#f5e8df", image: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=1200&q=85", featured: ["Déco", "Traiteur Mariage", "Salle de Réception", "Photographe / Vidéaste", "Orchestre / DJ"] },
   { slug: "sport", label: "Sport", eyebrow: "Bouger", description: "Clubs, coachs et activités pour prendre soin de votre énergie.", icon: Dumbbell, color: "#3b7257", softColor: "#e1eee6", image: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=1200&q=85", featured: ["Coachs", "Clubs", "Activités"] },

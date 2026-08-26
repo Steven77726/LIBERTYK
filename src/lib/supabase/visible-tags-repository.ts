@@ -38,6 +38,10 @@ function slugify(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function toDbStatus(status?: VisibleTagRecord["status"]) {
   if (status === "Publié") return "published";
   if (status === "Masqué") return "hidden";
@@ -64,8 +68,9 @@ function rowToTag(row: TagRow): VisibleTagRecord {
 }
 
 function tagToPayload(tag: VisibleTagRecord) {
+  const stableExternalId = tag.id && !tag.id.startsWith("tag-") ? tag.id : slugify(tag.label);
   return {
-    external_id: tag.id || slugify(tag.label),
+    external_id: stableExternalId,
     label: tag.label.trim(),
     icon: tag.icon ?? "",
     display_order: Number(tag.order) || 0,
@@ -119,10 +124,13 @@ export async function hideVisibleTag(tag: VisibleTagRecord) {
 
 export async function moveVisibleTagToTrash(tag: VisibleTagRecord) {
   const supabase = getClientOrThrow();
-  const { error } = await supabase
+  const externalId = tag.id && !tag.id.startsWith("tag-") ? tag.id : slugify(tag.label);
+  const query = supabase
     .from("visible_tags")
-    .update({ status: "trashed", deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq("external_id", tag.id);
+    .update({ status: "trashed", deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  const { error } = isUuid(tag.id)
+    ? await query.or(`external_id.eq.${externalId},id.eq.${tag.id}`)
+    : await query.eq("external_id", externalId);
   if (error) throw new Error(readableError(error));
 }
 

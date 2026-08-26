@@ -2,6 +2,7 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { LocalEstablishment, LocalEstablishmentStatus, LocalKosherType, LocalSponsorshipLevel } from "@/data/establishments";
+import { listProfessionalServices } from "@/lib/supabase/beauty-repository";
 
 export type EstablishmentRecord = LocalEstablishment & {
   createdAt?: string;
@@ -344,6 +345,7 @@ function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = [], tagM
   const services = row.services ?? {};
   return {
     id: row.external_id || row.id,
+    databaseId: row.id,
     rubricId: row.rubrics?.external_id || row.rubrics?.slug || row.rubric_id || "",
     subrubricId: row.subrubrics?.external_id || row.subrubrics?.slug || row.subrubric_id || "",
     mainPhoto: photoUrls[0] ?? "",
@@ -396,6 +398,26 @@ function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = [], tagM
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
+}
+
+async function attachBeautyServices(rows: EstablishmentRow[], establishments: EstablishmentRecord[]) {
+  const professionalIds = rows.map((row) => row.id);
+  if (!professionalIds.length) return establishments;
+  try {
+    const services = await listProfessionalServices(professionalIds);
+    const byProfessional = new Map<string, typeof services>();
+    services.forEach((service) => {
+      const list = byProfessional.get(service.professionalId) ?? [];
+      list.push(service);
+      byProfessional.set(service.professionalId, list);
+    });
+    return establishments.map((establishment, index) => ({
+      ...establishment,
+      beautyServices: byProfessional.get(rows[index]?.id) ?? [],
+    }));
+  } catch {
+    return establishments;
+  }
 }
 
 async function establishmentToPayload(establishment: EstablishmentRecord, statusOverride?: StatusDb) {
@@ -544,7 +566,7 @@ export async function listPublishedEstablishments(filters?: EstablishmentFilters
   const rows = data ?? [];
   const photos = await getPhotos(rows.map((row) => row.id));
   const tagMap = await getVisibleTagMap();
-  return rows.map((row) => rowToEstablishment(row, photos.get(row.id), tagMap));
+  return attachBeautyServices(rows, rows.map((row) => rowToEstablishment(row, photos.get(row.id), tagMap)));
 }
 
 export async function listPublishedEstablishmentCountsBySubrubric(rubricSlug?: string) {
@@ -583,7 +605,7 @@ export async function listAllEstablishmentsForAdmin() {
   if (error) throw new Error(readableError(error));
   const rows = data ?? [];
   const photos = await getPhotos(rows.map((row) => row.id));
-  return rows.map((row) => rowToEstablishment(row, photos.get(row.id)));
+  return attachBeautyServices(rows, rows.map((row) => rowToEstablishment(row, photos.get(row.id))));
 }
 
 export async function getEstablishmentById(id: string) {
@@ -597,7 +619,8 @@ export async function getEstablishmentById(id: string) {
   if (error) throw new Error(readableError(error));
   if (!data) return null;
   const photos = await getPhotos([data.id]);
-  return rowToEstablishment(data, photos.get(data.id));
+  const [establishment] = await attachBeautyServices([data], [rowToEstablishment(data, photos.get(data.id))]);
+  return establishment ?? rowToEstablishment(data, photos.get(data.id));
 }
 
 export async function createEstablishment(establishment: EstablishmentRecord) {

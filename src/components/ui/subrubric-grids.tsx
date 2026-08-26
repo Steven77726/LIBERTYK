@@ -6,7 +6,6 @@ import {
   ArrowRight,
   CakeSlice,
   ChefHat,
-  ChevronRight,
   Coffee,
   Croissant,
   IceCreamBowl,
@@ -245,25 +244,73 @@ function countLabel(count: number) {
   return `${count} fiche${count > 1 ? "s" : ""}`;
 }
 
+function imageForSubrubric(rubricSlug: string, item: SubrubricPreview, fallbackCards?: StaticSubrubricCard[]) {
+  const slug = item.slug ?? slugify(item.name);
+  const fallbackCard = fallbackCards?.find((card) => slugify(card.label) === slug);
+  return item.photo || fallbackCard?.image || categories.find((category) => category.slug === rubricSlug)?.image || "/images/food/restaurants-khan.jpg";
+}
+
+function descriptionForSubrubric(item: SubrubricPreview, fallbackCards?: StaticSubrubricCard[]) {
+  const slug = item.slug ?? slugify(item.name);
+  const fallbackCard = fallbackCards?.find((card) => slugify(card.label) === slug);
+  return item.description || fallbackCard?.description || "";
+}
+
+function iconForSubrubric(rubricSlug: string, item: SubrubricPreview) {
+  const slug = item.slug ?? slugify(item.name);
+  if (rubricSlug === "food") return foodIconBySlug[slug] || Store;
+  return genericIconBySlug[slug] || Store;
+}
+
+function SubrubricCard({
+  rubricSlug,
+  item,
+  fallbackCards,
+  establishmentCount,
+  featured = false,
+}: {
+  rubricSlug: string;
+  item: SubrubricPreview;
+  fallbackCards?: StaticSubrubricCard[];
+  establishmentCount: number;
+  featured?: boolean;
+}) {
+  const slug = item.slug ?? slugify(item.name);
+  const Icon = iconForSubrubric(rubricSlug, item);
+  const image = imageForSubrubric(rubricSlug, item, fallbackCards);
+  const description = descriptionForSubrubric(item, fallbackCards);
+
+  return (
+    <Link
+      href={subrubricHref(rubricSlug, slug)}
+      className={`group relative overflow-hidden rounded-[1.75rem] bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${featured ? "min-h-[350px] sm:col-span-2" : "min-h-[255px]"}`}
+    >
+      <img src={assetPath(image)} alt={item.imageAlt || item.name} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
+        <div className="min-w-0">
+          <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={18} /></span>
+          <h3 className="truncate text-xl font-semibold tracking-tight">{item.name}</h3>
+          {description && <p className="mt-1 line-clamp-2 text-xs text-white/60">{description}</p>}
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">{countLabel(establishmentCount)}</p>
+        </div>
+        <span className="grid size-10 shrink-0 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowRight size={17} /></span>
+      </div>
+    </Link>
+  );
+}
+
 export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
   const items = usePublishedSubrubrics(rubricSlug, fallback);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
 
   return (
-    <div className="mt-8 grid gap-3 sm:grid-cols-3">
-      {items.map((item, index) => {
+    <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((item) => {
         const establishmentCount = countForSubrubric(counts, item);
         return (
-        <Link key={item.id} href={subrubricHref(rubricSlug, item.slug ?? slugify(item.name))} className="group flex items-center justify-between rounded-3xl border border-black/5 bg-white p-6 transition hover:-translate-y-1 hover:shadow-soft">
-          <div>
-            <span className="text-xs text-ink/35">{String(index + 1).padStart(2, "0")}</span>
-            <h3 className="mt-5 text-lg font-semibold">{item.name}</h3>
-            {item.description && <p className="mt-1 text-xs text-ink/40">{item.description}</p>}
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-ink/30">{countLabel(establishmentCount)}</p>
-          </div>
-          <span className="grid size-10 place-items-center rounded-full bg-cream transition group-hover:bg-ink group-hover:text-white"><ChevronRight size={17} /></span>
-        </Link>
+          <SubrubricCard key={item.id} rubricSlug={rubricSlug} item={item} establishmentCount={establishmentCount} />
         );
       })}
     </div>
@@ -275,39 +322,10 @@ export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubr
   const items = usePublishedSubrubrics("food", fallback);
   const counts = usePublishedEstablishmentCounts("food");
 
-  const cards = items.map((item) => {
-    const slug = item.slug ?? slugify(item.name);
-    const fallbackCard = fallbackCards.find((card) => slugify(card.label) === slug);
-    return {
-      label: item.name,
-      description: item.description || fallbackCard?.description || "",
-      href: subrubricHref("food", slug),
-      image: item.photo || fallbackCard?.image || "/images/food/restaurants-khan.jpg",
-      icon: foodIconBySlug[slug] || Store,
-      establishmentCount: countForSubrubric(counts, item),
-    };
-  });
-
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {cards.map(({ label, description, icon: Icon, image, href, establishmentCount }, index) => (
-        <Link
-          key={`${href}-${label}`}
-          href={href}
-          className={`group relative min-h-[255px] overflow-hidden rounded-[1.75rem] bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${index === 0 ? "sm:col-span-2 sm:min-h-[350px]" : ""}`}
-        >
-          <img src={assetPath(image)} alt={label} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
-            <div>
-              <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={18} /></span>
-              <h3 className="text-xl font-semibold tracking-tight">{label}</h3>
-              <p className="mt-1 text-xs text-white/55">{description}</p>
-              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">{countLabel(establishmentCount)}</p>
-            </div>
-            <span className="grid size-10 shrink-0 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowRight size={17} /></span>
-          </div>
-        </Link>
+      {items.map((item, index) => (
+        <SubrubricCard key={item.id} rubricSlug="food" item={item} fallbackCards={fallbackCards} establishmentCount={countForSubrubric(counts, item)} featured={index === 0} />
       ))}
     </div>
   );
@@ -326,33 +344,10 @@ export function CardSubrubricGrid({
   const items = usePublishedSubrubrics(rubricSlug, fallback);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
 
-  const cards = items.map((item) => {
-    const slug = item.slug ?? slugify(item.name);
-    const fallbackCard = fallbackCards?.find((card) => slugify(card.label) === slug);
-    return {
-      title: item.name,
-      description: item.description || fallbackCard?.description || "",
-      href: subrubricHref(rubricSlug, slug),
-      image: item.photo || fallbackCard?.image || categories.find((category) => category.slug === rubricSlug)?.image || "/images/food/restaurants-khan.jpg",
-      icon: genericIconBySlug[slug] || Store,
-      establishmentCount: countForSubrubric(counts, item),
-    };
-  });
-
   return (
     <div className={`mt-9 grid gap-5 ${columns}`}>
-      {cards.map(({ title, description, href, icon: Icon, image, establishmentCount }) => (
-        <Link key={href} href={href} className="group relative min-h-[390px] overflow-hidden rounded-[2rem] text-white shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
-          <img src={assetPath(image)} alt={title} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-6">
-            <span className="mb-5 grid size-11 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={19} /></span>
-            <h2 className="text-2xl font-semibold">{title}</h2>
-            <p className="mt-2 text-sm text-white/60">{description}</p>
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">{countLabel(establishmentCount)}</p>
-            <span className="mt-5 grid size-9 place-items-center rounded-full bg-white text-ink"><ArrowRight size={15} /></span>
-          </div>
-        </Link>
+      {items.map((item) => (
+        <SubrubricCard key={item.id} rubricSlug={rubricSlug} item={item} fallbackCards={fallbackCards} establishmentCount={countForSubrubric(counts, item)} />
       ))}
     </div>
   );

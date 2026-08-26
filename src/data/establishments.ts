@@ -2,6 +2,7 @@ import { brunches } from "@/data/brunches";
 import { restaurants } from "@/data/restaurants";
 import { azamra } from "@/data/shops";
 import { wineActivities } from "@/data/wine-activities";
+import type { BeautyProfessionalService } from "@/lib/beauty/types";
 
 export type LocalEstablishmentStatus = "Publié" | "Brouillon" | "Masqué";
 export type LocalKosherType = "Bassari" | "Halavi" | "Parvé" | "À compléter";
@@ -9,6 +10,7 @@ export type LocalSponsorshipLevel = "Standard" | "Featured" | "Premium" | "Spons
 
 export type LocalEstablishment = {
   id: string;
+  databaseId?: string;
   rubricId: string;
   subrubricId: string;
   mainPhoto: string;
@@ -58,6 +60,7 @@ export type LocalEstablishment = {
   customerSearches: string[];
   visibleTagIds: string[];
   fieldVisibility?: Record<string, boolean>;
+  beautyServices?: BeautyProfessionalService[];
 };
 
 const slugify = (value: string) =>

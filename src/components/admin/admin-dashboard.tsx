@@ -93,6 +93,23 @@ import {
   upsertVisibleTag,
   type VisibleTagRecord,
 } from "@/lib/supabase/visible-tags-repository";
+import {
+  hideCertification as hideCertificationInSupabase,
+  importCertificationsIfMissing,
+  listAllCertificationsForAdmin,
+  moveCertificationToTrash,
+  upsertCertification,
+  type CertificationRecord,
+} from "@/lib/supabase/certifications-repository";
+import {
+  listBeautyCategories,
+  listBeautyServices,
+  listProfessionalServices,
+  replaceProfessionalServices,
+  upsertBeautyCategory,
+  upsertBeautyService,
+} from "@/lib/supabase/beauty-repository";
+import type { BeautyCategory, BeautyProfessionalService, BeautyService } from "@/lib/beauty/types";
 
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
 type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
@@ -220,6 +237,7 @@ type AdminCertification = {
 
 type AdminEstablishment = {
   id: string;
+  databaseId?: string;
   rubricId: string;
   subrubricId: string;
   mainPhoto: string;
@@ -268,6 +286,7 @@ type AdminEstablishment = {
   order: number;
   customerSearches: string[];
   visibleTagIds: string[];
+  beautyServices?: BeautyProfessionalService[];
   fieldVisibility?: FieldVisibility;
   createdAt?: string;
   updatedAt?: string;
@@ -899,6 +918,7 @@ const menu = [
   { id: "rubrics", label: "Rubriques", icon: Store },
   { id: "subrubrics", label: "Sous-rubriques", icon: Tags },
   { id: "establishments", label: "Fiches / Établissements", icon: Building2 },
+  { id: "beauty", label: "Soins femme", icon: Sparkles },
   { id: "tags", label: "Tags visibles", icon: Tags },
   { id: "customer-searches", label: "Recherches clients", icon: Search },
   { id: "seo-assistant", label: "SEO Assistant", icon: BarChart3 },
@@ -1837,6 +1857,11 @@ export function AdminDashboard() {
   const [subrubricsSupabaseLoaded, setSubrubricsSupabaseLoaded] = useState(false);
   const [establishmentsSupabaseLoaded, setEstablishmentsSupabaseLoaded] = useState(false);
   const [tagsSupabaseLoaded, setTagsSupabaseLoaded] = useState(false);
+  const [certificationsSupabaseLoaded, setCertificationsSupabaseLoaded] = useState(false);
+  const [beautyLoaded, setBeautyLoaded] = useState(false);
+  const [beautyCategories, setBeautyCategories] = useState<BeautyCategory[]>([]);
+  const [beautyServices, setBeautyServices] = useState<BeautyService[]>([]);
+  const [beautyServicesByProfessional, setBeautyServicesByProfessional] = useState<Record<string, BeautyProfessionalService[]>>({});
   const [rubricsOperation, setRubricsOperation] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
@@ -1859,6 +1884,7 @@ export function AdminDashboard() {
   const [seoSearch, setSeoSearch] = useState("");
   const [seoFilter, setSeoFilter] = useState("Toutes les pages");
   const [selectedSeoReportId, setSelectedSeoReportId] = useState("");
+  const [tagPickerSearch, setTagPickerSearch] = useState("");
   const skipNextAdminStateSave = useRef(false);
   const subrubricNameRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
   const [subrubricValidationErrors, setSubrubricValidationErrors] = useState<Record<string, Record<string, string>>>({});
@@ -2027,6 +2053,72 @@ export function AdminDashboard() {
   }, [auth.configured, hasAdminAccess, setState, state.tags, supabaseLoaded, tagsSupabaseLoaded]);
 
   useEffect(() => {
+    if (!auth.configured || !hasAdminAccess || !supabaseLoaded || certificationsSupabaseLoaded) return;
+    let mounted = true;
+    setAdminMessage("Chargement des certifications Supabase…");
+    listAllCertificationsForAdmin()
+      .then(async (remoteCertifications) => {
+        if (!mounted) return;
+        const nextCertifications = remoteCertifications.length
+          ? remoteCertifications
+          : await importCertificationsIfMissing(state.certifications as CertificationRecord[]);
+        if (!mounted) return;
+        if (nextCertifications.length) {
+          skipNextAdminStateSave.current = true;
+          setState((current) => normalizeAdminState({ ...current, certifications: nextCertifications as AdminCertification[] }));
+          setAdminMessage(remoteCertifications.length ? "Certifications chargées depuis Supabase." : "Certifications importées dans Supabase.");
+        }
+        setCertificationsSupabaseLoaded(true);
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setAdminMessage(`Erreur de connexion Supabase certifications : ${error.message}`);
+        setCertificationsSupabaseLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [auth.configured, certificationsSupabaseLoaded, hasAdminAccess, setState, state.certifications, supabaseLoaded]);
+
+  useEffect(() => {
+    if (!auth.configured || !hasAdminAccess || !supabaseLoaded || !establishmentsSupabaseLoaded || beautyLoaded) return;
+    let mounted = true;
+    setAdminMessage("Chargement du module Soins femme…");
+    Promise.all([
+      listBeautyCategories({ admin: true }),
+      listBeautyServices({ admin: true }),
+      listProfessionalServices(state.establishments.map((item) => item.databaseId ?? item.id).filter((id) => /^[0-9a-f-]{36}$/i.test(id))),
+    ])
+      .then(([nextCategories, nextServices, nextProfessionalServices]) => {
+        if (!mounted) return;
+        const grouped: Record<string, BeautyProfessionalService[]> = {};
+        nextProfessionalServices.forEach((service) => {
+          grouped[service.professionalId] = [...(grouped[service.professionalId] ?? []), service];
+        });
+        setBeautyCategories(nextCategories);
+        setBeautyServices(nextServices);
+        setBeautyServicesByProfessional(grouped);
+        setState((current) => normalizeAdminState({
+          ...current,
+          establishments: current.establishments.map((establishment) => ({
+            ...establishment,
+            beautyServices: grouped[establishment.databaseId ?? establishment.id] ?? establishment.beautyServices ?? [],
+          })),
+        }));
+        setBeautyLoaded(true);
+        setAdminMessage("Module Soins femme chargé depuis Supabase.");
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setBeautyLoaded(true);
+        setAdminMessage(`Erreur module Soins femme : ${error.message}`);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [auth.configured, beautyLoaded, establishmentsSupabaseLoaded, hasAdminAccess, setState, state.establishments, supabaseLoaded]);
+
+  useEffect(() => {
     setReviews(getReviews());
     setEvents(getAnalyticsEvents());
   }, []);
@@ -2046,7 +2138,7 @@ export function AdminDashboard() {
 
   useEffect(() => {
     if (!auth.configured || !hasAdminAccess || !supabaseLoaded) return;
-    if (active === "rubrics" || active === "subrubrics" || active === "establishments" || active === "tags") return;
+    if (active === "rubrics" || active === "subrubrics" || active === "establishments" || active === "tags" || active === "certifications") return;
     if (skipNextAdminStateSave.current) {
       skipNextAdminStateSave.current = false;
       return;
@@ -2131,6 +2223,9 @@ export function AdminDashboard() {
   }, [selectedEstablishmentId, state.establishments]);
 
   const selectedEstablishment = state.establishments.find((item) => item.id === selectedEstablishmentId) ?? state.establishments[0];
+  const selectedRubric = selectedEstablishment ? state.rubrics.find((rubric) => rubric.id === selectedEstablishment.rubricId || rubric.slug === selectedEstablishment.rubricId) : undefined;
+  const selectedIsBeauty = selectedRubric?.slug === "soins-feminin" || selectedRubric?.name.toLowerCase().includes("soins") || selectedEstablishment?.rubricId === "soins-feminin";
+  const selectedBeautyServices = selectedEstablishment?.beautyServices ?? beautyServicesByProfessional[selectedEstablishment?.databaseId ?? selectedEstablishment?.id ?? ""] ?? [];
   const liveSeoReports = useMemo(() => analyzeAdminSeo(state), [state]);
   const displayedSeoReports = seoReports.length ? seoReports : liveSeoReports;
   const seoSummary = useMemo(() => summarizeSeoReports(displayedSeoReports), [displayedSeoReports]);
@@ -2177,6 +2272,152 @@ export function AdminDashboard() {
       return true;
     });
   }, [displayedSeoReports, seoFilter, seoSearch]);
+
+  const addBeautyCategory = () => {
+    const category: BeautyCategory = {
+      id: newId("beauty-category"),
+      name: "Nouvelle catégorie",
+      slug: "nouvelle-categorie",
+      description: "",
+      displayOrder: beautyCategories.length + 1,
+      active: true,
+    };
+    setBeautyCategories((current) => [category, ...current]);
+    setAdminMessage("Catégorie beauté ajoutée. Cliquez sur Enregistrer pour la publier dans Supabase.");
+  };
+
+  const updateBeautyCategoryLocal = (id: string, patch: Partial<BeautyCategory>) => {
+    setBeautyCategories((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+  };
+
+  const saveBeautyCategory = async (category: BeautyCategory) => {
+    if (!requireAdminWrite()) return;
+    if (!category.name.trim()) {
+      setAdminMessage("Le nom de la catégorie beauté est obligatoire.");
+      return;
+    }
+    setSavingAction("Enregistrement catégorie beauté…");
+    try {
+      const saved = await upsertBeautyCategory({ ...category, slug: category.slug || slugify(category.name) });
+      setBeautyCategories((current) => current.map((item) => item.id === category.id ? saved : item));
+      setAdminMessage("Catégorie beauté enregistrée.");
+    } catch (error) {
+      setAdminMessage(`Erreur catégorie beauté : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
+  };
+
+  const addBeautyService = () => {
+    const category = beautyCategories[0];
+    if (!category) {
+      setAdminMessage("Créez d’abord une catégorie beauté.");
+      return;
+    }
+    const service: BeautyService = {
+      id: newId("beauty-service"),
+      categoryId: category.id,
+      categoryName: category.name,
+      categorySlug: category.slug,
+      name: "Nouvelle prestation",
+      slug: "nouvelle-prestation",
+      description: "",
+      displayOrder: beautyServices.length + 1,
+      active: true,
+    };
+    setBeautyServices((current) => [service, ...current]);
+    setAdminMessage("Prestation ajoutée. Cliquez sur Enregistrer pour la publier dans Supabase.");
+  };
+
+  const updateBeautyServiceLocal = (id: string, patch: Partial<BeautyService>) => {
+    setBeautyServices((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+  };
+
+  const saveBeautyService = async (service: BeautyService) => {
+    if (!requireAdminWrite()) return;
+    if (!service.name.trim() || !service.categoryId) {
+      setAdminMessage("Le nom et la catégorie de la prestation sont obligatoires.");
+      return;
+    }
+    setSavingAction("Enregistrement prestation…");
+    try {
+      const category = beautyCategories.find((item) => item.id === service.categoryId);
+      const saved = await upsertBeautyService({ ...service, slug: service.slug || slugify(service.name), categoryName: category?.name, categorySlug: category?.slug });
+      setBeautyServices((current) => current.map((item) => item.id === service.id ? saved : item));
+      setAdminMessage("Prestation beauté enregistrée.");
+    } catch (error) {
+      setAdminMessage(`Erreur prestation beauté : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
+  };
+
+  const updateProfessionalBeautyServices = (services: BeautyProfessionalService[]) => {
+    if (!selectedEstablishment) return;
+    setState((current) => normalizeAdminState({
+      ...current,
+      establishments: current.establishments.map((item) => item.id === selectedEstablishment.id ? { ...item, beautyServices: services } : item),
+    }));
+  };
+
+  const addProfessionalBeautyService = () => {
+    if (!selectedEstablishment) return;
+    const service = beautyServices[0];
+    if (!service) {
+      setAdminMessage("Créez d’abord une prestation beauté.");
+      return;
+    }
+    updateProfessionalBeautyServices([
+      ...selectedBeautyServices,
+      {
+        id: newId("professional-service"),
+        professionalId: selectedEstablishment.databaseId ?? selectedEstablishment.id,
+        serviceId: service.id,
+        categoryId: service.categoryId,
+        categoryName: service.categoryName,
+        categorySlug: service.categorySlug,
+        serviceName: service.name,
+        serviceSlug: service.slug,
+        price: null,
+        priceFrom: false,
+        durationMinutes: 45,
+        atHome: true,
+        onSite: false,
+        active: true,
+        displayOrder: selectedBeautyServices.length + 1,
+      },
+    ]);
+  };
+
+  const updateProfessionalBeautyService = (id: string, patch: Partial<BeautyProfessionalService>) => {
+    updateProfessionalBeautyServices(selectedBeautyServices.map((item) => {
+      if (item.id !== id) return item;
+      const selectedService = patch.serviceId ? beautyServices.find((service) => service.id === patch.serviceId) : undefined;
+      return {
+        ...item,
+        ...patch,
+        categoryId: selectedService?.categoryId ?? patch.categoryId ?? item.categoryId,
+        categoryName: selectedService?.categoryName ?? patch.categoryName ?? item.categoryName,
+        categorySlug: selectedService?.categorySlug ?? patch.categorySlug ?? item.categorySlug,
+        serviceName: selectedService?.name ?? patch.serviceName ?? item.serviceName,
+        serviceSlug: selectedService?.slug ?? patch.serviceSlug ?? item.serviceSlug,
+      };
+    }));
+  };
+
+  const saveSelectedProfessionalServices = async (professional?: AdminEstablishment) => {
+    const target = professional ?? selectedEstablishment;
+    if (!target) return;
+    const professionalId = target.databaseId ?? target.id;
+    if (!/^[0-9a-f-]{36}$/i.test(professionalId)) return;
+    const services = target.beautyServices ?? selectedBeautyServices;
+    const saved = await replaceProfessionalServices(professionalId, services);
+    setBeautyServicesByProfessional((current) => ({ ...current, [professionalId]: saved }));
+    setState((current) => normalizeAdminState({
+      ...current,
+      establishments: current.establishments.map((item) => item.id === target.id ? { ...item, beautyServices: saved } : item),
+    }));
+  };
 
   const selectedSeoReport = displayedSeoReports.find((report) => report.id === selectedSeoReportId) ?? filteredSeoReports[0] ?? displayedSeoReports[0];
 
@@ -2318,8 +2559,10 @@ export function AdminDashboard() {
     setState((current) => ({ ...current, tags: current.tags.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
   };
 
-  const updateCertification = (id: string, patch: Partial<AdminCertification>) =>
+  const updateCertification = (id: string, patch: Partial<AdminCertification>) => {
+    skipNextAdminStateSave.current = true;
     setState((current) => ({ ...current, certifications: current.certifications.map((item) => (item.id === id ? { ...item, ...patch } : item)) }));
+  };
 
   const runSeoAnalysis = () => {
     setSeoRunning(true);
@@ -2666,17 +2909,29 @@ export function AdminDashboard() {
       ],
     }));
 
-  const addTag = () =>
+  const addTag = () => {
+    if (savingAction) {
+      setAdminMessage("Une opération est déjà en cours. Réessayez dans quelques secondes.");
+      return;
+    }
     setState((current) => ({
       ...current,
       tags: [...current.tags, { id: newId("tag"), label: "Nouveau tag", kind: "visible", icon: "", color: "#1f4d3b", rubricIds: [], order: current.tags.length + 1, status: "Brouillon" }],
     }));
+    setAdminMessage("Nouveau tag ajouté. Modifiez son nom puis cliquez sur Enregistrer.");
+  };
 
-  const addCertification = () =>
+  const addCertification = () => {
+    if (savingAction) {
+      setAdminMessage("Une opération est déjà en cours. Réessayez dans quelques secondes.");
+      return;
+    }
     setState((current) => ({
       ...current,
       certifications: [...current.certifications, { id: newId("certification"), label: "Nouvelle certification", order: current.certifications.length + 1, status: "Brouillon" }],
     }));
+    setAdminMessage("Nouvelle certification ajoutée. Modifiez son nom puis cliquez sur Enregistrer.");
+  };
 
   const audit = (action: string, entityType: string, entityId: string, label: string, payload: Record<string, unknown> = {}) => {
     const entry: AuditEntry = { id: newId("audit"), action, entityType, entityId, label, createdAt: new Date().toISOString() };
@@ -3236,7 +3491,12 @@ export function AdminDashboard() {
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await createEstablishmentInSupabase(draft as EstablishmentRecord);
-        applyEstablishmentLocally(saved as AdminEstablishment, "Fiche enregistrée en brouillon.");
+        let nextSaved = saved as AdminEstablishment;
+        if (saved.databaseId && (draft.beautyServices ?? []).length) {
+          const savedServices = await replaceProfessionalServices(saved.databaseId, draft.beautyServices ?? []);
+          nextSaved = { ...nextSaved, beautyServices: savedServices };
+        }
+        applyEstablishmentLocally(nextSaved, "Fiche enregistrée en brouillon.");
       } else {
         commitState((current) => ({
           ...current,
@@ -3265,7 +3525,12 @@ export function AdminDashboard() {
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await publishEstablishmentInSupabase(published as EstablishmentRecord);
-        applyEstablishmentLocally(saved as AdminEstablishment, "Fiche publiée avec succès.");
+        let nextSaved = saved as AdminEstablishment;
+        if (saved.databaseId && (published.beautyServices ?? []).length) {
+          const savedServices = await replaceProfessionalServices(saved.databaseId, published.beautyServices ?? []);
+          nextSaved = { ...nextSaved, beautyServices: savedServices };
+        }
+        applyEstablishmentLocally(nextSaved, "Fiche publiée avec succès.");
       } else {
         commitState((current) => ({
           ...current,
@@ -3379,12 +3644,28 @@ export function AdminDashboard() {
 
   const saveTagDraft = async (tag: AdminTag) => {
     if (!requireAdminWrite()) return;
+    if (!tag.label.trim()) {
+      setAdminMessage("Le nom du tag est obligatoire.");
+      return;
+    }
+    const duplicate = state.tags.find((item) => item.id !== tag.id && item.status !== "Masqué" && slugify(item.label) === slugify(tag.label));
+    if (duplicate) {
+      setAdminMessage(`Ce tag existe déjà : ${duplicate.label}.`);
+      return;
+    }
     setSavingAction("Enregistrement du tag…");
     const draft = { ...tag, status: "Brouillon" as AdminStatus };
     try {
       const saved = auth.configured && hasAdminAccess ? await upsertVisibleTag(draft as VisibleTagRecord, "Brouillon") : draft;
       skipNextAdminStateSave.current = true;
-      setState((current) => normalizeAdminState({ ...current, tags: current.tags.map((item) => (item.id === tag.id ? saved as AdminTag : item)) }));
+      setState((current) => normalizeAdminState({
+        ...current,
+        tags: current.tags.map((item) => (item.id === tag.id ? saved as AdminTag : item)),
+        establishments: current.establishments.map((item) => ({
+          ...item,
+          visibleTagIds: item.visibleTagIds.map((id) => (id === tag.id ? (saved as AdminTag).id : id)),
+        })),
+      }));
       setAdminMessage("Tag enregistré en brouillon.");
       audit("brouillon", "tag", tag.id, tag.label);
     } catch (error) {
@@ -3397,12 +3678,24 @@ export function AdminDashboard() {
   const publishTag = async (tag: AdminTag) => {
     if (!requireAdminWrite()) return;
     if (!requireFields([["nom", tag.label], ["ordre", tag.order]])) return;
+    const duplicate = state.tags.find((item) => item.id !== tag.id && item.status !== "Masqué" && slugify(item.label) === slugify(tag.label));
+    if (duplicate) {
+      setAdminMessage(`Ce tag existe déjà : ${duplicate.label}.`);
+      return;
+    }
     setSavingAction("Publication du tag…");
     const published = { ...tag, status: "Publié" as AdminStatus };
     try {
       const saved = auth.configured && hasAdminAccess ? await upsertVisibleTag(published as VisibleTagRecord, "Publié") : published;
       skipNextAdminStateSave.current = true;
-      setState((current) => normalizeAdminState({ ...current, tags: current.tags.map((item) => (item.id === tag.id ? saved as AdminTag : item)) }));
+      setState((current) => normalizeAdminState({
+        ...current,
+        tags: current.tags.map((item) => (item.id === tag.id ? saved as AdminTag : item)),
+        establishments: current.establishments.map((item) => ({
+          ...item,
+          visibleTagIds: item.visibleTagIds.map((id) => (id === tag.id ? (saved as AdminTag).id : id)),
+        })),
+      }));
       setAdminMessage("Tag publié avec succès.");
       audit("publication", "tag", tag.id, tag.label);
     } catch (error) {
@@ -3442,21 +3735,84 @@ export function AdminDashboard() {
     }
   };
 
-  const saveCertificationDraft = (certification: AdminCertification) => {
-    commitState((current) => ({
-      ...current,
-      certifications: current.certifications.map((item) => (item.id === certification.id ? { ...item, status: "Brouillon" } : item)),
-    }), "Certification enregistrée en brouillon.", "Sauvegarde");
-    audit("brouillon", "certification", certification.id, certification.label);
+  const saveCertificationDraft = async (certification: AdminCertification) => {
+    if (!requireAdminWrite()) return;
+    if (!certification.label.trim()) {
+      setAdminMessage("Le nom de la certification est obligatoire.");
+      return;
+    }
+    const duplicate = state.certifications.find((item) => item.id !== certification.id && item.status !== "Masqué" && slugify(item.label) === slugify(certification.label));
+    if (duplicate) {
+      setAdminMessage(`Cette certification existe déjà : ${duplicate.label}.`);
+      return;
+    }
+    setSavingAction("Enregistrement certification…");
+    const draft = { ...certification, status: "Brouillon" as AdminStatus };
+    try {
+      const saved = auth.configured && hasAdminAccess ? await upsertCertification(draft as CertificationRecord, "Brouillon") : draft;
+      skipNextAdminStateSave.current = true;
+      setState((current) => normalizeAdminState({ ...current, certifications: current.certifications.map((item) => (item.id === certification.id ? saved as AdminCertification : item)) }));
+      setAdminMessage("Certification enregistrée en brouillon.");
+      audit("brouillon", "certification", certification.id, certification.label);
+    } catch (error) {
+      setAdminMessage(`Échec enregistrement certification : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
   };
 
-  const publishCertification = (certification: AdminCertification) => {
+  const publishCertification = async (certification: AdminCertification) => {
+    if (!requireAdminWrite()) return;
     if (!requireFields([["nom", certification.label], ["ordre", certification.order]])) return;
-    commitState((current) => ({
-      ...current,
-      certifications: current.certifications.map((item) => (item.id === certification.id ? { ...item, status: "Publié" } : item)),
-    }), "Certification publiée avec succès.", "Publication");
-    audit("publication", "certification", certification.id, certification.label);
+    const duplicate = state.certifications.find((item) => item.id !== certification.id && item.status !== "Masqué" && slugify(item.label) === slugify(certification.label));
+    if (duplicate) {
+      setAdminMessage(`Cette certification existe déjà : ${duplicate.label}.`);
+      return;
+    }
+    setSavingAction("Publication certification…");
+    const published = { ...certification, status: "Publié" as AdminStatus };
+    try {
+      const saved = auth.configured && hasAdminAccess ? await upsertCertification(published as CertificationRecord, "Publié") : published;
+      skipNextAdminStateSave.current = true;
+      setState((current) => normalizeAdminState({ ...current, certifications: current.certifications.map((item) => (item.id === certification.id ? saved as AdminCertification : item)) }));
+      setAdminMessage("Certification publiée avec succès.");
+      audit("publication", "certification", certification.id, certification.label);
+    } catch (error) {
+      setAdminMessage(`Échec publication certification : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
+  };
+
+  const hideCertification = async (certification: AdminCertification) => {
+    if (!requireAdminWrite()) return;
+    setSavingAction("Masquage certification…");
+    try {
+      const hidden = auth.configured && hasAdminAccess ? await hideCertificationInSupabase(certification as CertificationRecord) : { ...certification, status: "Masqué" as AdminStatus };
+      skipNextAdminStateSave.current = true;
+      setState((current) => normalizeAdminState({ ...current, certifications: current.certifications.map((item) => (item.id === certification.id ? hidden as AdminCertification : item)) }));
+      setAdminMessage("Certification masquée avec succès.");
+      audit("masquage", "certification", certification.id, certification.label);
+    } catch (error) {
+      setAdminMessage(`Échec masquage certification : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
+  };
+
+  const trashCertification = async (certification: AdminCertification) => {
+    if (!requireAdminWrite()) return;
+    setSavingAction("Suppression certification…");
+    try {
+      if (auth.configured && hasAdminAccess) await moveCertificationToTrash(certification as CertificationRecord);
+      skipNextAdminStateSave.current = true;
+      moveToTrash("certification", certification.label, certification, (current) => ({ ...current, certifications: current.certifications.filter((item) => item.id !== certification.id) }));
+      setAdminMessage("Certification envoyée dans la corbeille.");
+    } catch (error) {
+      setAdminMessage(`Échec suppression certification : ${(error as Error).message}`);
+    } finally {
+      setSavingAction("");
+    }
   };
 
   const moveToTrash = <T extends { id: string }>(entityType: string, label: string, payload: T, apply: (current: AdminState) => AdminState) => {
@@ -4019,6 +4375,96 @@ export function AdminDashboard() {
               </Panel>
             )}
 
+            {active === "beauty" && (
+              <div className="mt-8 grid gap-5 xl:grid-cols-2">
+                <Panel title="Catégories beauté" subtitle="Maquillage, coiffure, lissage, massage… données stockées dans Supabase." actionLabel="Ajouter une catégorie" onAction={addBeautyCategory}>
+                  {!beautyLoaded && <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">Chargement du module Soins femme…</p>}
+                  <div className="mt-5 space-y-3">
+                    {beautyCategories.sort((a, b) => a.displayOrder - b.displayOrder).map((category) => (
+                      <div key={category.id} className="rounded-3xl bg-cream p-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label="Nom" value={category.name} onChange={(value) => updateBeautyCategoryLocal(category.id, { name: value, slug: category.slug || slugify(value) })} />
+                          <Field label="Slug" value={category.slug} onChange={(value) => updateBeautyCategoryLocal(category.id, { slug: slugify(value) })} />
+                          <Field label="Description" value={category.description} onChange={(value) => updateBeautyCategoryLocal(category.id, { description: value })} />
+                          <Field label="Ordre" type="number" value={category.displayOrder} onChange={(value) => updateBeautyCategoryLocal(category.id, { displayOrder: Number(value) })} />
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Toggle label="Active" checked={category.active} onChange={(value) => updateBeautyCategoryLocal(category.id, { active: value })} />
+                          <button disabled={Boolean(savingAction)} onClick={() => void saveBeautyCategory(category)} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white disabled:opacity-45">Enregistrer</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel title="Prestations beauté" subtitle="Services proposés par les professionnelles, classés par catégorie." actionLabel="Ajouter une prestation" onAction={addBeautyService}>
+                  <div className="mt-5 space-y-3">
+                    {beautyServices.sort((a, b) => a.displayOrder - b.displayOrder).map((service) => (
+                      <div key={service.id} className="rounded-3xl bg-cream p-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <SelectField label="Catégorie" value={service.categoryId} onChange={(value) => {
+                            const category = beautyCategories.find((item) => item.id === value);
+                            updateBeautyServiceLocal(service.id, { categoryId: value, categoryName: category?.name, categorySlug: category?.slug });
+                          }}>
+                            {beautyCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                          </SelectField>
+                          <Field label="Nom" value={service.name} onChange={(value) => updateBeautyServiceLocal(service.id, { name: value, slug: service.slug || slugify(value) })} />
+                          <Field label="Slug" value={service.slug} onChange={(value) => updateBeautyServiceLocal(service.id, { slug: slugify(value) })} />
+                          <Field label="Ordre" type="number" value={service.displayOrder} onChange={(value) => updateBeautyServiceLocal(service.id, { displayOrder: Number(value) })} />
+                          <div className="sm:col-span-2">
+                            <Field label="Description" value={service.description} textarea onChange={(value) => updateBeautyServiceLocal(service.id, { description: value })} />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Toggle label="Active" checked={service.active} onChange={(value) => updateBeautyServiceLocal(service.id, { active: value })} />
+                          <button disabled={Boolean(savingAction)} onClick={() => void saveBeautyService(service)} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white disabled:opacity-45">Enregistrer</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+
+                <div className="xl:col-span-2">
+                  <Panel title="Prestations du professionnel sélectionné" subtitle="Sélectionnez une fiche Soins femme dans “Fiches / Établissements”, puis ajoutez ses services, prix et durées." actionLabel="Ajouter une prestation au profil" onAction={addProfessionalBeautyService}>
+                    {!selectedEstablishment ? (
+                      <p className="mt-5 rounded-2xl bg-cream px-4 py-3 text-sm text-ink/45">Aucune fiche sélectionnée.</p>
+                    ) : !selectedIsBeauty ? (
+                      <p className="mt-5 rounded-2xl bg-cream px-4 py-3 text-sm text-ink/45">La fiche sélectionnée n’appartient pas à la rubrique Soins féminin.</p>
+                    ) : (
+                      <div className="mt-5 space-y-3">
+                        <div className="rounded-2xl bg-sage px-4 py-3 text-sm font-semibold text-moss">{selectedEstablishment.name}</div>
+                        {selectedBeautyServices.length === 0 && <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-ink/45">Aucune prestation ajoutée pour ce profil.</p>}
+                        {selectedBeautyServices.map((service) => (
+                          <div key={service.id} className="rounded-3xl bg-cream p-4">
+                            <div className="grid gap-3 md:grid-cols-3">
+                              <SelectField label="Prestation" value={service.serviceId} onChange={(value) => updateProfessionalBeautyService(service.id, { serviceId: value })}>
+                                {beautyServices.map((item) => <option key={item.id} value={item.id}>{item.categoryName ? `${item.categoryName} · ` : ""}{item.name}</option>)}
+                              </SelectField>
+                              <Field label="Prix" type="number" value={service.price ?? ""} onChange={(value) => updateProfessionalBeautyService(service.id, { price: value ? Number(value) : null })} />
+                              <Field label="Durée minutes" type="number" value={service.durationMinutes ?? ""} onChange={(value) => updateProfessionalBeautyService(service.id, { durationMinutes: value ? Number(value) : null })} />
+                            </div>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                              <Toggle label="Dès" checked={service.priceFrom} onChange={(value) => updateProfessionalBeautyService(service.id, { priceFrom: value })} />
+                              <Toggle label="À domicile" checked={service.atHome} onChange={(value) => updateProfessionalBeautyService(service.id, { atHome: value })} />
+                              <Toggle label="Sur place" checked={service.onSite} onChange={(value) => updateProfessionalBeautyService(service.id, { onSite: value })} />
+                              <Toggle label="Active" checked={service.active} onChange={(value) => updateProfessionalBeautyService(service.id, { active: value })} />
+                            </div>
+                            <div className="mt-3 flex justify-between gap-2">
+                              <button onClick={() => updateProfessionalBeautyServices(selectedBeautyServices.filter((item) => item.id !== service.id))} className="rounded-full bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-600">Retirer</button>
+                              <Field label="Ordre" type="number" value={service.displayOrder} onChange={(value) => updateProfessionalBeautyService(service.id, { displayOrder: Number(value) })} />
+                            </div>
+                          </div>
+                        ))}
+                        <button disabled={Boolean(savingAction)} onClick={() => void saveSelectedProfessionalServices()} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-45">
+                          {savingAction ? "Enregistrement…" : "Enregistrer les prestations"}
+                        </button>
+                      </div>
+                    )}
+                  </Panel>
+                </div>
+              </div>
+            )}
+
             {active === "establishments" && selectedEstablishment && (
               <div className="mt-8 grid gap-5 xl:grid-cols-[330px_1fr]">
                 <Panel title="Établissements" subtitle={`${filteredEstablishments.length} fiches disponibles`} actionLabel="Ajouter" onAction={addEstablishment} actionDisabled={establishmentsBusy}>
@@ -4393,26 +4839,73 @@ export function AdminDashboard() {
                           <p className="text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">Tags visibles sur la fiche</p>
                           <button onClick={addTag} className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">Créer un tag</button>
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {state.tags.sort((a, b) => a.order - b.order).map((tag) => {
-                            const checked = selectedEstablishment.visibleTagIds.includes(tag.id);
-                            return (
-                              <button
-                                key={tag.id}
-                                onClick={() => updateEstablishment(selectedEstablishment.id, {
-                                  visibleTagIds: checked
-                                    ? selectedEstablishment.visibleTagIds.filter((id) => id !== tag.id)
-                                    : [...selectedEstablishment.visibleTagIds, tag.id],
-                                })}
-                                className={`rounded-2xl border px-4 py-3 text-left text-sm ${checked ? "border-moss/20 bg-sage text-moss" : "border-black/10 bg-white text-ink/55"}`}
-                              >
-                                {tag.label}
-                              </button>
-                            );
-                          })}
+                        <div className="rounded-3xl border border-black/[.06] bg-white p-3">
+                          <div className="flex flex-wrap gap-2">
+                            {selectedEstablishment.visibleTagIds.length ? selectedEstablishment.visibleTagIds.map((tagId) => {
+                              const tag = state.tags.find((item) => item.id === tagId);
+                              if (!tag) return null;
+                              return (
+                                <button
+                                  key={tagId}
+                                  type="button"
+                                  onClick={() => updateEstablishment(selectedEstablishment.id, { visibleTagIds: selectedEstablishment.visibleTagIds.filter((id) => id !== tagId) })}
+                                  className="rounded-full bg-sage px-3 py-1.5 text-xs font-semibold text-moss transition hover:bg-rose-50 hover:text-rose-600"
+                                  aria-label={`Retirer ${tag.label}`}
+                                >
+                                  {tag.label} ×
+                                </button>
+                              );
+                            }) : <span className="text-xs text-ink/35">Aucun tag sélectionné.</span>}
+                          </div>
+                          <div className="mt-3">
+                            <Field label="Rechercher un tag" value={tagPickerSearch} onChange={setTagPickerSearch} placeholder="terrasse, livraison, bassari…" />
+                          </div>
+                          <div className="mt-3 grid max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                            {state.tags
+                              .filter((tag) => tag.status !== "Masqué")
+                              .filter((tag) => !tagPickerSearch.trim() || slugify(tag.label).includes(slugify(tagPickerSearch)))
+                              .sort((a, b) => a.order - b.order)
+                              .slice(0, 24)
+                              .map((tag) => {
+                                const checked = selectedEstablishment.visibleTagIds.includes(tag.id);
+                                return (
+                                  <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => updateEstablishment(selectedEstablishment.id, {
+                                      visibleTagIds: checked
+                                        ? selectedEstablishment.visibleTagIds.filter((id) => id !== tag.id)
+                                        : [...new Set([...selectedEstablishment.visibleTagIds, tag.id])],
+                                    })}
+                                    className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${checked ? "border-moss/20 bg-sage text-moss" : "border-black/10 bg-cream text-ink/55 hover:bg-sage hover:text-moss"}`}
+                                  >
+                                    {tag.label}
+                                  </button>
+                                );
+                              })}
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    {selectedIsBeauty && (
+                      <div className="rounded-3xl bg-white p-5 shadow-sm">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-semibold">Prestations Soins femme</p>
+                            <p className="mt-1 text-xs leading-5 text-ink/45">Prix, durée, domicile/sur place sont gérés dans le module dédié.</p>
+                          </div>
+                          <button onClick={() => goToSection("beauty")} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white">Gérer les prestations</button>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {selectedBeautyServices.length ? selectedBeautyServices.map((service) => (
+                            <span key={service.id} className="rounded-full bg-cream px-3 py-1.5 text-xs font-semibold text-ink/55">
+                              {service.serviceName ?? "Prestation"}{service.price ? ` · ${service.price} €` : ""}{service.durationMinutes ? ` · ${service.durationMinutes} min` : ""}
+                            </span>
+                          )) : <span className="text-xs text-ink/40">Aucune prestation enregistrée.</span>}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="rounded-3xl bg-cream p-5">
                       <div className="flex items-center justify-between">
@@ -4829,18 +5322,18 @@ export function AdminDashboard() {
                       <div className="mb-4 flex items-center justify-between">
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(certification.status)}`}>{certification.status}</span>
                         <div className="flex gap-2">
-                          <button onClick={() => updateCertification(certification.id, { status: "Publié" })} className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">Publier</button>
-                          <button onClick={() => updateCertification(certification.id, { status: "Masqué" })} className="rounded-full bg-cream px-3 py-2 text-xs font-semibold text-ink/55">Masquer</button>
-                          <button onClick={() => moveToTrash("certification", certification.label, certification, (current) => ({ ...current, certifications: current.certifications.filter((item) => item.id !== certification.id) }))} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Corbeille</button>
+                          <button onClick={() => void publishCertification(certification)} className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">Publier</button>
+                          <button onClick={() => void hideCertification(certification)} className="rounded-full bg-cream px-3 py-2 text-xs font-semibold text-ink/55">Masquer</button>
+                          <button onClick={() => void trashCertification(certification)} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Corbeille</button>
                         </div>
                       </div>
                       <FormActionBar
                         disabled={Boolean(savingAction)}
-                        onDraft={() => saveCertificationDraft(certification)}
+                        onDraft={() => void saveCertificationDraft(certification)}
                         onPreview={() => setAdminMessage(`Prévisualisation certification : ${certification.label}`)}
-                        onPublish={() => publishCertification(certification)}
-                        onHide={() => commitState((current) => ({ ...current, certifications: current.certifications.map((item) => item.id === certification.id ? { ...item, status: "Masqué" } : item) }), "Certification masquée avec succès.", "Masquage")}
-                        onTrash={() => moveToTrash("certification", certification.label, certification, (current) => ({ ...current, certifications: current.certifications.filter((item) => item.id !== certification.id) }))}
+                        onPublish={() => void publishCertification(certification)}
+                        onHide={() => void hideCertification(certification)}
+                        onTrash={() => void trashCertification(certification)}
                       />
                       <div className="grid gap-3 sm:grid-cols-[1fr_100px_150px]">
                         <Field label="Nom" value={certification.label} onChange={(value) => updateCertification(certification.id, { label: value })} />
@@ -5256,8 +5749,8 @@ export function AdminDashboard() {
                           </SelectField>
                         </div>
                         <div className="mt-2 flex gap-2">
-                          <button onClick={() => updateCertification(certification.id, { status: certification.status === "Masqué" ? "Publié" : "Masqué" })} className="rounded-full bg-white px-3 py-2 text-xs font-semibold">{certification.status === "Masqué" ? "Publier" : "Masquer"}</button>
-                          <button onClick={() => moveToTrash("certification", certification.label, certification, (current) => ({ ...current, certifications: current.certifications.filter((item) => item.id !== certification.id) }))} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Corbeille</button>
+                          <button onClick={() => void (certification.status === "Masqué" ? publishCertification(certification) : hideCertification(certification))} className="rounded-full bg-white px-3 py-2 text-xs font-semibold">{certification.status === "Masqué" ? "Publier" : "Masquer"}</button>
+                          <button onClick={() => void trashCertification(certification)} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Corbeille</button>
                         </div>
                       </div>
                     ))}

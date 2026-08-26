@@ -53,6 +53,21 @@ type EstablishmentSearchRow = {
   display_order: number | null;
   rubrics?: { name: string; slug: string } | null;
   subrubrics?: { name: string; slug: string } | null;
+  professional_services?: Array<{
+    price: number | string | null;
+    price_from: boolean | null;
+    duration_minutes: number | null;
+    at_home: boolean | null;
+    on_site: boolean | null;
+    active: boolean | null;
+    beauty_services?: {
+      id: string;
+      category_id: string;
+      name: string;
+      slug: string;
+      beauty_categories?: { name: string; slug: string } | null;
+    } | null;
+  }> | null;
 };
 
 type PhotoRow = {
@@ -77,6 +92,10 @@ type TaxonomyRow = {
 type TaxonomyMatch = {
   rubricIds: string[];
   subrubricIds: string[];
+};
+
+type BeautyMatch = {
+  professionalIds: string[];
 };
 
 const searchableColumns = [
@@ -104,7 +123,8 @@ const establishmentSelect = `
   certification,kosher_type,average_price,latitude,longitude,customer_searches,visible_tags,field_visibility,reservation_enabled,
   sponsorship,sponsor_priority,display_order,
   rubrics(name,slug),
-  subrubrics(name,slug)
+  subrubrics(name,slug),
+  professional_services(price,price_from,duration_minutes,at_home,on_site,active,beauty_services(id,category_id,name,slug,beauty_categories(name,slug)))
 `;
 
 const synonymMap: Record<string, string[]> = {
@@ -143,6 +163,14 @@ const synonymMap: Record<string, string[]> = {
   burger: ["burgers", "viande", "bassari"],
   burgers: ["burger", "viande", "bassari"],
   brunch: ["avocado", "pancakes", "petit dejeuner"],
+  coiffure: ["brushing", "coupe", "coiffure mariage"],
+  brushing: ["coiffure", "cheveux"],
+  maquillage: ["makeup", "make-up", "mariee", "soiree"],
+  lissage: ["coiffure", "cheveux", "bresilien"],
+  massage: ["soin", "soins", "detente", "domicile"],
+  onglerie: ["manucure", "ongles", "semi permanent"],
+  epilation: ["soins femme", "beaute"],
+  domicile: ["a domicile", "chez moi"],
   tequila: ["spiritueux", "vin", "caviste"],
   tequilla: ["tequila", "spiritueux", "vin", "caviste"],
   avocato: ["avocado"],
@@ -297,6 +325,14 @@ function tagRowsToMap(rows: TagRow[]) {
 }
 
 function getMatches(row: EstablishmentSearchRow, tagLabels: string[], tokens: string[], normalizedQuery: string): SearchMatch[] {
+  const beautyText = (row.professional_services ?? []).map((item) => [
+    item.beauty_services?.name ?? "",
+    item.beauty_services?.slug ?? "",
+    item.beauty_services?.beauty_categories?.name ?? "",
+    item.beauty_services?.beauty_categories?.slug ?? "",
+    item.at_home ? "à domicile domicile" : "",
+    item.on_site ? "sur place" : "",
+  ].join(" ")).join(" ");
   const checks: Array<[SearchMatch["field"], string, number]> = [
     ["name", row.name, 100],
     ["alias", (row.customer_searches ?? []).join(" "), 90],
@@ -305,6 +341,7 @@ function getMatches(row: EstablishmentSearchRow, tagLabels: string[], tokens: st
     ["subrubric", row.subrubrics?.name ?? "", 65],
     ["city", row.city ?? "", 55],
     ["district", `${row.district ?? ""} ${row.arrondissement ?? ""} ${row.postal_code ?? ""}`, 50],
+    ["tag", beautyText, 75],
     ["description", `${row.short_description ?? ""} ${row.description ?? ""}`, 30],
   ];
   return checks.flatMap(([field, value]) => {
@@ -317,6 +354,12 @@ function getMatches(row: EstablishmentSearchRow, tagLabels: string[], tokens: st
 }
 
 function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: string[], normalizedQuery: string) {
+  const beautyText = (row.professional_services ?? []).map((item) => [
+    item.beauty_services?.name ?? "",
+    item.beauty_services?.beauty_categories?.name ?? "",
+    item.at_home ? "à domicile domicile" : "",
+    item.on_site ? "sur place" : "",
+  ].join(" ")).join(" ");
   const fields: Array<[string, number]> = [
     [row.name, 120],
     [(row.customer_searches ?? []).join(" "), 90],
@@ -325,6 +368,7 @@ function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: stri
     [row.rubrics?.name ?? "", 55],
     [row.city ?? "", 42],
     [`${row.district ?? ""} ${row.arrondissement ?? ""} ${row.postal_code ?? ""}`, 40],
+    [beautyText, 78],
     [`${row.short_description ?? ""} ${row.description ?? ""}`, 22],
   ];
   let score = 0;
@@ -355,6 +399,7 @@ function scoreRow(row: EstablishmentSearchRow, tagLabels: string[], tokens: stri
     row.subrubrics?.name ?? "",
     tagLabels.join(" "),
     (row.customer_searches ?? []).join(" "),
+    beautyText,
   ].join(" "));
   const matchedTokens = tokens.filter((token) => tokenMatchesText(allCorpus, token)).length;
   score += matchedTokens * 12;
@@ -380,6 +425,7 @@ function getRowCorpus(row: EstablishmentSearchRow, tagLabels: string[]) {
     row.subrubrics?.slug ?? "",
     tagLabels.join(" "),
     (row.customer_searches ?? []).join(" "),
+    (row.professional_services ?? []).map((item) => `${item.beauty_services?.name ?? ""} ${item.beauty_services?.slug ?? ""} ${item.beauty_services?.beauty_categories?.name ?? ""} ${item.beauty_services?.beauty_categories?.slug ?? ""} ${item.at_home ? "domicile à domicile" : ""} ${item.on_site ? "sur place" : ""}`).join(" "),
   ].join(" "));
 }
 
@@ -470,6 +516,23 @@ function rowToEstablishment(row: EstablishmentSearchRow, image: string, tagLabel
     customerSearches: row.customer_searches ?? [],
     visibleTagIds: tagLabels,
     fieldVisibility: row.field_visibility ?? undefined,
+    beautyServices: (row.professional_services ?? []).filter((item) => item.active !== false).map((item, index) => ({
+      id: `${row.id}-${item.beauty_services?.id ?? index}`,
+      professionalId: row.id,
+      serviceId: item.beauty_services?.id ?? "",
+      categoryId: item.beauty_services?.category_id,
+      categoryName: item.beauty_services?.beauty_categories?.name,
+      categorySlug: item.beauty_services?.beauty_categories?.slug,
+      serviceName: item.beauty_services?.name,
+      serviceSlug: item.beauty_services?.slug,
+      price: item.price === null ? null : Number(item.price),
+      priceFrom: item.price_from === true,
+      durationMinutes: item.duration_minutes,
+      atHome: item.at_home === true,
+      onSite: item.on_site !== false,
+      active: item.active !== false,
+      displayOrder: index + 1,
+    })),
   };
 }
 
@@ -498,6 +561,7 @@ function rowToResult(row: EstablishmentSearchRow, image: string, tagLabels: stri
       row.subrubrics?.name ?? "",
       ...tagLabels,
       ...(row.customer_searches ?? []),
+      ...(row.professional_services ?? []).flatMap((item) => [item.beauty_services?.name ?? "", item.beauty_services?.beauty_categories?.name ?? ""]),
     ]),
     customerSearches: row.customer_searches ?? [],
     location: {
@@ -587,6 +651,37 @@ async function getTaxonomyMatches(tokens: string[], normalizedQuery: string): Pr
   };
 }
 
+async function getBeautyMatches(tokens: string[], normalizedQuery: string): Promise<BeautyMatch> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase || !tokens.length) return { professionalIds: [] };
+
+  const { data: services } = await supabase
+    .from("beauty_services")
+    .select("id,name,slug,beauty_categories(name,slug)")
+    .eq("active", true)
+    .limit(200);
+
+  const serviceIds = unique(
+    ((services as Array<{ id: string; name: string; slug: string; beauty_categories?: { name: string; slug: string } | null }> | null) ?? [])
+      .filter((service) => {
+        const normalized = normalizeSearchText(`${service.name} ${service.slug} ${service.beauty_categories?.name ?? ""} ${service.beauty_categories?.slug ?? ""}`);
+        return normalized.includes(normalizedQuery) || tokens.some((token) => tokenMatchesText(normalized, token));
+      })
+      .map((service) => service.id),
+  );
+
+  const needsAtHome = tokens.some((token) => token === "domicile" || token === "chez moi");
+  const needsOnSite = tokens.some((token) => token === "place" || token === "sur place");
+  let query = supabase.from("professional_services").select("professional_id").eq("active", true);
+  if (serviceIds.length) query = query.in("service_id", serviceIds);
+  if (needsAtHome) query = query.eq("at_home", true);
+  if (needsOnSite) query = query.eq("on_site", true);
+  if (!serviceIds.length && !needsAtHome && !needsOnSite) return { professionalIds: [] };
+
+  const { data } = await query.limit(100).returns<Array<{ professional_id: string }>>();
+  return { professionalIds: unique((data ?? []).map((item) => item.professional_id)) };
+}
+
 function fallbackSearch(query: string): EstablishmentSearchResult[] {
   return searchItems(searchIndex, query).map((item, index) => ({
     ...item,
@@ -603,9 +698,9 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
   const normalizedQuery = normalizeSearchText(query);
   const tokens = getQueryTokens(query);
   const requiredGroups = getRequiredTokenGroups(query);
-  const [tagRows, taxonomyMatches] = tokens.length
-    ? await Promise.all([getTagRows(), getTaxonomyMatches(tokens, normalizedQuery)])
-    : [[], { rubricIds: [], subrubricIds: [] } satisfies TaxonomyMatch];
+  const [tagRows, taxonomyMatches, beautyMatches] = tokens.length
+    ? await Promise.all([getTagRows(), getTaxonomyMatches(tokens, normalizedQuery), getBeautyMatches(tokens, normalizedQuery)])
+    : [[], { rubricIds: [], subrubricIds: [] } satisfies TaxonomyMatch, { professionalIds: [] } satisfies BeautyMatch];
   const tagSearchValues = tagRows.flatMap((tag) => {
     const normalizedTag = normalizeSearchText([tag.label, tag.external_id ?? ""].join(" "));
     const matches = normalizedQuery.length > 1 && normalizedTag.includes(normalizedQuery)
@@ -634,6 +729,7 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
     const taxonomyFilters = [
       taxonomyMatches.rubricIds.length ? `rubric_id.in.(${taxonomyMatches.rubricIds.join(",")})` : "",
       taxonomyMatches.subrubricIds.length ? `subrubric_id.in.(${taxonomyMatches.subrubricIds.join(",")})` : "",
+      beautyMatches.professionalIds.length ? `id.in.(${beautyMatches.professionalIds.join(",")})` : "",
     ].filter(Boolean);
     request = request.or([...scalarFilters, ...arrayFilters, ...taxonomyFilters].join(","));
   }

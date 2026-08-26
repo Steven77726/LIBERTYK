@@ -174,6 +174,11 @@ function Gallery({ establishment }: { establishment: EstablishmentRecord }) {
   );
 }
 
+function formatBeautyPrice(price?: number | null, priceFrom?: boolean) {
+  if (price === null || price === undefined || !Number.isFinite(Number(price))) return "";
+  return `${priceFrom ? "Dès " : ""}${Number(price).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
+}
+
 export function EstablishmentDetailDrawer({ establishment, open, onClose, onReserve, onTag }: Props) {
   const [showHours, setShowHours] = useState(false);
   const visibility = { ...defaultVisibility, ...(establishment?.fieldVisibility ?? {}) };
@@ -197,6 +202,7 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
     ? `https://waze.com/ul?ll=${establishment.latitude},${establishment.longitude}&navigate=yes`
     : `https://waze.com/ul?q=${encodeURIComponent(address || establishment.name)}`;
   const canReserve = visibility.reservation !== false && establishment.reservation && (isMeaningful(establishment.reservationTarget) || Boolean(onReserve));
+  const beautyServices = (establishment.beautyServices ?? []).filter((service) => service.active);
 
   return (
     <EntityDrawer open={open} onClose={onClose} title={establishment.name}>
@@ -325,6 +331,33 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
         {establishment.sponsored && (
           <div className="rounded-3xl bg-[#f6ecd9] p-4 text-sm font-semibold text-[#8f6424]">
             Mise en avant sponsorisée
+          </div>
+        )}
+
+        {visibility.services !== false && beautyServices.length > 0 && (
+          <div className="rounded-3xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Prestations</p>
+            <div className="mt-3 space-y-2">
+              {beautyServices.map((service) => {
+                const price = formatBeautyPrice(service.price, service.priceFrom);
+                return (
+                  <div key={service.id} className="rounded-2xl bg-cream px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-ink">{service.serviceName ?? "Prestation"}</p>
+                        {service.categoryName && <p className="mt-0.5 text-[11px] font-medium text-ink/40">{service.categoryName}</p>}
+                      </div>
+                      {price && <p className="shrink-0 text-sm font-semibold text-moss">{price}</p>}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-semibold text-ink/45">
+                      {service.durationMinutes ? <span className="rounded-full bg-white px-2.5 py-1">{service.durationMinutes} min</span> : null}
+                      {service.atHome ? <span className="rounded-full bg-white px-2.5 py-1">À domicile</span> : null}
+                      {service.onSite ? <span className="rounded-full bg-white px-2.5 py-1">Sur place</span> : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

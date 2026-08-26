@@ -40,6 +40,7 @@ import { brunches } from "@/data/brunches";
 import { wineActivities } from "@/data/wine-activities";
 import { azamra } from "@/data/shops";
 import { localEstablishments } from "@/data/establishments";
+import { assetPath } from "@/lib/assets";
 import { getAnalyticsEvents, getReviews } from "@/lib/client-store";
 import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
 import { hasAdminSession } from "@/components/admin/admin-access-gate";
@@ -1601,7 +1602,7 @@ function EmptyPhoto({ label = "Image" }: { label?: string }) {
 function PreviewImage({ src, alt }: { src: string; alt: string }) {
   if (!src) return <EmptyPhoto label="Photo à compléter" />;
   if (isUnsafeTransientImageUrl(src)) return <EmptyPhoto label="Photo non enregistrée" />;
-  return <img src={src} alt={alt} className="aspect-[4/3] w-full rounded-2xl object-cover" />;
+  return <img src={assetPath(src)} alt={alt} className="aspect-[4/3] w-full rounded-2xl object-cover" />;
 }
 
 function EstablishmentPreviewModal({
@@ -1634,7 +1635,7 @@ function EstablishmentPreviewModal({
         <div className="overflow-y-auto p-5">
           <div className="grid gap-5 lg:grid-cols-[1fr_.85fr]">
             <div className="space-y-3">
-              {images[0] ? <img src={images[0]} alt={item.name} className="aspect-[16/10] w-full rounded-3xl object-cover shadow-sm" /> : <EmptyPhoto label="Photo principale" />}
+              {images[0] ? <img src={assetPath(images[0])} alt={item.name} className="aspect-[16/10] w-full rounded-3xl object-cover shadow-sm" /> : <EmptyPhoto label="Photo principale" />}
               {images.length > 1 && (
                 <div className="grid grid-cols-2 gap-3">
                   {images.slice(1).map((photo, index) => (
@@ -4035,7 +4036,7 @@ export function AdminDashboard() {
                           selectedEstablishment.id === item.id ? "bg-ink text-white" : "bg-cream hover:bg-sage"
                         }`}
                       >
-                        <img src={item.mainPhoto || categories[0]?.image} alt="" className="size-12 rounded-xl object-cover" />
+                        <img src={assetPath(item.mainPhoto || categories[0]?.image || "")} alt="" className="size-12 rounded-xl object-cover" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{item.name}</span>
                           <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] ${selectedEstablishment.id === item.id ? "bg-white/10 text-white/60" : "bg-white text-ink/40"}`}>
@@ -4453,7 +4454,7 @@ export function AdminDashboard() {
                     <article key={item.id} className="rounded-3xl bg-white p-5 shadow-sm">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex min-w-0 items-center gap-4">
-                          <img src={item.mainPhoto || categories[0]?.image} alt="" className="size-16 rounded-2xl object-cover" />
+                          <img src={assetPath(item.mainPhoto || categories[0]?.image || "")} alt="" className="size-16 rounded-2xl object-cover" />
                           <div className="min-w-0">
                             <p className="truncate font-semibold">{item.name}</p>
                             <p className="mt-1 text-xs text-ink/40">{state.rubrics.find((rubric) => rubric.id === item.rubricId)?.name} · {state.subrubrics.find((subrubric) => subrubric.id === item.subrubricId)?.name}</p>
@@ -4675,7 +4676,7 @@ export function AdminDashboard() {
                         <article key={item.id} className="rounded-2xl bg-cream p-4">
                           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
-                              <img src={item.mainPhoto || categories[0]?.image} alt="" className="size-14 rounded-2xl object-cover" />
+                              <img src={assetPath(item.mainPhoto || categories[0]?.image || "")} alt="" className="size-14 rounded-2xl object-cover" />
                               <div>
                                 <p className="font-semibold">{item.name}</p>
                                 <p className="text-xs text-ink/40">{item.status}</p>
@@ -4938,7 +4939,7 @@ export function AdminDashboard() {
                   {state.establishments.map((item) => (
                     <article key={item.id} className="rounded-3xl bg-white p-5">
                       <div className="flex gap-4">
-                        <img src={item.mainPhoto || categories[0]?.image} alt="" className="size-20 rounded-2xl object-cover" />
+                        <img src={assetPath(item.mainPhoto || categories[0]?.image || "")} alt="" className="size-20 rounded-2xl object-cover" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-semibold">{item.name}</p>
                           <p className="mt-1 text-xs text-ink/40">{item.city} {item.arrondissement} · priorité {item.sponsorPriority}</p>
@@ -5090,7 +5091,7 @@ export function AdminDashboard() {
                   {state.establishments.filter((item) => item.sponsored || item.website || item.phone).slice(0, 8).map((item) => (
                     <article key={item.id} className="rounded-3xl bg-white p-5">
                       <div className="flex items-center gap-4">
-                        <img src={item.mainPhoto || categories[0]?.image} alt="" className="size-16 rounded-2xl object-cover" />
+                        <img src={assetPath(item.mainPhoto || categories[0]?.image || "")} alt="" className="size-16 rounded-2xl object-cover" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-semibold">{item.name}</p>
                           <p className="mt-1 text-xs text-ink/40">{item.website || item.phone || "Contact à compléter"}</p>

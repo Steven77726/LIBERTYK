@@ -188,7 +188,7 @@ export async function listPublishedSubrubrics(parentRubricSlug?: string) {
   const { data, error } = await query.returns<SubrubricRow[]>();
   if (error) throw new Error(readableError(error));
   return (data ?? [])
-    .filter((row) => !parentRubricSlug || row.rubrics?.slug === parentRubricSlug)
+    .filter((row) => !parentRubricSlug || row.rubrics?.slug === parentRubricSlug || row.rubrics?.external_id === parentRubricSlug || row.rubric_id === parentRubricSlug)
     .map(rowToSubrubric);
 }
 

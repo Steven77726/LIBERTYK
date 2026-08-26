@@ -59,6 +59,26 @@ const statusFromDb: Record<RubricRow["status"], AdminRubricStatus> = {
   trashed: "Masqué",
 };
 
+const stablePublicRubricSlugs = new Set([
+  "food",
+  "sorties",
+  "voyages",
+  "shopping",
+  "vin-spiritueux",
+  "mariage",
+  "sport",
+  "religion",
+  "enfants",
+  "chauffeurs",
+  "calendrier-juif",
+  "mikve",
+]);
+
+function publicSlugForRubric(row: RubricRow) {
+  if (row.external_id && stablePublicRubricSlugs.has(row.external_id)) return row.external_id;
+  return row.slug;
+}
+
 function normalizeSlug(value: string) {
   return value
     .normalize("NFD")
@@ -76,7 +96,7 @@ function asColumns<T extends number>(value: number | null | undefined, fallback:
 export function rowToRubric(row: RubricRow): RubricRecord {
   return {
     id: row.external_id || row.id,
-    slug: row.slug,
+    slug: publicSlugForRubric(row),
     name: row.name,
     description: row.description ?? "",
     icon: row.icon ?? "",

@@ -17,7 +17,7 @@ export type SearchItem = {
   };
   filters?: {
     certification?: string;
-    kosherType?: "Bassari" | "Halavi" | "Parvé" | "Viande" | "Lait" | "À compléter" | string;
+    kosherType?: "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "Viande" | "Lait" | "À compléter" | string;
     terrace?: boolean;
     openNow?: boolean | null;
     delivery?: boolean;
@@ -37,6 +37,7 @@ const concepts: Record<string, string[]> = {
   cacher: ["cacher", "casher", "kasher", "kosher", "certifié", "beth din"],
   viande: ["viande", "bassari", "bassari 17", "carné", "grill", "grillade", "steak", "burger", "viande paris", "restaurant viande"],
   lait: ["lait", "halavi", "halavi", "fromage", "dairy", "laitier", "halavi paris"],
+  noTeoudaFriendly: ["no teouda", "no theouda", "friendly", "sans teouda", "non certifié", "non certifie"],
   restaurant: ["restaurant", "resto", "table", "déjeuner", "dîner", "manger", "repas"],
   brunch: ["brunch", "petit déjeuner", "pancakes", "avocado toast", "œufs", "bagel", "gaufre"],
   traiteur: ["traiteur", "traiteur shabbat", "traiteur chabbat", "plateau chabbat", "repas shabbat", "réception"],
@@ -163,7 +164,9 @@ function analyzeQuery(query: string) {
       ? "Halavi"
       : normalized.includes("parve")
         ? "Parvé"
-        : "";
+        : concepts.noTeoudaFriendly.some((word) => normalized.includes(normalizeSearchText(word)))
+          ? "No Teouda / Friendly"
+          : "";
   const arrondissement = detectArrondissement(normalized);
   return { normalized, tokens, intendedCategories, services, kosherType, arrondissement };
 }

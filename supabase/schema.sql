@@ -474,7 +474,8 @@ values
   ('Beth Din de Paris', 1, 'published'),
   ('Badatz', 2, 'published'),
   ('Loubavitch', 3, 'published'),
-  ('Rottenberg', 4, 'published')
+  ('Rottenberg', 4, 'published'),
+  ('No Teouda / Friendly', 5, 'published')
 on conflict (label) do nothing;
 
 insert into storage.buckets (id, name, public)

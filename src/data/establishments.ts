@@ -5,7 +5,7 @@ import { wineActivities } from "@/data/wine-activities";
 import type { BeautyProfessionalService } from "@/lib/beauty/types";
 
 export type LocalEstablishmentStatus = "Publié" | "Brouillon" | "Masqué";
-export type LocalKosherType = "Bassari" | "Halavi" | "Parvé" | "À compléter";
+export type LocalKosherType = "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "À compléter";
 export type LocalSponsorshipLevel = "Standard" | "Featured" | "Premium" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
 
 export type LocalEstablishment = {
@@ -83,6 +83,7 @@ const toKosherType = (value?: string): LocalKosherType => {
   if (value === "Lait") return "Halavi";
   if (value === "Parvé") return "Parvé";
   if (value === "Bassari" || value === "Halavi") return value;
+  if (/no\s*teouda|no\s*theouda|friendly/i.test(value ?? "")) return "No Teouda / Friendly";
   return "À compléter";
 };
 

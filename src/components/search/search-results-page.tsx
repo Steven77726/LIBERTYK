@@ -244,7 +244,7 @@ export function SearchResultsPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-ink/35">Cacher :</span>
-            {["Tous", "Bassari", "Halavi", "Parvé"].map((type) => (
+            {["Tous", "Bassari", "Halavi", "Parvé", "No Teouda / Friendly"].map((type) => (
               <button
                 key={type}
                 type="button"

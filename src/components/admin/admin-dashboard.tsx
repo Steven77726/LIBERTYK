@@ -114,7 +114,7 @@ import type { BeautyCategory, BeautyProfessionalService, BeautyService } from "@
 type AdminStatus = "Publié" | "Brouillon" | "Masqué";
 type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
 type BannerPosition = "Home" | "Rubrique" | "Sous-rubrique" | "Fiche";
-type KosherType = "Bassari" | "Halavi" | "Parvé" | "À compléter";
+type KosherType = "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "À compléter";
 type SponsorshipLevel = "Standard" | "Featured" | "Premium" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
 type RubricFormat = "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
 type FieldVisibility = Record<string, boolean>;
@@ -572,6 +572,7 @@ const certificationSeed: AdminCertification[] = [
   "Badatz",
   "Loubavitch",
   "Rottenberg",
+  "No Teouda / Friendly",
 ].map((label, index) => ({ id: slugify(label), label, order: index + 1, status: "Publié" as AdminStatus }));
 
 function normalizeAdminState(state: Partial<AdminState>): AdminState {
@@ -4750,7 +4751,7 @@ export function AdminDashboard() {
                         {state.certifications.filter((item) => item.status !== "Masqué").sort((a, b) => a.order - b.order).map((certification) => <option key={certification.id}>{certification.label}</option>)}
                       </SelectField>
                       <SelectField label="Type" value={selectedEstablishment.kosherType} onChange={(value) => updateEstablishment(selectedEstablishment.id, { kosherType: value as KosherType })}>
-                        <option>Bassari</option><option>Halavi</option><option>Parvé</option><option>À compléter</option>
+                        <option>Bassari</option><option>Halavi</option><option>Parvé</option><option>No Teouda / Friendly</option><option>À compléter</option>
                       </SelectField>
                       <Field label="Prix moyen" value={selectedEstablishment.averagePrice} onChange={(value) => updateEstablishment(selectedEstablishment.id, { averagePrice: value })} />
                       <Field label="Types de cuisine" value={(selectedEstablishment.cuisineTypes ?? []).join(", ")} onChange={(value) => updateEstablishment(selectedEstablishment.id, { cuisineTypes: cleanTextList(value) })} />

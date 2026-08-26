@@ -29,7 +29,7 @@ export function Footer() {
 
           <div className="flex items-center gap-3 pt-2">
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/liberty.k.life?igsi=MTN1NGM3dGU4ajFjcQ=="
               target="_blank"
               rel="noopener noreferrer"
               className="grid size-9 place-items-center rounded-2xl bg-white/10 text-white/80 transition hover:bg-white hover:text-ink shadow-2xs"

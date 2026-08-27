@@ -5,6 +5,7 @@ import type { MouseEvent, TouchEvent } from "react";
 import {
   CalendarDays,
   Car,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -477,6 +478,7 @@ export function UniversalEstablishmentCard({
 }: UniversalEstablishmentCardProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [hoursOpen, setHoursOpen] = useState(false);
 
   const data = useMemo(() => normalizeCardData(establishment), [establishment]);
   const metroStyle = data.nearestMetroLine ? getMetroLineStyle(data.nearestMetroLine) : null;
@@ -681,26 +683,46 @@ export function UniversalEstablishmentCard({
               </div>
             )}
 
-            {/* Horaires d'ouverture complets si renseignés */}
+            {/* Horaires d'ouverture : Volet dépliable / repliable à volonté */}
             {data.fieldVisibility.opening_hours !== false && data.hours && (
-              <div className="mt-3 rounded-2xl bg-cream/70 p-3 text-[11px]">
-                <div className="flex items-center gap-1.5 font-bold text-ink/80 mb-1.5">
-                  <Clock size={13} className="text-moss shrink-0" />
-                  <span>Horaires d&apos;ouverture</span>
-                </div>
-                <div className="space-y-1 text-ink/65 text-[11px] leading-snug">
-                  {data.hours.split("\n").filter(Boolean).map((line, idx) => {
-                    const parts = line.split(":");
-                    const day = parts[0]?.trim();
-                    const time = parts.slice(1).join(":").trim();
-                    return (
-                      <div key={idx} className="flex items-center justify-between border-b border-black/[.03] pb-0.5 last:border-0 last:pb-0">
-                        <span className="font-medium text-ink/70">{day}</span>
-                        <span className="font-semibold text-ink/90">{time || "—"}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="mt-2.5 overflow-hidden rounded-2xl bg-cream/70 border border-black/[.04] transition-all">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHoursOpen((prev) => !prev);
+                  }}
+                  className="flex w-full items-center justify-between p-2.5 text-left text-[11px] font-semibold text-ink/75 transition hover:bg-sage/40 cursor-pointer"
+                  aria-expanded={hoursOpen}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={13} className="text-moss shrink-0" />
+                    <span>Horaires d&apos;ouverture</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-ink/45">
+                    <span>{hoursOpen ? "Masquer" : "Voir"}</span>
+                    <ChevronDown
+                      size={13}
+                      className={`transition-transform duration-200 ${hoursOpen ? "rotate-180 text-moss" : ""}`}
+                    />
+                  </div>
+                </button>
+
+                {hoursOpen && (
+                  <div className="border-t border-black/[.05] p-3 space-y-1 text-ink/65 text-[11px] leading-snug">
+                    {data.hours.split("\n").filter(Boolean).map((line, idx) => {
+                      const parts = line.split(":");
+                      const day = parts[0]?.trim();
+                      const time = parts.slice(1).join(":").trim();
+                      return (
+                        <div key={idx} className="flex items-center justify-between border-b border-black/[.03] pb-1 last:border-0 last:pb-0">
+                          <span className="font-medium text-ink/70">{day}</span>
+                          <span className="font-semibold text-ink/90">{time || "—"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

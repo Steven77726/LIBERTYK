@@ -4,6 +4,8 @@ export type Brunch = {
   address?: string;
   postalCode?: string;
   arrondissement?: number;
+  nearestMetroName?: string;
+  nearestMetroLine?: string;
   phone?: string;
   specialty: string;
   cuisine: string;

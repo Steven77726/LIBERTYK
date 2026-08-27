@@ -18,6 +18,7 @@ import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/sup
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
+import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Africain", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -298,6 +299,8 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
       uberEatsUrl: item.uberEatsUrl,
       city: item.city || "Paris",
       country: item.country ?? "France",
+      nearestMetroName: item.nearestMetroName,
+      nearestMetroLine: item.nearestMetroLine,
       tags: uniqueList([
         ...(item.visibleTagIds ?? []),
         ...(item.cuisineTypes ?? []),
@@ -436,6 +439,7 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
   const status = getOpenStatus(restaurant);
   const hasType = restaurant.type && restaurant.type !== "À compléter";
   const hasCertification = restaurant.certification && normalize(restaurant.certification) !== "a completer";
+  const metroStyle = getMetroLineStyle(restaurant.nearestMetroLine);
   return (
     <article id={restaurant.id} className="group overflow-hidden rounded-[1.75rem] border border-black/[.055] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft">
       <div className="relative aspect-[16/10] overflow-hidden bg-sage">
@@ -463,6 +467,19 @@ function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { res
           ))}
         </div>
         {visibility.address !== false && hasMeaningfulAddress(restaurant) && <button onClick={onOpen} className="mt-4 flex items-start gap-2 text-left text-xs leading-5 text-ink/52"><MapPin size={14} className="mt-0.5 shrink-0" /><span>{restaurant.fullAddress}, {restaurant.postalCode}<br />{restaurant.city ?? "Paris"} {restaurant.arrondissement ? <><sup>{restaurant.arrondissement}e</sup> · </> : null}{restaurant.distanceKm} km</span></button>}
+        {restaurant.nearestMetroName && (
+          <button onClick={onOpen} className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 text-[11px] font-semibold text-ink/50">
+            <span className="truncate">Métro {restaurant.nearestMetroName}</span>
+            {metroStyle && (
+              <span
+                className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border px-1 text-[10px] font-black"
+                style={{ backgroundColor: metroStyle.background, color: metroStyle.foreground, borderColor: metroStyle.border }}
+              >
+                {metroStyle.label}
+              </span>
+            )}
+          </button>
+        )}
         <div className="mt-4 flex gap-2 border-t border-black/[.06] pt-4">
           {[
             { value: restaurant.services.dineIn, label: "Sur place", icon: Store },

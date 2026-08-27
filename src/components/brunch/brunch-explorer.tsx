@@ -12,6 +12,7 @@ import { LikeButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
+import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 
 const groups = [
   { title: "Localisation", values: ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"] },
@@ -57,6 +58,8 @@ const recordsToBrunches = (records: EstablishmentRecord[]): Brunch[] => records.
   address: item.address || undefined,
   postalCode: item.postalCode,
   arrondissement: parseArrondissement(item.arrondissement),
+  nearestMetroName: item.nearestMetroName,
+  nearestMetroLine: item.nearestMetroLine,
   phone: item.phone || undefined,
   specialty: item.shortDescription || item.description || "Brunch",
   cuisine: item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : "Brunch",
@@ -152,6 +155,7 @@ const serviceMap = (brunch: Brunch): Record<string, boolean | undefined> => ({
 function BrunchCard({ brunch, onOpen }: { brunch: Brunch; onOpen: () => void }) {
   const visibility = { address: true, phone: true, tags: true, opening_hours: true, gallery: true, reviews: true, certification: true, price: true, ...(brunch.fieldVisibility ?? {}) };
   const entity = { id: `brunch-${brunch.slug}`, title: brunch.name, url: `/food/brunch/${brunch.slug}`, text: `${brunch.name} · ${brunch.address ?? "Paris"}` };
+  const metroStyle = getMetroLineStyle(brunch.nearestMetroLine);
   const services = [
     { label: "Sur place", value: brunch.services.dineIn, icon: Store },
     { label: "À emporter", value: brunch.services.takeaway, icon: Package },
@@ -175,6 +179,19 @@ function BrunchCard({ brunch, onOpen }: { brunch: Brunch; onOpen: () => void }) 
         <div className="mt-4 flex flex-wrap gap-1.5 text-[10px]"><span className="rounded-full bg-sage px-2.5 py-1.5 font-semibold text-moss">{brunch.kosherType}</span>{visibility.price !== false && brunch.price && <span className="rounded-full bg-cream px-2.5 py-1.5">{brunch.price}</span>}{visibility.certification !== false && brunch.certification && <span className="rounded-full bg-cream px-2.5 py-1.5">✡ {brunch.certification}</span>}</div>
         {visibility.reviews !== false && <div className="mt-3"><CustomerRating rating={brunch.rating} reviewCount={brunch.reviewCount} /></div>}
         {visibility.address !== false && (brunch.address || brunch.arrondissement) && <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-ink/50"><MapPin size={13} className="mt-0.5 shrink-0" />{brunch.address}{brunch.arrondissement && ` · Paris ${brunch.arrondissement}e`}{brunch.distanceKm ? ` · ${brunch.distanceKm} km` : ""}</p>}
+        {brunch.nearestMetroName && (
+          <button onClick={onOpen} className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 text-[11px] font-semibold text-ink/50">
+            <span className="truncate">Métro {brunch.nearestMetroName}</span>
+            {metroStyle && (
+              <span
+                className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border px-1 text-[10px] font-black"
+                style={{ backgroundColor: metroStyle.background, color: metroStyle.foreground, borderColor: metroStyle.border }}
+              >
+                {metroStyle.label}
+              </span>
+            )}
+          </button>
+        )}
         {visibility.phone !== false && brunch.phone && <p className="mt-2 flex items-center gap-2 text-xs text-ink/50"><Phone size={13} />{brunch.phone}</p>}
         <div className="mt-4 grid grid-cols-5 gap-1.5 border-t border-black/[.06] pt-4">{services.map(({ label, value, icon: Icon }) => <div key={label} title={label} className={`grid place-items-center gap-1 rounded-xl py-2 text-center text-[8px] ${value ? "bg-sage text-moss" : "bg-cream text-ink/25"}`}><Icon size={13} /><span className="line-clamp-1">{label}</span></div>)}</div>
         <button onClick={onOpen} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white">Voir la fiche <ArrowRight size={14} /></button>

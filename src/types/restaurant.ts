@@ -53,6 +53,8 @@ export type Restaurant = {
   email?: string;
   city?: string;
   country?: string;
+  nearestMetroName?: string;
+  nearestMetroLine?: string;
   tags?: string[];
   sponsored?: boolean;
   sponsorshipLevel?: string;

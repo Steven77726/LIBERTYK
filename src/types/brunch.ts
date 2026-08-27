@@ -7,6 +7,7 @@ export type Brunch = {
   nearestMetroName?: string;
   nearestMetroLine?: string;
   phone?: string;
+  instagram?: string;
   specialty: string;
   cuisine: string;
   kosherType: "Lait" | "Viande" | "Parvé";

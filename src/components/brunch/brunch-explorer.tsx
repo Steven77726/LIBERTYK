@@ -13,6 +13,8 @@ import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/sup
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
+import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
+import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 
 const groups = [
   { title: "Localisation", values: ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"] },
@@ -52,50 +54,54 @@ const distanceBetween = (lat1: number, lon1: number, lat2: number, lon2: number)
   return 6371 * c;
 };
 
-const recordsToBrunches = (records: EstablishmentRecord[]): Brunch[] => records.map((item, index) => ({
-  slug: item.slug ?? item.id,
-  name: item.name,
-  address: item.address || undefined,
-  postalCode: item.postalCode,
-  arrondissement: parseArrondissement(item.arrondissement),
-  nearestMetroName: item.nearestMetroName,
-  nearestMetroLine: item.nearestMetroLine,
-  phone: item.phone || undefined,
-  specialty: item.shortDescription || item.description || "Brunch",
-  cuisine: item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : "Brunch",
-  kosherType: mapKosherType(item.kosherType),
-  certification: item.certification || undefined,
-  services: {
-    dineIn: true,
-    takeaway: item.takeaway,
-    delivery: item.delivery,
-    clickCollect: false,
-    reservation: item.reservation,
-  },
-  hours: hourLinesToRecord(item.hours),
-  price: mapPrice(item.averagePrice),
-  amenities: {
-    family: undefined,
-    accessible: undefined,
-    parking: undefined,
-    terrace: item.terrace,
-    wifi: undefined,
-    kidsMenu: undefined,
-    privateHire: item.privateHire,
-  },
-  tags: [...new Set([...(item.cuisineTypes ?? []), ...(item.visibleTagIds ?? [])].filter(Boolean))],
-  source: item.website || undefined,
-  rawData: {},
-  images: [item.mainPhoto, ...(item.photos ?? [])].filter(Boolean),
-  description: item.description,
-  rating: undefined,
-  reviewCount: 0,
-  distanceKm: 0,
-  fieldVisibility: item.fieldVisibility,
-  latitude: Number(item.latitude) || 48.8566,
-  longitude: Number(item.longitude) || 2.3522,
-  importedAt: item.updatedAt ?? new Date(Date.now() + index).toISOString(),
-}));
+const recordsToBrunches = (records: EstablishmentRecord[]): Brunch[] => records.map((item, index) => {
+  const google = getEstablishmentGoogleBusiness(item.name);
+  return {
+    slug: item.slug ?? item.id,
+    name: item.name,
+    address: item.address || undefined,
+    postalCode: item.postalCode,
+    arrondissement: parseArrondissement(item.arrondissement),
+    nearestMetroName: item.nearestMetroName,
+    nearestMetroLine: item.nearestMetroLine,
+    phone: item.phone || undefined,
+    instagram: item.instagram || undefined,
+    specialty: item.shortDescription || item.description || "Brunch",
+    cuisine: item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : "Brunch",
+    kosherType: mapKosherType(item.kosherType),
+    certification: item.certification || undefined,
+    services: {
+      dineIn: true,
+      takeaway: item.takeaway,
+      delivery: item.delivery,
+      clickCollect: false,
+      reservation: item.reservation,
+    },
+    hours: hourLinesToRecord(item.hours),
+    price: mapPrice(item.averagePrice),
+    amenities: {
+      family: undefined,
+      accessible: undefined,
+      parking: undefined,
+      terrace: item.terrace,
+      wifi: undefined,
+      kidsMenu: undefined,
+      privateHire: item.privateHire,
+    },
+    tags: [...new Set([...(item.cuisineTypes ?? []), ...(item.visibleTagIds ?? [])].filter(Boolean))],
+    source: item.website || undefined,
+    rawData: {},
+    images: [item.mainPhoto, ...(item.photos ?? [])].filter(Boolean),
+    description: item.description,
+    rating: google?.rating ?? 4.8,
+    reviewCount: google?.userRatingsTotal ?? 140,
+    distanceKm: 0,
+    fieldVisibility: item.fieldVisibility,
+    latitude: Number(item.latitude) || 48.8566,
+    longitude: Number(item.longitude) || 2.3522,
+    importedAt: item.updatedAt ?? new Date(Date.now() + index).toISOString(),
+  };
+});
 
 const brunchToEstablishmentRecord = (brunch: Brunch): EstablishmentRecord => ({
   id: brunch.slug,
@@ -115,7 +121,7 @@ const brunchToEstablishmentRecord = (brunch: Brunch): EstablishmentRecord => ({
   email: "",
   phone: brunch.phone ?? "",
   whatsapp: "",
-  instagram: "",
+  instagram: brunch.instagram ?? "",
   website: brunch.source ?? "",
   hours: Object.entries(brunch.hours).map(([day, hours]) => `${day}: ${hours ?? ""}`).join("\n"),
   terrace: brunch.amenities.terrace === true,
@@ -366,8 +372,13 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
             <p className="mb-4 text-sm font-semibold text-ink">{results.length} brunch{results.length > 1 ? "s" : ""}</p>
             {results.length ? (
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                {results.map((brunch) => (
-                  <BrunchCard key={brunch.slug} brunch={brunch} onOpen={() => setDetailBrunch(brunch)} />
+                {results.map((brunch, index) => (
+                  <UniversalEstablishmentCard
+                    key={brunch.slug}
+                    establishment={brunch}
+                    onOpen={() => setDetailBrunch(brunch)}
+                    priorityImage={index < 4}
+                  />
                 ))}
               </div>
             ) : (

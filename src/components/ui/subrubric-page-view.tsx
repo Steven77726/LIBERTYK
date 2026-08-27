@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowUpRight, MapPin, Sparkles } from "lucide-react";
-import { assetPath } from "@/lib/assets";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { categoryBySlug } from "@/data/categories";
 import { localEstablishments } from "@/data/establishments";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
-import { LikeButton } from "@/components/ui/entity-actions";
-import { getMetroLineStyle } from "@/lib/transport/metro-lines";
+import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 type Props = {
   rubricSlug: string;
@@ -26,10 +24,6 @@ function readableTitle(value: string) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function resolveImage(item: EstablishmentRecord, fallbackImage?: string) {
-  return item.mainPhoto || fallbackImage || categoryBySlug[item.rubricId]?.image || "/images/food/restaurants-khan.jpg";
 }
 
 export function SubrubricPageView({
@@ -206,72 +200,14 @@ export function SubrubricPageView({
 
         {items.length > 0 && (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((item) => {
-              const entityUrl = `/${[rubricSlug, subrubricSlug].filter(Boolean).join("/")}#${item.slug ?? item.id}`;
-              const metroStyle = getMetroLineStyle(item.nearestMetroLine);
-              return (
-              <article
+            {items.map((item, index) => (
+              <UniversalEstablishmentCard
                 key={item.id}
-                id={item.slug}
-                className="group overflow-hidden rounded-[1.75rem] border border-black/[.05] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-soft"
-              >
-                <div className="relative aspect-[4/3] overflow-hidden bg-sage">
-                  <img
-                    src={assetPath(resolveImage(item, fallbackImage))}
-                    alt={item.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="size-full object-cover transition duration-700 group-hover:scale-105"
-                  />
-                  <button onClick={() => setSelectedEstablishment(item)} className="absolute inset-0 z-10 size-full text-left" aria-label={`Ouvrir la fiche ${item.name}`} />
-                  {item.sponsored && (
-                    <span className="absolute left-4 top-4 z-20 rounded-full bg-[#f6ecd9] px-3 py-1.5 text-[10px] font-semibold text-[#9b6b2d] shadow-sm">
-                      Sponsorisé
-                    </span>
-                  )}
-                  <div className="absolute right-4 top-4 z-20">
-                    <LikeButton entity={{ id: `establishment-${item.id}`, title: item.name, url: entityUrl, text: `${item.name} · ${title}` }} />
-                  </div>
-                </div>
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <button onClick={() => setSelectedEstablishment(item)} className="text-left">
-                        <h3 className="text-lg font-semibold tracking-tight">{item.name}</h3>
-                      </button>
-                      <p className="mt-1 flex items-center gap-1 text-sm text-ink/45">
-                        <MapPin size={13} /> {[item.address, item.city].filter(Boolean).join(" · ")}
-                      </p>
-                      {item.nearestMetroName && (
-                        <p className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 text-[11px] font-semibold text-ink/50">
-                          <span className="truncate">Métro {item.nearestMetroName}</span>
-                          {metroStyle && (
-                            <span
-                              className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border px-1 text-[10px] font-black"
-                              style={{ backgroundColor: metroStyle.background, color: metroStyle.foreground, borderColor: metroStyle.border }}
-                            >
-                              {metroStyle.label}
-                            </span>
-                          )}
-                        </p>
-                      )}
-                    </div>
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-cream text-ink/35 transition group-hover:bg-ink group-hover:text-white">
-                      <ArrowUpRight size={15} />
-                    </span>
-                  </div>
-                  {item.shortDescription && <p className="mt-3 text-sm leading-6 text-ink/55">{item.shortDescription}</p>}
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {[item.kosherType, item.certification, item.averagePrice, ...item.visibleTagIds].filter(Boolean).slice(0, 5).map((tag) => (
-                      <span key={tag} className="rounded-full bg-cream px-3 py-1 text-[10px] font-semibold text-ink/50">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </article>
-            );
-            })}
+                establishment={item}
+                onOpen={() => setSelectedEstablishment(item)}
+                priorityImage={index < 3}
+              />
+            ))}
           </div>
         )}
       </section>

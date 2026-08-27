@@ -7,7 +7,7 @@ import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/sup
 import { listBeautyCategories, listBeautyServices } from "@/lib/supabase/beauty-repository";
 import type { BeautyCategory, BeautyService } from "@/lib/beauty/types";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
-import { LikeButton } from "@/components/ui/entity-actions";
+import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -163,45 +163,14 @@ export function BeautyModule() {
         )}
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {results.map((professional) => {
-            const firstService = professional.beautyServices?.[0];
-            const price = formatPrice(firstService?.price, firstService?.priceFrom);
-            const href = `/soins-feminin#${professional.slug ?? professional.id}`;
-            return (
-              <article key={professional.id} className="group overflow-hidden rounded-[1.75rem] border border-black/[.05] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-soft">
-                <button onClick={() => setSelectedProfessional(professional)} className="block w-full text-left">
-                  <div className="relative aspect-[4/3] overflow-hidden bg-sage">
-                    <img src={assetPath(professional.mainPhoto || "/images/shopping/azamra-store.jpg")} alt={professional.name} className="size-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" />
-                    <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-ink/55 shadow-sm">{firstService?.categoryName ?? "Beauté"}</span>
-                  </div>
-                </button>
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <button onClick={() => setSelectedProfessional(professional)} className="text-left">
-                        <h3 className="text-lg font-semibold tracking-tight">{professional.name}</h3>
-                      </button>
-                      <p className="mt-1 flex items-center gap-1 text-sm text-ink/45"><MapPin size={13} /> {[professional.city, professional.arrondissement].filter(Boolean).join(" · ")}</p>
-                    </div>
-                    <LikeButton entity={{ id: `establishment-${professional.id}`, title: professional.name, url: href, text: professional.name }} />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {price && <span className="rounded-full bg-cream px-3 py-1 text-[10px] font-semibold text-moss">{price}</span>}
-                    {firstService?.durationMinutes && <span className="rounded-full bg-cream px-3 py-1 text-[10px] font-semibold text-ink/50">{firstService.durationMinutes} min</span>}
-                    {firstService?.atHome && <span className="rounded-full bg-cream px-3 py-1 text-[10px] font-semibold text-ink/50">À domicile</span>}
-                    {firstService?.onSite && <span className="rounded-full bg-cream px-3 py-1 text-[10px] font-semibold text-ink/50">Sur place</span>}
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    {professional.whatsapp && <a onClick={(event) => event.stopPropagation()} href={`https://wa.me/${professional.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-xs font-semibold text-white"><MessageCircle size={14} /> WhatsApp</a>}
-                    {professional.instagram && <a onClick={(event) => event.stopPropagation()} href={safeExternalUrl(professional.instagram)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-cream py-3 text-xs font-semibold text-ink"><Instagram size={14} /> Instagram</a>}
-                  </div>
-                  <button onClick={() => setSelectedProfessional(professional)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-cream py-3 text-xs font-semibold text-ink transition hover:bg-sage">
-                    Ouvrir la fiche <ArrowUpRight size={14} />
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+          {results.map((professional, index) => (
+            <UniversalEstablishmentCard
+              key={professional.id}
+              establishment={professional}
+              onOpen={() => setSelectedProfessional(professional)}
+              priorityImage={index < 3}
+            />
+          ))}
         </div>
       </section>
 

@@ -28,6 +28,8 @@ type EstablishmentSearchRow = {
   arrondissement: string | null;
   district: string | null;
   postal_code: string | null;
+  nearest_metro_name?: string | null;
+  nearest_metro_line?: string | null;
   certification: string | null;
   kosher_type: string | null;
   average_price: string | null;
@@ -118,7 +120,7 @@ const routeOverrides: Record<string, string> = {
 };
 
 const establishmentSelect = `
-  id,slug,name,short_description,description,address,city,arrondissement,district,postal_code,
+  id,slug,name,short_description,description,address,city,arrondissement,district,postal_code,nearest_metro_name,nearest_metro_line,
   country,phone,whatsapp,email,instagram,website,reservation_url,reservation_target,hours,amenities,services,
   certification,kosher_type,average_price,latitude,longitude,customer_searches,visible_tags,field_visibility,reservation_enabled,
   sponsorship,sponsor_priority,display_order,
@@ -488,6 +490,8 @@ function rowToEstablishment(row: EstablishmentSearchRow, image: string, tagLabel
     arrondissement: row.district ?? row.arrondissement ?? "",
     postalCode: row.postal_code ?? "",
     country: row.country ?? "France",
+    nearestMetroName: row.nearest_metro_name ?? "",
+    nearestMetroLine: row.nearest_metro_line ?? "",
     email: row.email ?? "",
     phone: row.phone ?? "",
     whatsapp: row.whatsapp ?? "",

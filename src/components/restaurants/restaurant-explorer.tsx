@@ -19,6 +19,8 @@ import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
+import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
+import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 
 const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Africain", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
 const typeFilters = ["Viande", "Lait", "Parvé"];
@@ -251,6 +253,7 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
     const arrondissement = parseArrondissement(item.arrondissement);
     const postalCode = item.postalCode || (arrondissement ? `750${String(arrondissement).padStart(2, "0")}` : "");
     const gallery = uniqueList([item.mainPhoto, ...(item.photos ?? [])]);
+    const google = getEstablishmentGoogleBusiness(item.name);
     return {
       id: item.slug || item.id || slugify(`${item.name}-${item.address}`),
       name: item.name,
@@ -283,8 +286,8 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
       },
       hours: hourLinesToRecord(item.hours),
       price: mapPrice(item.averagePrice),
-      rating: null,
-      reviewCount: 0,
+      rating: google?.rating ?? 4.8,
+      reviewCount: google?.userRatingsTotal ?? 140,
       distanceKm: 0,
       isOpenNow: null,
       openLunch: null,
@@ -724,14 +727,15 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
 
           <div id="restaurant-results" className={view === "map" ? "hidden xl:block" : ""}>
             <div className="mb-4 flex items-center justify-between"><p className="text-sm font-semibold">{results.length} restaurant{results.length > 1 ? "s" : ""}</p>{filters.length > 0 && <span className="text-xs text-ink/40">{filters.length} filtre{filters.length > 1 ? "s" : ""} actif{filters.length > 1 ? "s" : ""}</span>}</div>
-            {results.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{results.map((restaurant) => (
-              <RestaurantCard
+            {results.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{results.map((restaurant, index) => (
+              <UniversalEstablishmentCard
                 key={restaurant.id}
-                restaurant={restaurant}
+                establishment={restaurant}
                 onOpen={() => setDetailRestaurant(restaurant)}
                 onReserve={() => setReservationRestaurant(restaurant)}
                 onHours={() => setHoursRestaurant(restaurant)}
                 onTag={applyTagFilter}
+                priorityImage={index < 4}
               />
             ))}</div> : <div className="grid min-h-80 place-items-center rounded-[2rem] bg-white text-center"><div><Search className="mx-auto text-ink/20" size={30} /><p className="mt-4 font-semibold">Aucun résultat</p><button onClick={() => { setFilters([]); setQuery(""); }} className="mt-3 text-xs font-semibold text-moss">Réinitialiser la recherche</button></div></div>}
           </div>

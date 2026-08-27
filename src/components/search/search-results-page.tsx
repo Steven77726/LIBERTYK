@@ -2,18 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import {
-  ChevronRight, Heart, LayoutGrid, Map, MapPin,
-  Navigation, Phone, Search,
-} from "lucide-react";
+import { LayoutGrid, Map, Search } from "lucide-react";
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
-import { assetPath } from "@/lib/assets";
 import { quickSuggestions } from "@/components/search/ai-search";
-import { getLocalFavorites, toggleFavorite, favoritesChangedEvent } from "@/lib/favorites/favorites-service";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
-import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
+import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 export function SearchResultsPage() {
   const searchParams = useSearchParams();
@@ -29,14 +24,6 @@ export function SearchResultsPage() {
   const [selectedMapItem, setSelectedMapItem] = useState<MapEstablishment | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("Tous");
   const [kosherFilter, setKosherFilter] = useState("Tous");
-  const [favorites, setFavorites] = useState<string[]>([]);
-
-  useEffect(() => {
-    setFavorites(getLocalFavorites());
-    const onFavChange = () => setFavorites(getLocalFavorites());
-    window.addEventListener(favoritesChangedEvent, onFavChange);
-    return () => window.removeEventListener(favoritesChangedEvent, onFavChange);
-  }, []);
 
   useEffect(() => {
     const q = searchParams.get("q") || "";
@@ -77,12 +64,6 @@ export function SearchResultsPage() {
     if (!query.trim()) return;
     setActiveQuery(query.trim());
     router.replace(`/recherche?q=${encodeURIComponent(query.trim())}`);
-  };
-
-  const handleToggleFav = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    await toggleFavorite(id);
-    setFavorites(getLocalFavorites());
   };
 
   // Extraire les catégories disponibles dans les résultats
@@ -294,152 +275,68 @@ export function SearchResultsPage() {
           </div>
         ) : (
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredResults.map((result) => {
-              const googleData = getEstablishmentGoogleBusiness(result.title);
-              const isFav = favorites.includes(result.id);
+            {filteredResults.map((result, index) => {
+              const establishment =
+                result.establishment ?? {
+                  id: result.id,
+                  rubricId: result.category ? result.category.toLowerCase() : "food",
+                  subrubricId: result.subcategory ? result.subcategory.toLowerCase() : "",
+                  mainPhoto: result.image || "/images/food/restaurants-khan.jpg",
+                  photos: [],
+                  name: result.title,
+                  slug: result.id,
+                  shortDescription: result.subtitle || "",
+                  description: result.subtitle || "",
+                  address: result.subtitle || "",
+                  city: result.location?.city || "Paris",
+                  arrondissement: result.location?.arrondissement ? `${result.location.arrondissement}e` : "",
+                  postalCode: result.location?.postalCode || "",
+                  country: "France",
+                  email: "",
+                  phone: "",
+                  whatsapp: "",
+                  instagram: "",
+                  website: "",
+                  hours: "",
+                  terrace: result.filters?.terrace ?? false,
+                  delivery: result.filters?.delivery ?? false,
+                  takeaway: result.filters?.takeaway ?? false,
+                  reservation: result.filters?.reservation ?? false,
+                  privateHire: false,
+                  certification: result.filters?.certification || "",
+                  kosherType: (result.filters?.kosherType || "À compléter") as EstablishmentRecord["kosherType"],
+                  averagePrice: result.filters?.price || "",
+                  latitude: result.location?.latitude ? String(result.location.latitude) : "",
+                  longitude: result.location?.longitude ? String(result.location.longitude) : "",
+                  status: "Publié",
+                  visible: true,
+                  sponsorshipLevel: result.ranking?.sponsored ? "Featured" : "Standard",
+                  sponsored: result.ranking?.sponsored ?? false,
+                  sponsorPriority: 0,
+                  sponsorDuration: "",
+                  reservationTarget: "",
+                  cuisineTypes: result.keywords ?? [],
+                  order: 0,
+                  customerSearches: result.customerSearches ?? [],
+                  visibleTagIds: result.keywords ?? [],
+                  fieldVisibility: {},
+                };
 
               return (
-                <article
+                <UniversalEstablishmentCard
                   key={result.id}
-                  className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-black/[.06] bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-soft"
-                >
-                  {/* Image & Badges */}
-                  <div className="relative aspect-[16/10] overflow-hidden bg-sage">
-                    <img
-                      src={assetPath(result.image || "/images/food/restaurants-khan.jpg")}
-                      alt={result.title}
-                      className="size-full object-cover transition duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-ink shadow-xs backdrop-blur">
-                          {result.subcategory || result.category}
-                        </span>
-                        {result.filters?.kosherType && (
-                          <span className="rounded-full bg-moss px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
-                            {result.filters.kosherType}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleFav(result.id, e)}
-                        className="grid size-9 place-items-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:scale-110"
-                        aria-label="Favoris"
-                      >
-                        <Heart size={16} className={isFav ? "fill-rose-500 text-rose-500" : "text-ink/60"} />
-                      </button>
-                    </div>
-
-                    {/* Statut d'ouverture live */}
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1 text-[10px] font-semibold text-white backdrop-blur">
-                        <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-                        {googleData.openNow ? "Ouvert en direct" : "Fermé"}
-                      </span>
-                      {result.ranking?.sponsored && (
-                        <span className="rounded-full bg-[#f6ecd9] px-2.5 py-1 text-[10px] font-bold text-[#8f6424] shadow-xs">
-                          Sponsorisé
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Corps de la carte */}
-                  <div className="flex flex-1 flex-col p-6">
-                    <div className="flex items-start justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (result.establishment) {
-                            setSelectedEstablishment(result.establishment);
-                          } else if (result.href) {
-                            router.push(result.href);
-                          }
-                        }}
-                        className="text-left"
-                      >
-                        <h2 className="text-xl font-bold tracking-tight text-ink transition group-hover:text-moss">
-                          {result.title}
-                        </h2>
-                      </button>
-                    </div>
-
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-ink/50">
-                      <MapPin size={13} className="shrink-0 text-ink/35" />
-                      <span className="truncate">{result.subtitle}</span>
-                    </p>
-
-                    {/* Google Business Rating */}
-                    <div className="mt-3 flex items-center gap-2">
-                      <div className="flex items-center gap-1 rounded-lg border border-black/5 bg-cream/80 px-2 py-1 text-xs font-bold text-ink">
-                        <svg className="size-3 shrink-0" viewBox="0 0 24 24">
-                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-                        </svg>
-                        <span>{googleData.rating}</span>
-                        <span className="text-amber-500">★</span>
-                      </div>
-                      <span className="text-xs text-ink/40 font-medium">({googleData.userRatingsTotal} avis Google)</span>
-                    </div>
-
-                    {/* Extrait d'avis client */}
-                    {googleData.reviews[0] && (
-                      <p className="mt-3 line-clamp-2 text-xs italic leading-relaxed text-ink/65">
-                        &ldquo;{googleData.reviews[0].text}&rdquo;
-                      </p>
-                    )}
-
-                    {/* Boutons d'action */}
-                    <div className="mt-6 flex items-center gap-2 border-t border-black/5 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (result.establishment) {
-                            setSelectedEstablishment(result.establishment);
-                          } else if (result.href) {
-                            router.push(result.href);
-                          }
-                        }}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-ink py-2.5 text-xs font-semibold text-white transition hover:bg-moss"
-                      >
-                        Voir la fiche <ChevronRight size={14} />
-                      </button>
-                      <a
-                        href={googleData.googleMapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="grid size-9 place-items-center rounded-xl bg-cream text-ink/75 transition hover:bg-moss/10 hover:text-moss"
-                        title="Google Maps"
-                      >
-                        <Navigation size={14} className="text-[#4285F4]" />
-                      </a>
-                      <a
-                        href={result.location?.latitude && result.location?.longitude
-                          ? `https://waze.com/ul?ll=${result.location.latitude},${result.location.longitude}&navigate=yes`
-                          : `https://waze.com/ul?q=${encodeURIComponent(result.subtitle || result.title)}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="grid size-9 place-items-center rounded-xl bg-cream text-ink/75 transition hover:bg-moss/10 hover:text-moss"
-                        title="Waze"
-                      >
-                        <span className="text-xs font-bold text-[#33CCFF]">W</span>
-                      </a>
-                      {result.establishment?.phone && (
-                        <a
-                          href={`tel:${result.establishment.phone.replace(/\s/g, "")}`}
-                          className="grid size-9 place-items-center rounded-xl bg-cream text-ink/75 transition hover:bg-moss/10 hover:text-moss"
-                          title="Appeler"
-                        >
-                          <Phone size={14} />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </article>
+                  establishment={establishment}
+                  onOpen={() => {
+                    if (result.establishment) {
+                      setSelectedEstablishment(result.establishment);
+                    } else if (result.href) {
+                      router.push(result.href);
+                    } else {
+                      setSelectedEstablishment(establishment);
+                    }
+                  }}
+                  priorityImage={index < 3}
+                />
               );
             })}
           </div>

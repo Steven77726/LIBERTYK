@@ -736,126 +736,106 @@ export function UniversalEstablishmentCard({
             )}
           </div>
 
-          {/* 3. Actions Directes & Liens Externes Explicites */}
-          <div className="mt-4 pt-3 border-t border-black/[.05]">
-            <div className="grid grid-cols-2 gap-2">
-              {/* Bouton Primaire : Téléphone > WhatsApp > Billetterie/Réservation > Maps */}
-              {data.fieldVisibility.phone !== false && data.phone ? (
+          {/* 3. Actions Directes & Liens Externes : Tous sur la même ligne avec la même forme */}
+          <div className="mt-4 pt-3 border-t border-black/[.05] space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              {/* Bouton Téléphone */}
+              {data.fieldVisibility.phone !== false && data.phone && (
                 <a
                   href={`tel:${data.phone.replace(/\s/g, "")}`}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-ink px-3 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-moss"
+                  className="flex flex-1 min-w-[85px] items-center justify-center gap-1.5 rounded-xl bg-ink px-2.5 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-moss"
                 >
-                  <Phone size={13} /> Appeler
+                  <Phone size={13} />
+                  <span>Appeler</span>
                 </a>
-              ) : data.fieldVisibility.whatsapp !== false && data.whatsapp ? (
+              )}
+
+              {/* Bouton WhatsApp */}
+              {data.fieldVisibility.whatsapp !== false && data.whatsapp && (
                 <a
                   href={`https://wa.me/${data.whatsapp.replace(/\D/g, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-emerald-700"
+                  className="flex flex-1 min-w-[85px] items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-2.5 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-[#1faa53]"
                 >
-                  <MessageCircle size={13} /> WhatsApp
+                  <MessageCircle size={13} />
+                  <span>WhatsApp</span>
                 </a>
-              ) : data.reservationTarget ? (
+              )}
+
+              {/* Bouton Waze */}
+              {wazeUrl && (
                 <a
-                  href={safeExternalUrl(data.reservationTarget)}
+                  href={wazeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-ink px-3 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-moss"
+                  className="flex flex-1 min-w-[75px] items-center justify-center gap-1.5 rounded-xl bg-[#33B5E5] px-2.5 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-[#209ecf]"
+                  title="Ouvrir dans Waze"
                 >
-                  <CalendarDays size={13} /> {bookingLabel}
+                  <Navigation size={13} />
+                  <span>Waze</span>
                 </a>
-              ) : mapsUrl ? (
+              )}
+
+              {/* Bouton Google Maps */}
+              {mapsUrl && (
                 <a
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-ink px-3 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-moss"
+                  className="flex flex-1 min-w-[75px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
+                  title="Ouvrir dans Google Maps"
                 >
-                  <Navigation size={13} /> Itinéraire
+                  <MapPin size={13} className="text-moss" />
+                  <span>Maps</span>
                 </a>
-              ) : null}
+              )}
 
-              {/* Bouton Secondaire : Instagram > Réservation > Site web > Maps */}
-              {data.fieldVisibility.instagram !== false && data.instagram ? (
+              {/* Bouton Instagram */}
+              {data.fieldVisibility.instagram !== false && data.instagram && (
                 <a
                   href={data.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
+                  className="flex flex-1 min-w-[85px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
                   aria-label={`Compte Instagram de ${data.name}`}
                 >
-                  <Instagram size={14} className="text-[#E1306C]" /> Instagram
+                  <Instagram size={13} className="text-[#E1306C]" />
+                  <span>Insta</span>
                 </a>
-              ) : data.reservationTarget ? (
-                <a
-                  href={safeExternalUrl(data.reservationTarget)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
-                >
-                  <CalendarDays size={13} /> {bookingLabel}
-                </a>
-              ) : data.fieldVisibility.website !== false && data.website ? (
+              )}
+
+              {/* Bouton Site Web */}
+              {data.fieldVisibility.website !== false && data.website && (
                 <a
                   href={data.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
+                  className="flex flex-1 min-w-[80px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
+                  title="Site web officiel"
                 >
-                  <Globe2 size={13} /> Site web
+                  <Globe2 size={13} className="text-ink/60" />
+                  <span>Web</span>
                 </a>
-              ) : mapsUrl ? (
+              )}
+
+              {/* Bouton Billetterie / Réservation si configuré */}
+              {data.reservationTarget && (
                 <a
-                  href={mapsUrl}
+                  href={safeExternalUrl(data.reservationTarget)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
+                  className="flex flex-1 min-w-[95px] items-center justify-center gap-1.5 rounded-xl bg-moss px-2.5 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-moss/90"
                 >
-                  <Navigation size={13} /> Maps
+                  <CalendarDays size={13} />
+                  <span>{bookingLabel}</span>
                 </a>
-              ) : null}
+              )}
             </div>
 
-            {/* Barre d'icônes complémentaires (Maps, Waze, Site, Deliveroo, UberEats, Partage) */}
-            <div className="mt-2.5 flex items-center justify-between text-ink/40">
+            {/* Barre d'actions tierces (Deliveroo, UberEats & Partage) */}
+            <div className="flex items-center justify-between pt-1 text-ink/40">
               <div className="flex items-center gap-1.5">
-                {/* Liens Maps & Waze explicites */}
-                {mapsUrl && (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Ouvrir dans Google Maps"
-                    className="grid size-7 place-items-center rounded-full bg-cream text-ink/50 transition hover:bg-moss hover:text-white"
-                  >
-                    <Navigation size={12} />
-                  </a>
-                )}
-                {wazeUrl && (
-                  <a
-                    href={wazeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Ouvrir dans Waze"
-                    className="grid size-7 place-items-center rounded-full bg-cream text-[#33B5E5] font-black text-[11px] transition hover:bg-[#33B5E5] hover:text-white"
-                  >
-                    W
-                  </a>
-                )}
-                {data.fieldVisibility.website !== false && data.website && (
-                  <a
-                    href={data.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Site web officiel"
-                    className="grid size-7 place-items-center rounded-full bg-cream text-ink/50 transition hover:bg-moss hover:text-white"
-                  >
-                    <Globe2 size={12} />
-                  </a>
-                )}
-
-                {/* Badges Deliveroo & UberEats si disponibles */}
                 <DeliveryPlatformButtons
                   name={data.name}
                   city={data.city}
@@ -867,7 +847,7 @@ export function UniversalEstablishmentCard({
                 />
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="ml-auto flex items-center gap-1">
                 <ShareButton
                   entity={{
                     id: data.entityFavId,

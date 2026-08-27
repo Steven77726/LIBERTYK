@@ -362,8 +362,8 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
 // 12. Génération de réponse naturelle & chaleureuse en français courant
 export function generateConciergeResponse(criteria: ConciergeCriteria, resultCount: number): string {
   if (resultCount === 0) {
-    const loc = criteria.arrondissement ? `dans le ${criteria.arrondissement}e` : criteria.city ? `à ${criteria.city}` : "";
-    return `Je n’ai trouvé aucun établissement correspondant exactement à votre demande ${loc}. Souhaitez-vous élargir la recherche ?`;
+    const loc = criteria.arrondissement ? ` dans le ${criteria.arrondissement}e` : criteria.city ? ` à ${criteria.city}` : "";
+    return `Je n’ai trouvé aucun établissement correspondant exactement à votre demande${loc}. Souhaitez-vous élargir la recherche ?`;
   }
 
   const categoryLabel = criteria.category === "food"
@@ -379,16 +379,16 @@ export function generateConciergeResponse(criteria: ConciergeCriteria, resultCou
     : "adresses";
 
   const loc = criteria.arrondissement
-    ? `dans le ${criteria.arrondissement}e arrondissement`
+    ? ` dans le ${criteria.arrondissement}e arrondissement`
     : criteria.city
-    ? `à ${criteria.city}`
+    ? ` à ${criteria.city}`
     : "";
 
   if (resultCount === 1) {
-    return `J’ai trouvé 1 adresse ${loc ? `${loc} ` : ""}qui correspond parfaitement. La voici juste en dessous.`;
+    return `J’ai trouvé 1 adresse${loc} qui correspond parfaitement. La voici juste en dessous.`;
   }
 
-  return `J’ai trouvé ${resultCount} ${categoryLabel} ${loc ? `${loc} ` : ""}qui correspondent à votre recherche. Les voici :`;
+  return `J’ai trouvé ${resultCount} ${categoryLabel}${loc} qui correspondent à votre recherche. Les voici :`;
 }
 
 // 13. Calcul de distance en kilomètres (Formule de Haversine)
@@ -411,27 +411,87 @@ export async function executeConciergeSearch(
   criteria: ConciergeCriteria,
   userCoords?: { latitude: number; longitude: number }
 ): Promise<EstablishmentSearchResult[]> {
-  const queryTokens = [
-    criteria.subrubric || criteria.category || "",
-    criteria.kosherType || "",
-    criteria.arrondissement ? `Paris ${criteria.arrondissement}` : criteria.city || "",
-    ...criteria.searchTerms,
-  ].filter(Boolean);
+  const rawQuery = criteria.rawQuery.trim();
+  const rawResults = await searchEstablishments(rawQuery, { limit: 50 });
 
-  const searchQuery = queryTokens.join(" ") || criteria.rawQuery || "restaurant";
-  const rawResults = await searchEstablishments(searchQuery, { limit: 60 });
+  const filtered = rawResults.filter((item) => {
+    const categoryNorm = (item.establishment?.rubricId || item.category || "").toLowerCase();
 
-  let filtered = rawResults.filter((item) => {
     // 1. Filtrage Catégorie
     if (criteria.category) {
-      const estRubric = (item.establishment?.rubricId || item.category || "").toLowerCase();
-      if (criteria.category === "food" && !estRubric.includes("food") && !estRubric.includes("resto")) return false;
-      if (criteria.category === "soins-feminin" && !estRubric.includes("soin") && !estRubric.includes("beaut")) return false;
-      if (criteria.category === "vin-spiritueux" && !estRubric.includes("vin") && !estRubric.includes("spirit")) return false;
-      if (criteria.category === "sorties" && !estRubric.includes("sorti")) return false;
-      if (criteria.category === "enfants" && !estRubric.includes("enfant")) return false;
-      if (criteria.category === "mikve" && !estRubric.includes("mikv")) return false;
-      if (criteria.category === "shopping" && !estRubric.includes("shop") && !estRubric.includes("mode") && !estRubric.includes("maison")) return false;
+      if (
+        criteria.category === "food" &&
+        !categoryNorm.includes("food") &&
+        !categoryNorm.includes("rest") &&
+        !categoryNorm.includes("brunch") &&
+        !categoryNorm.includes("boulang") &&
+        !categoryNorm.includes("patiss") &&
+        !categoryNorm.includes("traiteur") &&
+        !categoryNorm.includes("salon") &&
+        !categoryNorm.includes("boucherie") &&
+        !categoryNorm.includes("epicerie") &&
+        !categoryNorm.includes("supermarche")
+      ) {
+        return false;
+      }
+      if (
+        criteria.category === "soins-feminin" &&
+        !categoryNorm.includes("soin") &&
+        !categoryNorm.includes("beaut") &&
+        !categoryNorm.includes("coiff") &&
+        !categoryNorm.includes("feminin") &&
+        !categoryNorm.includes("ongle") &&
+        !categoryNorm.includes("manuc") &&
+        !categoryNorm.includes("massage") &&
+        !categoryNorm.includes("maquill") &&
+        !categoryNorm.includes("epil") &&
+        !categoryNorm.includes("cils")
+      ) {
+        return false;
+      }
+      if (
+        criteria.category === "vin-spiritueux" &&
+        !categoryNorm.includes("vin") &&
+        !categoryNorm.includes("spirit") &&
+        !categoryNorm.includes("cavis") &&
+        !categoryNorm.includes("champagne") &&
+        !categoryNorm.includes("degust")
+      ) {
+        return false;
+      }
+      if (
+        criteria.category === "sorties" &&
+        !categoryNorm.includes("sorti") &&
+        !categoryNorm.includes("evenement") &&
+        !categoryNorm.includes("concert") &&
+        !categoryNorm.includes("spectacle") &&
+        !categoryNorm.includes("theatre") &&
+        !categoryNorm.includes("loisir")
+      ) {
+        return false;
+      }
+      if (
+        criteria.category === "enfants" &&
+        !categoryNorm.includes("enfant") &&
+        !categoryNorm.includes("famille") &&
+        !categoryNorm.includes("bebe")
+      ) {
+        return false;
+      }
+      if (criteria.category === "mikve" && !categoryNorm.includes("mikv")) {
+        return false;
+      }
+      if (
+        criteria.category === "shopping" &&
+        !categoryNorm.includes("shop") &&
+        !categoryNorm.includes("mode") &&
+        !categoryNorm.includes("maison") &&
+        !categoryNorm.includes("vetement") &&
+        !categoryNorm.includes("bijou") &&
+        !categoryNorm.includes("deco")
+      ) {
+        return false;
+      }
     }
 
     // 2. Filtrage Arrondissement
@@ -444,44 +504,82 @@ export async function executeConciergeSearch(
 
     // 3. Filtrage Cacherout
     if (criteria.kosherType) {
-      const itemKosher = item.filters?.kosherType || item.establishment?.kosherType || "";
-      if (!itemKosher.toLowerCase().includes(criteria.kosherType.toLowerCase())) return false;
+      const itemKosher = (item.filters?.kosherType || item.establishment?.kosherType || "").toLowerCase();
+      if (!itemKosher.includes(criteria.kosherType.toLowerCase())) return false;
     }
 
     // 4. Filtrage Mode de service (domicile vs sur place)
     if (criteria.serviceMode === "domicile") {
-      const hasAtHome = item.establishment?.beautyServices?.some((s) => s.atHome);
-      if (!hasAtHome) return false;
+      const atHomeServices = item.establishment?.beautyServices?.some((s) => s.atHome);
+      const atHomeKeywords = item.keywords.some((k) => k.toLowerCase().includes("domicile"));
+      if (!atHomeServices && !atHomeKeywords) return false;
     }
 
     // 5. Filtrage Terrasse
     if (criteria.services?.terrace) {
-      const hasTerrace = item.establishment?.terrace || item.keywords.some((k) => k.toLowerCase().includes("terrasse"));
+      const hasTerrace = item.establishment?.terrace || item.filters?.terrace || item.keywords.some((k) => k.toLowerCase().includes("terrasse"));
       if (!hasTerrace) return false;
     }
 
     // 6. Filtrage Livraison
     if (criteria.services?.delivery) {
-      const hasDelivery = item.establishment?.delivery || item.establishment?.deliverooUrl || item.establishment?.uberEatsUrl;
+      const hasDelivery = item.establishment?.delivery || item.filters?.delivery || item.establishment?.deliverooUrl || item.establishment?.uberEatsUrl;
       if (!hasDelivery) return false;
     }
 
-    // 7. Filtrage Prix maximum
-    if (criteria.maxPrice && item.establishment?.beautyServices) {
-      const cheapEnough = item.establishment.beautyServices.some((s) => s.price !== null && s.price !== undefined && s.price <= criteria.maxPrice!);
-      if (!cheapEnough) return false;
+    // 7. Filtrage des termes de recherche résiduels spécifiques (zéro hallucination sur termes inconnus)
+    const nonCategoryTerms = criteria.searchTerms.filter(
+      (term) =>
+        term !== "restaurant" &&
+        term !== "restaurants" &&
+        term !== "resto" &&
+        term !== "restos" &&
+        term !== "brunch" &&
+        term !== "traiteur" &&
+        term !== "boulangerie" &&
+        term !== "patisserie" &&
+        term !== "coiffure" &&
+        term !== "coiffeuse" &&
+        term !== "lissage" &&
+        term !== "maquillage" &&
+        term !== "caviste" &&
+        term !== "vin" &&
+        term !== "sortie" &&
+        term !== "sorties" &&
+        term !== "enfant" &&
+        term !== "enfants" &&
+        term !== "bassari" &&
+        term !== "halavi" &&
+        term !== "parve" &&
+        term !== "domicile" &&
+        term !== "terrasse" &&
+        term !== "livraison" &&
+        term !== "pres" &&
+        !term.match(/^(750\d\d|\d\de?)$/)
+    );
+
+    if (nonCategoryTerms.length > 0) {
+      const itemCorpus = [
+        item.title,
+        item.subtitle || "",
+        item.category || "",
+        ...(item.keywords || []),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchesAllSpecific = nonCategoryTerms.every((term) =>
+        itemCorpus.includes(term.toLowerCase())
+      );
+      if (!matchesAllSpecific) return false;
     }
 
     return true;
   });
 
-  if (filtered.length === 0 && rawResults.length > 0) {
-    filtered = rawResults.slice(0, 10);
-  }
-
   // Géolocalisation & distance
   if (userCoords && userCoords.latitude && userCoords.longitude) {
-    filtered = filtered.map((item) => {
+    const geoMapped = filtered.map((item) => {
       const lat = item.location?.latitude ? Number(item.location.latitude) : item.establishment?.latitude ? Number(item.establishment.latitude) : null;
       const lon = item.location?.longitude ? Number(item.location.longitude) : item.establishment?.longitude ? Number(item.establishment.longitude) : null;
       if (lat && lon && !isNaN(lat) && !isNaN(lon)) {
@@ -496,8 +594,9 @@ export async function executeConciergeSearch(
     });
 
     if (criteria.nearMe) {
-      filtered.sort((a, b) => ((a as EstablishmentSearchResult & { distanceKm?: number }).distanceKm ?? 999) - ((b as EstablishmentSearchResult & { distanceKm?: number }).distanceKm ?? 999));
+      geoMapped.sort((a, b) => ((a as EstablishmentSearchResult & { distanceKm?: number }).distanceKm ?? 999) - ((b as EstablishmentSearchResult & { distanceKm?: number }).distanceKm ?? 999));
     }
+    return geoMapped;
   }
 
   return filtered;

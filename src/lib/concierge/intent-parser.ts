@@ -607,13 +607,17 @@ export async function executeConciergeSearch(
         item.subtitle || "",
         item.category || "",
         ...(item.keywords || []),
+        ...(item.establishment?.cuisineTypes || []),
       ]
         .join(" ")
         .toLowerCase();
 
-      const matchesAllSpecific = nonCategoryTerms.every((term) =>
-        itemCorpus.includes(term.toLowerCase())
-      );
+      const matchesAllSpecific = nonCategoryTerms.every((term) => {
+        const t = term.toLowerCase();
+        const root = t.endsWith("e") || t.endsWith("s") || t.endsWith("x") ? t.slice(0, -1) : t;
+        const stem = t.length > 5 ? t.slice(0, 5) : root;
+        return itemCorpus.includes(t) || itemCorpus.includes(root) || itemCorpus.includes(stem);
+      });
       if (!matchesAllSpecific) return false;
     }
 

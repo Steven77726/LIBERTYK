@@ -60,6 +60,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const requestRef = useRef(0);
   const lastQueryRef = useRef<string | null>(null);
+  const lastVoiceSearchedQueryRef = useRef<string>("");
 
   const open = focused && (query.trim().length >= 2 || results.length > 0 || loading || micState === "listening");
 
@@ -158,22 +159,29 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     [sessionCriteria, speakResponse, userCoords]
   );
 
-  // 1. Déclencheur vocal : Exécute immédiatement la recherche dès la fin de dictée
-  const handleVoiceTranscript = useCallback((transcript: string) => {
-    const cleanTranscript = transcript.trim();
+  // 1. Affichage en temps réel du texte dicté (sans déclencher de recherche)
+  const handleInterimTranscript = useCallback((interim: string) => {
+    setQuery(interim);
+    setFocused(true);
+  }, []);
+
+  // 2. Déclencheur vocal final : Exécute exactement UNE recherche à la fin de phrase
+  const handleVoiceTranscript = useCallback((finalTranscript: string) => {
+    const cleanTranscript = finalTranscript.trim();
     if (!cleanTranscript) return;
 
-    // Mise à jour visuelle du champ pour que l'utilisateur puisse le modifier s'il le souhaite
+    lastVoiceSearchedQueryRef.current = cleanTranscript;
     setQuery(cleanTranscript);
     setFocused(true);
     setMicState("searching");
 
-    // Lancement direct et garanti de la recherche avec le texte transcrit
+    // Lancement unique garanti
     void runConciergeQuery(cleanTranscript);
   }, [runConciergeQuery]);
 
-  // 2. Déclencheur chips / raccourcis
+  // 3. Déclencheur chips / raccourcis
   const handleChipClick = (chipQuery: string) => {
+    lastVoiceSearchedQueryRef.current = chipQuery;
     setQuery(chipQuery);
     setFocused(true);
     inputRef.current?.focus();
@@ -195,7 +203,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     void runConciergeQuery(chipQuery);
   };
 
-  // 3. Déclencheur saisie manuelle
+  // 4. Déclencheur saisie manuelle au clavier
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.currentTarget.value;
     setQuery(value);
@@ -217,13 +225,15 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     setConciergeMessage("");
     setSessionCriteria({});
     lastQueryRef.current = null;
+    lastVoiceSearchedQueryRef.current = "";
     inputRef.current?.focus();
   };
 
-  // 4. Déclencheur validation clavier / bouton de recherche
+  // 5. Déclencheur validation clavier / bouton de recherche
   const submit = () => {
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
+    lastVoiceSearchedQueryRef.current = trimmed;
     void runConciergeQuery(trimmed);
   };
 
@@ -260,12 +270,20 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     setMounted(true);
   }, []);
 
-  // Débounce sur frappe manuelle
+  // Débounce sur frappe manuelle au clavier uniquement (jamais pendant la dictée vocale)
   useEffect(() => {
-    if (!focused || query.trim().length < 2 || micState === "listening") return;
+    if (
+      !focused ||
+      query.trim().length < 2 ||
+      micState === "listening" ||
+      micState === "searching" ||
+      query.trim() === lastVoiceSearchedQueryRef.current.trim()
+    ) {
+      return;
+    }
     const timer = window.setTimeout(() => {
       void runConciergeQuery(query);
-    }, 280);
+    }, 300);
     return () => window.clearTimeout(timer);
   }, [focused, query, micState, runConciergeQuery]);
 
@@ -305,6 +323,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
           state={micState}
           onStateChange={setMicState}
           onTranscript={handleVoiceTranscript}
+          onInterimTranscript={handleInterimTranscript}
           onError={(msg) => setError(msg)}
           size="md"
         />

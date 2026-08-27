@@ -9,6 +9,7 @@ type VoiceMicrophoneButtonProps = {
   state?: MicState;
   onStateChange?: (state: MicState) => void;
   onTranscript: (transcript: string) => void;
+  onInterimTranscript?: (interim: string) => void;
   onError?: (errorMessage: string) => void;
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -61,6 +62,7 @@ export function VoiceMicrophoneButton({
   state = "idle",
   onStateChange,
   onTranscript,
+  onInterimTranscript,
   onError,
   className = "",
   size = "md",
@@ -87,6 +89,18 @@ export function VoiceMicrophoneButton({
     }
   }, []);
 
+  const dispatchFinalTranscript = useCallback((text: string) => {
+    if (dispatchedRef.current) return;
+    const clean = text.trim();
+    if (!clean) {
+      updateState("idle");
+      return;
+    }
+    dispatchedRef.current = true;
+    updateState("searching");
+    onTranscript(clean);
+  }, [onTranscript, updateState]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -96,23 +110,13 @@ export function VoiceMicrophoneButton({
       }
       recognitionRef.current = null;
     }
-    if (currentState === "listening") {
+    // Si l'utilisateur arrête manuellement le micro, envoyer le résultat accumulé
+    if (!dispatchedRef.current && bestTranscriptRef.current.trim()) {
+      dispatchFinalTranscript(bestTranscriptRef.current);
+    } else if (!dispatchedRef.current) {
       updateState("idle");
     }
-  }, [currentState, updateState]);
-
-  const dispatchFinalTranscript = useCallback((text: string) => {
-    if (dispatchedRef.current) return;
-    const clean = text.trim();
-    if (!clean) {
-      updateState("idle");
-      return;
-    }
-    dispatchedRef.current = true;
-    updateState("transcribing");
-    onTranscript(clean);
-    updateState("searching");
-  }, [onTranscript, updateState]);
+  }, [dispatchFinalTranscript, updateState]);
 
   const startListening = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -126,7 +130,15 @@ export function VoiceMicrophoneButton({
     }
 
     try {
-      stopListening();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+        recognitionRef.current = null;
+      }
+
       bestTranscriptRef.current = "";
       dispatchedRef.current = false;
 
@@ -145,12 +157,10 @@ export function VoiceMicrophoneButton({
 
       recognition.onresult = (event: SpeechRecognitionEventLike) => {
         let fullAccumulated = "";
-        let isFinalDetected = false;
 
         for (let i = 0; i < event.results.length; i++) {
           const res = event.results[i];
           if (res && res.length > 0) {
-            // Sélection de la meilleure hypothèse par indice de confiance
             let bestAlt = res[0].transcript;
             let highestConfidence = res[0].confidence ?? 0;
             for (let a = 1; a < res.length; a++) {
@@ -161,20 +171,14 @@ export function VoiceMicrophoneButton({
               }
             }
             fullAccumulated += (fullAccumulated ? " " : "") + bestAlt;
-            if (res.isFinal) {
-              isFinalDetected = true;
-            }
           }
         }
 
         const trimmed = fullAccumulated.trim();
         if (trimmed) {
           bestTranscriptRef.current = trimmed;
-        }
-
-        // Si fin de phrase détectée par le moteur
-        if (isFinalDetected && trimmed) {
-          dispatchFinalTranscript(trimmed);
+          // Feedback visuel en temps réel sans déclencher de recherche
+          onInterimTranscript?.(trimmed);
         }
       };
 
@@ -190,7 +194,7 @@ export function VoiceMicrophoneButton({
       };
 
       recognition.onend = () => {
-        // Garantit le déclenchement immédiat même si isFinal n'était pas explicite sur Safari iOS
+        // UNE SEULE RECHERCHE déclenchée à la fin de la phrase
         if (!dispatchedRef.current && bestTranscriptRef.current.trim()) {
           dispatchFinalTranscript(bestTranscriptRef.current);
         } else if (!dispatchedRef.current) {
@@ -204,7 +208,7 @@ export function VoiceMicrophoneButton({
       updateState("error");
       setTimeout(() => updateState("idle"), 2000);
     }
-  }, [dispatchFinalTranscript, onError, stopListening, updateState]);
+  }, [dispatchFinalTranscript, onError, onInterimTranscript, updateState]);
 
   const toggleMic = (e: React.MouseEvent) => {
     e.preventDefault();

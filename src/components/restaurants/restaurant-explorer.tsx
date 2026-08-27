@@ -1,24 +1,21 @@
 "use client";
 
 import {
-  CalendarDays, Car, ChevronDown,
-  Copy, Globe2, Instagram, List, Map as MapIcon,
-  MapPin, Navigation, Phone, Search, SlidersHorizontal,
-  Store, UtensilsCrossed, X,
+  CalendarDays,
+  ChevronDown,
+  List, Map as MapIcon,
+  MapPin, Search, SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Restaurant } from "@/types/restaurant";
 import type { LocalSponsorshipLevel } from "@/data/establishments";
-import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-rating";
+import { CustomerRating } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
-import { assetPath } from "@/lib/assets";
-import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
-import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
-import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 
@@ -28,24 +25,6 @@ const serviceFilters = ["Sur place", "À emporter", "Livraison", "Click & Collec
 const availabilityFilters = ["Ouvert maintenant", "Ouvert le midi", "Ouvert le soir", "Ouvert le dimanche", "Ouvert tard"];
 const comfortFilters = ["Adapté aux familles", "Terrasse", "Wifi", "Menu enfant", "Privatisation"];
 const locationFilters = ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"];
-const publicDefaultFieldVisibility: Record<string, boolean> = {
-  phone: true,
-  whatsapp: true,
-  instagram: true,
-  website: true,
-  email: true,
-  reservation: true,
-  address: true,
-  opening_hours: true,
-  tags: true,
-  gallery: true,
-  takeaway: true,
-  delivery: true,
-  price: true,
-  map: true,
-  reviews: true,
-  certification: true,
-};
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const slugify = (value: string) => normalize(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -372,41 +351,7 @@ function FilterSection({ title, options, active, toggle }: { title: string; opti
   );
 }
 
-function ItineraryMenu({ restaurant, compact = false, label = "Itinéraire", addressTrigger = false }: { restaurant: Restaurant; compact?: boolean; label?: string; addressTrigger?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  if (!hasMeaningfulAddress(restaurant)) return null;
 
-  const query = buildAddressQuery(restaurant);
-  const encoded = encodeURIComponent(query);
-  const googleUrl = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-  const wazeUrl = Number.isFinite(restaurant.latitude) && Number.isFinite(restaurant.longitude) && restaurant.latitude !== 48.8566
-    ? `https://waze.com/ul?ll=${restaurant.latitude},${restaurant.longitude}&navigate=yes`
-    : `https://waze.com/ul?q=${encoded}&navigate=yes`;
-
-  const copyAddress = async () => {
-    await navigator.clipboard?.writeText(query);
-    setCopied(true);
-  };
-
-  return (
-    <div className="relative">
-      <button
-        onClick={(event) => { event.stopPropagation(); setOpen((value) => !value); }}
-        className={addressTrigger ? "flex items-start gap-2 text-left text-sm leading-6 text-ink/70" : compact ? "flex items-center justify-center gap-2 rounded-xl bg-cream px-3 py-2.5 text-xs font-semibold" : "inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold"}
-      >
-        {addressTrigger ? <MapPin size={16} className="mt-0.5 shrink-0 text-ink/35" /> : <Navigation size={compact ? 14 : 16} />} {label}
-      </button>
-      {open && (
-        <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-black/10 bg-white p-2 text-sm shadow-2xl" onClick={(event) => event.stopPropagation()}>
-          <a href={googleUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-cream"><MapPin size={16} /> Ouvrir dans Google Maps</a>
-          <a href={wazeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-cream"><Navigation size={16} /> Ouvrir dans Waze</a>
-          <button onClick={copyAddress} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-cream"><Copy size={16} /> {copied ? "Adresse copiée" : "Copier l’adresse"}</button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function HoursPanel({ restaurant, open, onClose }: { restaurant: Restaurant | null; open: boolean; onClose: () => void }) {
   if (!restaurant) return null;
@@ -435,83 +380,7 @@ function HoursPanel({ restaurant, open, onClose }: { restaurant: Restaurant | nu
   );
 }
 
-function RestaurantCard({ restaurant, onOpen, onReserve, onHours, onTag }: { restaurant: Restaurant; onOpen: () => void; onReserve: () => void; onHours: () => void; onTag: (tag: string) => void }) {
-  const unknown = "À compléter";
-  const visibility = { ...publicDefaultFieldVisibility, ...(restaurant.fieldVisibility ?? {}) };
-  const entity = { id: `restaurant-${restaurant.id}`, title: restaurant.name, url: `/food/restaurants#${restaurant.id}`, text: `${restaurant.name} · ${restaurant.fullAddress}` };
-  const status = getOpenStatus(restaurant);
-  const hasType = restaurant.type && restaurant.type !== "À compléter";
-  const hasCertification = restaurant.certification && normalize(restaurant.certification) !== "a completer";
-  const metroStyle = getMetroLineStyle(restaurant.nearestMetroLine);
-  return (
-    <article id={restaurant.id} className="group overflow-hidden rounded-[1.75rem] border border-black/[.055] bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft">
-      <div className="relative aspect-[16/10] overflow-hidden bg-sage">
-        <button onClick={onOpen} className="absolute inset-0 size-full text-left" aria-label={`Ouvrir la fiche ${restaurant.name}`}><img src={assetPath(restaurant.image)} alt="" className="size-full object-cover transition duration-700 group-hover:scale-105" /></button>
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
-          <div className="flex flex-col items-start gap-2"><span className="rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.08em] text-ink backdrop-blur">{restaurant.cuisine}</span><RecommendationBadge rating={restaurant.rating} reviewCount={restaurant.reviewCount} /></div>
-          <LikeButton entity={entity} />
-        </div>
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2">
-        {visibility.opening_hours !== false && <button onClick={hasMeaningfulHours(restaurant) ? onHours : undefined} className="rounded-full bg-ink/85 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur">{hasMeaningfulHours(restaurant) ? (status.open === null ? "Horaires disponibles" : status.label) : "Horaires masqués"}</button>}
-          {visibility.reservation !== false && <button onClick={onReserve} className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-ink shadow-sm"><CalendarDays size={12} /> Réservation</button>}
-        </div>
-      </div>
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div><button onClick={onOpen} className="text-left"><h2 className="text-xl font-semibold tracking-[-.035em]">{restaurant.name}</h2></button><p className="mt-1 text-xs text-ink/43">{restaurant.specialty}</p></div>
-        </div>
-        {visibility.reviews !== false && <div className="mt-3"><CustomerRating rating={restaurant.rating} reviewCount={restaurant.reviewCount} /></div>}
-        <div className="mt-4 flex flex-wrap gap-1.5 text-[10px]">
-          {hasType && <button onClick={() => onTag(restaurant.type)} className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.type}</button>}
-          {visibility.certification !== false && hasCertification && <button onClick={() => onTag(restaurant.certification)} className="rounded-full bg-cream px-2.5 py-1.5">✡ {restaurant.certification}</button>}
-          {visibility.price !== false && <span className="rounded-full bg-cream px-2.5 py-1.5">{restaurant.price}</span>}
-          {visibility.tags !== false && (restaurant.tags ?? []).slice(0, 4).map((tag) => (
-            <button key={tag} onClick={() => onTag(tag)} className="rounded-full bg-sage px-2.5 py-1.5 text-moss">{tag}</button>
-          ))}
-        </div>
-        {visibility.address !== false && hasMeaningfulAddress(restaurant) && <button onClick={onOpen} className="mt-4 flex items-start gap-2 text-left text-xs leading-5 text-ink/52"><MapPin size={14} className="mt-0.5 shrink-0" /><span>{restaurant.fullAddress}, {restaurant.postalCode}<br />{restaurant.city ?? "Paris"} {restaurant.arrondissement ? <><sup>{restaurant.arrondissement}e</sup> · </> : null}{restaurant.distanceKm} km</span></button>}
-        {restaurant.nearestMetroName && (
-          <button onClick={onOpen} className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 text-[11px] font-semibold text-ink/50">
-            <span className="truncate">Métro {restaurant.nearestMetroName}</span>
-            {metroStyle && (
-              <span
-                className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border px-1 text-[10px] font-black"
-                style={{ backgroundColor: metroStyle.background, color: metroStyle.foreground, borderColor: metroStyle.border }}
-              >
-                {metroStyle.label}
-              </span>
-            )}
-          </button>
-        )}
-        <div className="mt-4 flex gap-2 border-t border-black/[.06] pt-4">
-          {[
-            { value: restaurant.services.dineIn, label: "Sur place", icon: Store },
-            { value: visibility.takeaway === false ? false : restaurant.services.takeaway, label: "À emporter", icon: UtensilsCrossed },
-            { value: visibility.delivery === false ? false : restaurant.services.delivery, label: "Livraison", icon: Car },
-          ].map(({ value, label, icon: Icon }) => <span key={label} title={value === null ? unknown : label} className={`flex items-center gap-1 text-[10px] ${value ? "text-moss" : "text-ink/25"}`}><Icon size={13} />{label}</span>)}
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {visibility.phone !== false && restaurant.phone && <a href={`tel:${restaurant.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-semibold text-white"><Phone size={14} /> Appeler</a>}
-          {visibility.map !== false && <ItineraryMenu restaurant={restaurant} compact />}
-        </div>
-        <div className="mt-2 flex items-center justify-center gap-1">
-          {visibility.website !== false && restaurant.website && <a href={restaurant.website} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Site internet"><Globe2 size={14} /></a>}
-          {visibility.instagram !== false && restaurant.instagram && <a href={restaurant.instagram} target="_blank" rel="noreferrer" className="grid size-8 place-items-center rounded-full text-ink/35 transition hover:bg-cream hover:text-ink" aria-label="Instagram"><Instagram size={14} /></a>}
-          <DeliveryPlatformButtons
-            name={restaurant.name}
-            city={restaurant.city}
-            deliverooUrl={restaurant.deliverooUrl}
-            uberEatsUrl={restaurant.uberEatsUrl}
-            showDeliveroo={visibility.deliveroo !== false}
-            showUberEats={visibility.ubereats !== false}
-            compact
-          />
-          <ShareButton entity={entity} compact />
-        </div>
-      </div>
-    </article>
-  );
-}
+
 
 export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants: Restaurant[] }) {
   const [query, setQuery] = useState("");

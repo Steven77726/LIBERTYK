@@ -60,6 +60,7 @@ import {
   updateRubricOrder,
 } from "@/lib/supabase/rubrics-repository";
 import { GoogleSyncModal } from "./google-sync-modal";
+import { EstablishmentEditor } from "./establishment-editor";
 import { getEstablishmentGoogleBusiness, type GooglePlaceDetails } from "@/lib/google-places";
 import {
   createSubrubric as createSubrubricInSupabase,
@@ -110,15 +111,16 @@ import {
   upsertBeautyService,
 } from "@/lib/supabase/beauty-repository";
 import type { BeautyCategory, BeautyProfessionalService, BeautyService } from "@/lib/beauty/types";
+export type { BeautyCategory, BeautyProfessionalService, BeautyService };
 
-type AdminStatus = "Publié" | "Brouillon" | "Masqué";
-type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
-type BannerPosition = "Home" | "Rubrique" | "Sous-rubrique" | "Fiche";
-type KosherType = "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "À compléter";
-type SponsorshipLevel = "Standard" | "Featured" | "Premium" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
-type RubricFormat = "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
-type FieldVisibility = Record<string, boolean>;
-type AdminUserProfile = {
+export type AdminStatus = "Publié" | "Brouillon" | "Masqué";
+export type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
+export type BannerPosition = "Home" | "Rubrique" | "Sous-rubrique" | "Fiche";
+export type KosherType = "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "À compléter";
+export type SponsorshipLevel = "Standard" | "Featured" | "Premium" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
+export type RubricFormat = "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
+export type FieldVisibility = Record<string, boolean>;
+export type AdminUserProfile = {
   id: string;
   email: string | null;
   full_name: string | null;
@@ -131,13 +133,13 @@ type AdminUserProfile = {
   last_sign_in_at: string | null;
 };
 
-type AdminHoursValue = Record<string, { open: boolean; slot1Start: string; slot1End: string; slot2Start: string; slot2End: string }>;
-type SeoPriority = "critical" | "high" | "medium" | "low";
-type SeoSection = "content" | "technical" | "local" | "search";
-type SeoEntityType = "home" | "category" | "subcategory" | "establishment" | "static";
-type SeoSuggestionAction = "metaTitle" | "metaDescription" | "altText" | "customerSearchTerms" | "visibleTags" | "description" | "internalLinks";
+export type AdminHoursValue = Record<string, { open: boolean; slot1Start: string; slot1End: string; slot2Start: string; slot2End: string }>;
+export type SeoPriority = "critical" | "high" | "medium" | "low";
+export type SeoSection = "content" | "technical" | "local" | "search";
+export type SeoEntityType = "home" | "category" | "subcategory" | "establishment" | "static";
+export type SeoSuggestionAction = "metaTitle" | "metaDescription" | "altText" | "customerSearchTerms" | "visibleTags" | "description" | "internalLinks";
 
-type SeoIssue = {
+export type SeoIssue = {
   id: string;
   priority: SeoPriority;
   section: SeoSection;
@@ -147,7 +149,7 @@ type SeoIssue = {
   impact: string;
 };
 
-type SeoSuggestion = {
+export type SeoSuggestion = {
   id: string;
   action: SeoSuggestionAction;
   label: string;
@@ -156,7 +158,7 @@ type SeoSuggestion = {
   entityId: string;
 };
 
-type SeoReport = {
+export type SeoReport = {
   id: string;
   entityType: SeoEntityType;
   entityId: string;
@@ -174,7 +176,7 @@ type SeoReport = {
   lastAnalyzedAt: string;
 };
 
-type AdminRubric = {
+export type AdminRubric = {
   id: string;
   slug?: string;
   name: string;
@@ -194,7 +196,7 @@ type AdminRubric = {
   updatedAt?: string;
 };
 
-type AdminSubrubric = {
+export type AdminSubrubric = {
   id: string;
   rubricId: string;
   slug?: string;
@@ -217,7 +219,7 @@ type AdminSubrubric = {
   updatedAt?: string;
 };
 
-type AdminTag = {
+export type AdminTag = {
   id: string;
   label: string;
   kind?: "visible" | "search";
@@ -228,14 +230,14 @@ type AdminTag = {
   status?: AdminStatus;
 };
 
-type AdminCertification = {
+export type AdminCertification = {
   id: string;
   label: string;
   order: number;
   status: AdminStatus;
 };
 
-type AdminEstablishment = {
+export type AdminEstablishment = {
   id: string;
   databaseId?: string;
   rubricId: string;
@@ -3488,10 +3490,10 @@ export function AdminDashboard() {
     if (savingAction || rubricsOperation) return;
     if (!requireAdminWrite()) return;
     const slug = establishment.slug || slugify(establishment.name);
-    if (!requireFields([["nom", establishment.name], ["slug", slug], ["description courte", establishment.shortDescription], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
+    if (!requireFields([["nom", establishment.name], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
     if (!validateUniqueEstablishmentSlug(establishment, slug) || !validateCoordinates(establishment)) return;
     setRubricsOperation(`establishment-draft-${establishment.id}`);
-    setSavingAction("Sauvegarde fiche");
+    setSavingAction("Sauvegarde brouillon...");
     const draft = { ...establishment, slug, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
     try {
       if (auth.configured && hasAdminAccess) {
@@ -3521,11 +3523,11 @@ export function AdminDashboard() {
     if (savingAction || rubricsOperation) return;
     if (!requireAdminWrite()) return;
     const slug = establishment.slug || slugify(establishment.name);
-    if (!requireFields([["nom", establishment.name], ["slug", slug], ["description courte", establishment.shortDescription], ["description", establishment.description], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
+    if (!requireFields([["nom", establishment.name], ["rubrique", establishment.rubricId], ["sous-rubrique", establishment.subrubricId]])) return;
     if (!validateUniqueEstablishmentSlug(establishment, slug) || !validateCoordinates(establishment)) return;
     if (!confirmSeoPublication("establishment", establishment.id)) return;
     setRubricsOperation(`establishment-publish-${establishment.id}`);
-    setSavingAction("Publication en cours…");
+    setSavingAction("Publication de la fiche...");
     const published = { ...establishment, slug, status: "Publié" as AdminStatus, visible: true, updatedAt: new Date().toISOString() };
     try {
       if (auth.configured && hasAdminAccess) {
@@ -4503,453 +4505,66 @@ export function AdminDashboard() {
                   </div>
                 </Panel>
 
-                <Panel title={selectedEstablishment.name} subtitle="Fiche éditable complète, prête à être branchée sur Supabase.">
-                  <div className="mt-6 grid gap-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setGoogleSyncOpen(true)}
-                        className="flex items-center gap-1.5 rounded-full border border-moss/30 bg-gradient-to-r from-[#d5bb7d]/20 to-[#8fa98d]/30 px-4 py-2 text-xs font-bold text-ink shadow-sm transition hover:scale-105"
-                      >
-                        <Sparkles size={14} className="text-moss" /> Synchroniser Google Business
-                      </button>
-                      <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateEstablishment(selectedEstablishment)} className="rounded-full bg-sage px-4 py-2 text-xs font-semibold text-moss disabled:cursor-not-allowed disabled:opacity-45">Dupliquer</button>
-                      <span className={`rounded-full border px-3 py-2 text-xs font-semibold ${statusBadge(selectedEstablishment.status)}`}>{selectedEstablishment.status}</span>
-                    </div>
-                    {(() => {
-                      const completeness = getCompleteness(selectedEstablishment);
-                      return (
-                        <div className="rounded-3xl border border-black/[.06] bg-white p-5 shadow-sm">
-                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="font-semibold">Complétude de la fiche</p>
-                              <p className="mt-1 text-xs leading-5 text-ink/45">Liberty vérifie les informations importantes avant publication.</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="h-2 w-32 overflow-hidden rounded-full bg-cream">
-                                <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${completeness.score}%` }} />
-                              </div>
-                              <span className="text-sm font-semibold text-moss">{completeness.score}%</span>
-                            </div>
-                          </div>
-                          {completeness.missing.length > 0 ? (
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {completeness.missing.map((item) => (
-                                <span key={item} className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">{item} à compléter</span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-4 rounded-full bg-sage px-3 py-2 text-xs font-semibold text-moss">Fiche prête à être publiée.</p>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-ink/40">Visuels & Galerie photos</p>
-                      <button
-                        type="button"
-                        onClick={() => syncSingleEstablishmentPhotos(selectedEstablishment.id)}
-                        className="flex items-center gap-1.5 rounded-full bg-[#f6ecd9] px-3.5 py-1.5 text-xs font-bold text-[#8f6424] shadow-xs transition hover:bg-[#8f6424] hover:text-white"
-                      >
-                        🪄 Remplir avec les photos Google Business
-                      </button>
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-                      <PreviewImage src={selectedEstablishment.mainPhoto} alt={selectedEstablishment.name} />
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                          <ImageUploadField label="Photo principale" value={selectedEstablishment.mainPhoto} folder="establishments" onChange={(value) => updateEstablishment(selectedEstablishment.id, { mainPhoto: value })} />
-                          {selectedEstablishment.mainPhoto && (
-                            <button onClick={() => updateEstablishment(selectedEstablishment.id, { mainPhoto: "" })} className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-500">Supprimer la photo</button>
-                          )}
-                        </div>
-                      {normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4).map((photo, index) => (
-                          <div
-                            key={index}
-                            draggable
-                            onDragStart={(event) => event.dataTransfer.setData("text/plain", String(index))}
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              const sourceIndex = Number(event.dataTransfer.getData("text/plain"));
-                              if (!Number.isInteger(sourceIndex) || sourceIndex === index) return;
-                              const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
-                              const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), "", "", "", ""].slice(0, 4);
-                              const [movedPhoto] = photos.splice(sourceIndex, 1);
-                              const [movedAlt] = photoAlts.splice(sourceIndex, 1);
-                              photos.splice(index, 0, movedPhoto ?? "");
-                              photoAlts.splice(index, 0, movedAlt ?? "");
-                              updateEstablishment(selectedEstablishment.id, { photos: photos.slice(0, 4), photoAlts: photoAlts.slice(0, 4) });
-                            }}
-                            className="grid cursor-grab gap-2 rounded-2xl border border-transparent p-2 transition hover:border-moss/20 active:cursor-grabbing"
-                          >
-                            <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-ink/30">Glisser pour réordonner</p>
-                            <ImageUploadField
-                              label={`Photo ${index + 2}`}
-                              folder="establishments"
-                              value={photo}
-                              onChange={(value) => {
-                                const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
-                                photos[index] = value;
-                                updateEstablishment(selectedEstablishment.id, { photos });
-                              }}
-                            />
-                            <Field
-                              label={`Alt photo ${index + 2}`}
-                              value={selectedEstablishment.photoAlts?.[index] ?? ""}
-                              onChange={(value) => {
-                                const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), ""].slice(0, 4);
-                                photoAlts[index] = value;
-                                updateEstablishment(selectedEstablishment.id, { photoAlts });
-                              }}
-                            />
-                            {photo && (
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  onClick={() => {
-                                    if (index === 0) return;
-                                    const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
-                                    const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), "", "", "", ""].slice(0, 4);
-                                    [photos[index - 1], photos[index]] = [photos[index], photos[index - 1]];
-                                    [photoAlts[index - 1], photoAlts[index]] = [photoAlts[index], photoAlts[index - 1]];
-                                    updateEstablishment(selectedEstablishment.id, { photos, photoAlts });
-                                  }}
-                                  className="w-fit rounded-full bg-cream px-3 py-1 text-xs font-semibold text-ink/55"
-                                >
-                                  ↑
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (index === 3) return;
-                                    const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
-                                    const photoAlts = [...(selectedEstablishment.photoAlts ?? ["", "", "", ""]), "", "", "", ""].slice(0, 4);
-                                    [photos[index + 1], photos[index]] = [photos[index], photos[index + 1]];
-                                    [photoAlts[index + 1], photoAlts[index]] = [photoAlts[index], photoAlts[index + 1]];
-                                    updateEstablishment(selectedEstablishment.id, { photos, photoAlts });
-                                  }}
-                                  className="w-fit rounded-full bg-cream px-3 py-1 text-xs font-semibold text-ink/55"
-                                >
-                                  ↓
-                                </button>
-                              <button
-                                onClick={() => {
-                                  const photos = normalizePhotoSlots(selectedEstablishment.mainPhoto, selectedEstablishment.photos, 4);
-                                  photos[index] = "";
-                                  updateEstablishment(selectedEstablishment.id, { photos });
-                                }}
-                                className="w-fit rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-500"
-                              >
-                                Supprimer
-                              </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <Field label="Nom" value={selectedEstablishment.name} onChange={(value) => updateEstablishment(selectedEstablishment.id, { name: value })} />
-                      <Field label="Slug" value={selectedEstablishment.slug ?? slugify(selectedEstablishment.name)} onChange={(value) => updateEstablishment(selectedEstablishment.id, { slug: value })} />
-                      <SelectField 
-                        label="Rubrique" 
-                        value={selectedEstablishment.rubricId} 
-                        onChange={(value) => {
-                          const firstSub = state.subrubrics.find((item) => item.rubricId === value);
-                          updateEstablishment(selectedEstablishment.id, { 
-                            rubricId: value, 
-                            subrubricId: firstSub?.id ?? "" 
-                          });
-                        }}
-                      >
-                        {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>📁 {rubric.name}</option>)}
-                      </SelectField>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold uppercase tracking-[.14em] text-ink/40">Sous-rubrique</label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const currentRubric = state.rubrics.find((r) => r.id === selectedEstablishment.rubricId);
-                              const name = window.prompt(`Nom de la nouvelle sous-rubrique pour "${currentRubric?.name || 'cette rubrique'}" :`, "Déco");
-                              if (name && name.trim()) {
-                                const rubricId = selectedEstablishment.rubricId;
-                                const parentSlug = currentRubric?.slug || rubricId;
-                                const slug = `${slugify(name.trim())}-${parentSlug}`;
-                                const newIdStr = newId("subrubric");
-                                const newSub: AdminSubrubric = {
-                                  id: newIdStr,
-                                  rubricId,
-                                  name: name.trim(),
-                                  slug,
-                                  description: `${name.trim()} sélectionnés dans Liberty K.`,
-                                  icon: name.trim(),
-                                  photo: currentRubric?.image || "/images/mariage/kinor-decor.jpg",
-                                  imageAlt: name.trim(),
-                                  showPublicly: true,
-                                  format: "Carré standard",
-                                  columnsDesktop: 3,
-                                  columnsTablet: 2,
-                                  columnsMobile: 1,
-                                  searchKeywords: [name.trim(), slug, parentSlug],
-                                  order: state.subrubrics.filter((s) => s.rubricId === rubricId).length + 1,
-                                  status: "Publié",
-                                  visible: true,
-                                  updatedAt: new Date().toISOString(),
-                                };
-                                commitState((curr) => ({
-                                  ...curr,
-                                  subrubrics: [...curr.subrubrics, newSub],
-                                  establishments: curr.establishments.map((est) =>
-                                    est.id === selectedEstablishment.id ? { ...est, subrubricId: newIdStr } : est
-                                  ),
-                                }), `Sous-rubrique "${name.trim()}" créée et associée !`, "Création");
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-moss hover:underline cursor-pointer"
-                          >
-                            <Plus size={12} /> + Nouvelle sous-rubrique
-                          </button>
-                        </div>
-                        <select
-                          className="w-full rounded-2xl border border-black/5 bg-cream/35 px-4 py-3 text-xs font-semibold outline-hidden focus:bg-white focus:ring-2 focus:ring-moss"
-                          value={selectedEstablishment.subrubricId}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            const subrubric = state.subrubrics.find((item) => item.id === value);
-                            updateEstablishment(selectedEstablishment.id, { subrubricId: value, rubricId: subrubric?.rubricId ?? selectedEstablishment.rubricId });
-                          }}
-                        >
-                          {state.subrubrics.filter((sub) => sub.rubricId === selectedEstablishment.rubricId).length === 0 ? (
-                            <option value="">Aucune sous-rubrique (Cliquez sur + Nouvelle sous-rubrique)</option>
-                          ) : (
-                            state.subrubrics
-                              .filter((sub) => sub.rubricId === selectedEstablishment.rubricId)
-                              .map((subrubric) => (
-                                <option key={subrubric.id} value={subrubric.id}>
-                                  ↳ {subrubric.name}
-                                </option>
-                              ))
-                          )}
-                        </select>
-                      </div>
-                      <Field label="Description courte" value={selectedEstablishment.shortDescription ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { shortDescription: value })} />
-                      <Field label="Description" value={selectedEstablishment.description} textarea onChange={(value) => updateEstablishment(selectedEstablishment.id, { description: value })} />
-                      <HoursEditor value={selectedEstablishment.hours} onChange={(value) => updateEstablishment(selectedEstablishment.id, { hours: value })} />
-                      <Field label="Adresse" value={selectedEstablishment.address} onChange={(value) => updateEstablishment(selectedEstablishment.id, { address: value })} />
-                      <Field label="Ville" value={selectedEstablishment.city} onChange={(value) => updateEstablishment(selectedEstablishment.id, { city: value })} />
-                      <Field label="Arrondissement" value={selectedEstablishment.arrondissement} onChange={(value) => updateEstablishment(selectedEstablishment.id, { arrondissement: value })} />
-                      <Field label="Code postal" value={selectedEstablishment.postalCode ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { postalCode: value })} />
-                      <Field label="Pays" value={selectedEstablishment.country ?? "France"} onChange={(value) => updateEstablishment(selectedEstablishment.id, { country: value })} />
-                      <div className="rounded-3xl border border-black/[.06] bg-white p-5 shadow-sm lg:col-span-2">
-                        <p className="text-xs font-semibold uppercase tracking-[.16em] text-ink/35">Transport & Accès</p>
-                        <p className="mt-1 text-xs leading-5 text-ink/45">Optionnel. Renseignez séparément la station et la ligne pour que Liberty affiche automatiquement la bonne couleur.</p>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_160px]">
-                          <Field label="Métro le plus proche" value={selectedEstablishment.nearestMetroName ?? ""} placeholder="Ex. Ternes" onChange={(value) => updateEstablishment(selectedEstablishment.id, { nearestMetroName: value })} />
-                          <Field label="Ligne" value={selectedEstablishment.nearestMetroLine ?? ""} placeholder="Ex. 2, 3bis, 7bis" onChange={(value) => updateEstablishment(selectedEstablishment.id, { nearestMetroLine: value })} />
-                        </div>
-                      </div>
-                      <Field label="Email" value={selectedEstablishment.email ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { email: value })} />
-                      <Field label="Téléphone" value={selectedEstablishment.phone} onChange={(value) => updateEstablishment(selectedEstablishment.id, { phone: value })} />
-                      <Field label="WhatsApp" value={selectedEstablishment.whatsapp} onChange={(value) => updateEstablishment(selectedEstablishment.id, { whatsapp: value })} />
-                      <Field label="Instagram" value={selectedEstablishment.instagram} onChange={(value) => updateEstablishment(selectedEstablishment.id, { instagram: value })} />
-                      <Field label="Lien Deliveroo" value={selectedEstablishment.deliverooUrl ?? ""} placeholder="https://deliveroo.fr/... (auto-match si vide)" onChange={(value) => updateEstablishment(selectedEstablishment.id, { deliverooUrl: value })} />
-                      <Field label="Lien Uber Eats" value={selectedEstablishment.uberEatsUrl ?? ""} placeholder="https://www.ubereats.com/... (auto-match si vide)" onChange={(value) => updateEstablishment(selectedEstablishment.id, { uberEatsUrl: value })} />
-                      <Field label="Site Internet" value={selectedEstablishment.website} onChange={(value) => updateEstablishment(selectedEstablishment.id, { website: value })} />
-                      <Field label="URL réservation" value={selectedEstablishment.reservationTarget ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { reservationTarget: value })} />
-                      <SelectField label="Certification cacher" value={selectedEstablishment.certification} onChange={(value) => updateEstablishment(selectedEstablishment.id, { certification: value })}>
-                        <option value="">À compléter</option>
-                        {state.certifications.filter((item) => item.status !== "Masqué").sort((a, b) => a.order - b.order).map((certification) => <option key={certification.id}>{certification.label}</option>)}
-                      </SelectField>
-                      <SelectField label="Type" value={selectedEstablishment.kosherType} onChange={(value) => updateEstablishment(selectedEstablishment.id, { kosherType: value as KosherType })}>
-                        <option>Bassari</option><option>Halavi</option><option>Parvé</option><option>No Teouda / Friendly</option><option>À compléter</option>
-                      </SelectField>
-                      <Field label="Prix moyen" value={selectedEstablishment.averagePrice} onChange={(value) => updateEstablishment(selectedEstablishment.id, { averagePrice: value })} />
-                      <Field label="Types de cuisine" value={(selectedEstablishment.cuisineTypes ?? []).join(", ")} onChange={(value) => updateEstablishment(selectedEstablishment.id, { cuisineTypes: cleanTextList(value) })} />
-                      <Field label="Latitude" value={selectedEstablishment.latitude} onChange={(value) => updateEstablishment(selectedEstablishment.id, { latitude: value })} />
-                      <Field label="Longitude" value={selectedEstablishment.longitude} onChange={(value) => updateEstablishment(selectedEstablishment.id, { longitude: value })} />
-                      <Field label="Ordre d’affichage" value={selectedEstablishment.order} type="number" onChange={(value) => updateEstablishment(selectedEstablishment.id, { order: Number(value) })} />
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <Toggle label="Terrasse" checked={selectedEstablishment.terrace} onChange={(value) => updateEstablishment(selectedEstablishment.id, { terrace: value })} />
-                      <Toggle label="Livraison" checked={selectedEstablishment.delivery} onChange={(value) => updateEstablishment(selectedEstablishment.id, { delivery: value })} />
-                      <Toggle label="À emporter" checked={selectedEstablishment.takeaway} onChange={(value) => updateEstablishment(selectedEstablishment.id, { takeaway: value })} />
-                      <Toggle label="Réservation" checked={selectedEstablishment.reservation} onChange={(value) => updateEstablishment(selectedEstablishment.id, { reservation: value })} />
-                      <Toggle label="Privatisation" checked={selectedEstablishment.privateHire} onChange={(value) => updateEstablishment(selectedEstablishment.id, { privateHire: value })} />
-                      <Toggle label="Visible sur le site" checked={selectedEstablishment.visible ?? true} onChange={(value) => updateEstablishment(selectedEstablishment.id, { visible: value })} />
-                      <Toggle label="Sponsorisé actif" checked={selectedEstablishment.sponsored} onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsored: value, sponsorshipLevel: value ? "Featured" : "Standard" })} />
-                    </div>
-
-                    <div className="rounded-3xl bg-white p-5 shadow-sm">
-                      <div className="mb-4">
-                        <p className="font-semibold">Champs visibles sur la fiche publique</p>
-                        <p className="mt-1 text-xs leading-5 text-ink/45">Activez uniquement les informations que vous voulez afficher côté utilisateur.</p>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        {visibilityLabels.map(({ key, label }) => {
-                          const visibility = { ...defaultFieldVisibility, ...(selectedEstablishment.fieldVisibility ?? {}) };
-                          return (
-                            <Toggle
-                              key={key}
-                              label={label}
-                              checked={visibility[key] !== false}
-                              onChange={(value) => updateEstablishment(selectedEstablishment.id, { fieldVisibility: { ...visibility, [key]: value } })}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-4">
-                      <SelectField label="Statut" value={selectedEstablishment.status} onChange={(value) => updateEstablishment(selectedEstablishment.id, { status: value as AdminStatus })}>
-                        <option>Publié</option><option>Brouillon</option><option>Masqué</option>
-                      </SelectField>
-                      <SelectField label="Mise en avant" value={selectedEstablishment.sponsorshipLevel ?? (selectedEstablishment.sponsored ? "Sponsorisé" : "Standard")} onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsorshipLevel: value as SponsorshipLevel, sponsored: value !== "Standard" })}>
-                        <option>Standard</option><option>Featured</option><option>Premium</option>
-                      </SelectField>
-                      <Field label="Priorité sponsorisée" value={selectedEstablishment.sponsorPriority} type="number" onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsorPriority: Number(value) })} />
-                      <Field label="Durée sponsorisée" value={selectedEstablishment.sponsorDuration} onChange={(value) => updateEstablishment(selectedEstablishment.id, { sponsorDuration: value })} />
-                    </div>
-
-                    <div className="rounded-3xl bg-ink p-5 text-white">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold">Monétisation de la fiche</p>
-                          <p className="mt-1 text-xs text-white/45">Le badge devient visible côté fiche dès que le niveau est Sponsorisé, Partenaire officiel ou Coup de cœur Liberty.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {["Standard", "Featured", "Premium"].map((level) => (
-                            <button
-                              key={level}
-                              onClick={() => updateEstablishment(selectedEstablishment.id, { sponsorshipLevel: level as SponsorshipLevel, sponsored: level !== "Standard" })}
-                              className={`rounded-full px-4 py-2 text-xs font-semibold ${((selectedEstablishment.sponsorshipLevel ?? "Standard") === level) ? "bg-white text-ink" : "bg-white/10 text-white/55"}`}
-                            >
-                              {level}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      {(selectedEstablishment.sponsorshipLevel ?? "Standard") !== "Standard" && (
-                        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#f6ecd9] px-3 py-1 text-xs font-semibold text-[#9b6b2d]">
-                          <Megaphone size={13} /> Badge {selectedEstablishment.sponsorshipLevel} · priorité {selectedEstablishment.sponsorPriority || 1}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      <div>
-                        <KeywordChipsField
-                          label="Recherches clients"
-                          terms={selectedEstablishment.customerSearches}
-                          onChange={(terms) => updateEstablishment(selectedEstablishment.id, { customerSearches: terms })}
-                          help="Tapez un mot ou une expression puis Entrée ou virgule. Ces mots servent uniquement à Liberty IA et au classement."
-                        />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-[11px] font-semibold uppercase tracking-[.14em] text-ink/35">Tags visibles sur la fiche</p>
-                          <button onClick={addTag} className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">Créer un tag</button>
-                        </div>
-                        <div className="rounded-3xl border border-black/[.06] bg-white p-3">
-                          <div className="flex flex-wrap gap-2">
-                            {selectedEstablishment.visibleTagIds.length ? selectedEstablishment.visibleTagIds.map((tagId) => {
-                              const tag = state.tags.find((item) => item.id === tagId);
-                              if (!tag) return null;
-                              return (
-                                <button
-                                  key={tagId}
-                                  type="button"
-                                  onClick={() => updateEstablishment(selectedEstablishment.id, { visibleTagIds: selectedEstablishment.visibleTagIds.filter((id) => id !== tagId) })}
-                                  className="rounded-full bg-sage px-3 py-1.5 text-xs font-semibold text-moss transition hover:bg-rose-50 hover:text-rose-600"
-                                  aria-label={`Retirer ${tag.label}`}
-                                >
-                                  {tag.label} ×
-                                </button>
-                              );
-                            }) : <span className="text-xs text-ink/35">Aucun tag sélectionné.</span>}
-                          </div>
-                          <div className="mt-3">
-                            <Field label="Rechercher un tag" value={tagPickerSearch} onChange={setTagPickerSearch} placeholder="terrasse, livraison, bassari…" />
-                          </div>
-                          <div className="mt-3 grid max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                            {state.tags
-                              .filter((tag) => tag.status !== "Masqué")
-                              .filter((tag) => !tagPickerSearch.trim() || slugify(tag.label).includes(slugify(tagPickerSearch)))
-                              .sort((a, b) => a.order - b.order)
-                              .slice(0, 24)
-                              .map((tag) => {
-                                const checked = selectedEstablishment.visibleTagIds.includes(tag.id);
-                                return (
-                                  <button
-                                    key={tag.id}
-                                    type="button"
-                                    onClick={() => updateEstablishment(selectedEstablishment.id, {
-                                      visibleTagIds: checked
-                                        ? selectedEstablishment.visibleTagIds.filter((id) => id !== tag.id)
-                                        : [...new Set([...selectedEstablishment.visibleTagIds, tag.id])],
-                                    })}
-                                    className={`rounded-2xl border px-4 py-3 text-left text-sm transition ${checked ? "border-moss/20 bg-sage text-moss" : "border-black/10 bg-cream text-ink/55 hover:bg-sage hover:text-moss"}`}
-                                  >
-                                    {tag.label}
-                                  </button>
-                                );
-                              })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {selectedIsBeauty && (
-                      <div className="rounded-3xl bg-white p-5 shadow-sm">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="font-semibold">Prestations Soins femme</p>
-                            <p className="mt-1 text-xs leading-5 text-ink/45">Prix, durée, domicile/sur place sont gérés dans le module dédié.</p>
-                          </div>
-                          <button onClick={() => goToSection("beauty")} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white">Gérer les prestations</button>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {selectedBeautyServices.length ? selectedBeautyServices.map((service) => (
-                            <span key={service.id} className="rounded-full bg-cream px-3 py-1.5 text-xs font-semibold text-ink/55">
-                              {service.serviceName ?? "Prestation"}{service.price ? ` · ${service.price} €` : ""}{service.durationMinutes ? ` · ${service.durationMinutes} min` : ""}
-                            </span>
-                          )) : <span className="text-xs text-ink/40">Aucune prestation enregistrée.</span>}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="rounded-3xl bg-cream p-5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">Gestion globale des tags visibles</p>
-                          <p className="mt-1 text-xs text-ink/45">Créer, modifier, supprimer et réorganiser les tags disponibles.</p>
-                        </div>
-                        <button onClick={addTag} className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-ink">Ajouter</button>
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {state.tags.map((tag) => (
-                          <div key={tag.id} className="grid grid-cols-[1fr_80px_40px] gap-2">
-                            <input value={tag.label} onChange={(event) => updateTag(tag.id, { label: event.target.value })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
-                            <input value={tag.order} type="number" onChange={(event) => updateTag(tag.id, { order: Number(event.target.value) })} className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none" />
-                            <button onClick={() => void trashTag(tag)} className="grid place-items-center rounded-xl bg-rose-50 text-rose-500"><Trash2 size={14} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <FormActionBar
-                      disabled={Boolean(savingAction || rubricsOperation)}
-                      publishing={rubricsOperation === `establishment-publish-${selectedEstablishment.id}`}
-                      onDraft={() => void saveEstablishmentDraft(selectedEstablishment)}
-                      onPreview={() => setPreviewEstablishment(selectedEstablishment)}
-                      onPublish={() => void publishEstablishment(selectedEstablishment)}
-                      onHide={() => void hideEstablishment(selectedEstablishment)}
-                      onTrash={() => void trashEstablishment(selectedEstablishment)}
-                    />
-                  </div>
-                </Panel>
+                <div className="min-w-0">
+                  <EstablishmentEditor
+                    establishment={selectedEstablishment}
+                    rubrics={state.rubrics}
+                    subrubrics={state.subrubrics}
+                    tags={state.tags}
+                    certifications={state.certifications}
+                    beautyCategories={beautyCategories}
+                    beautyServices={beautyServices}
+                    beautyServicesByProfessional={beautyServicesByProfessional}
+                    busy={Boolean(savingAction || rubricsOperation)}
+                    savingAction={savingAction}
+                    onUpdate={(changes) => updateEstablishment(selectedEstablishment.id, changes)}
+                    onDraft={() => void saveEstablishmentDraft(selectedEstablishment)}
+                    onPublish={() => void publishEstablishment(selectedEstablishment)}
+                    onHide={() => void hideEstablishment(selectedEstablishment)}
+                    onTrash={() => void trashEstablishment(selectedEstablishment)}
+                    onDuplicate={() => void duplicateEstablishment(selectedEstablishment)}
+                    onSyncGooglePhotos={() => syncSingleEstablishmentPhotos(selectedEstablishment.id)}
+                    onOpenGoogleSync={() => setGoogleSyncOpen(true)}
+                    onGoToBeauty={() => goToSection("beauty")}
+                    onNewSubrubric={(rubricId) => {
+                      const currentRubric = state.rubrics.find((r) => r.id === rubricId);
+                      const name = window.prompt(`Nom de la nouvelle sous-rubrique pour "${currentRubric?.name || 'cette rubrique'}" :`, "Déco");
+                      if (name && name.trim()) {
+                        const parentSlug = currentRubric?.slug || rubricId;
+                        const slug = `${slugify(name.trim())}-${parentSlug}`;
+                        const newIdStr = newId("subrubric");
+                        const newSub: AdminSubrubric = {
+                          id: newIdStr,
+                          rubricId,
+                          name: name.trim(),
+                          slug,
+                          description: `${name.trim()} sélectionnés dans Liberty K.`,
+                          icon: name.trim(),
+                          photo: currentRubric?.image || "/images/mariage/kinor-decor.jpg",
+                          imageAlt: name.trim(),
+                          showPublicly: true,
+                          format: "Carré standard",
+                          columnsDesktop: 3,
+                          columnsTablet: 2,
+                          columnsMobile: 1,
+                          searchKeywords: [name.trim(), slug, parentSlug],
+                          order: state.subrubrics.filter((s) => s.rubricId === rubricId).length + 1,
+                          status: "Publié",
+                          visible: true,
+                          updatedAt: new Date().toISOString(),
+                        };
+                        commitState((curr) => ({
+                          ...curr,
+                          subrubrics: [...curr.subrubrics, newSub],
+                          establishments: curr.establishments.map((est) =>
+                            est.id === selectedEstablishment.id ? { ...est, subrubricId: newIdStr } : est
+                          ),
+                        }), `Sous-rubrique "${name.trim()}" créée et associée !`, "Création");
+                      }
+                    }}
+                    onAddTag={addTag}
+                  />
+                </div>
               </div>
             )}
 

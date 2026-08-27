@@ -458,7 +458,6 @@ export function UniversalEstablishmentCard({
   establishment,
   onOpen,
   onReserve,
-  onHours,
   onTag,
   priorityImage = false,
   className = "",

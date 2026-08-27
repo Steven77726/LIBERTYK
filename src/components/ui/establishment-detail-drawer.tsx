@@ -336,7 +336,14 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
   const mapsUrl = isMeaningful(address)
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
     : googleData.googleMapsUrl;
-  const canReserve = visibility.reservation !== false && establishment.reservation && (isMeaningful(establishment.reservationTarget) || Boolean(onReserve));
+  const canReserve =
+    visibility.reservation !== false &&
+    (establishment.reservation || isMeaningful(establishment.reservationTarget) || Boolean(onReserve));
+  const isEvent =
+    establishment.rubricId === "sorties" ||
+    (establishment.subrubricId || "").includes("evenement") ||
+    (establishment.subrubricId || "").includes("concert");
+  const reserveLabel = isEvent ? "Billetterie / Inscription" : "Réservation";
   const beautyServices = (establishment.beautyServices ?? []).filter((service) => service.active);
   const hasGoogleProof = googleData.userRatingsTotal > 145 && isUsableExternalUrl(googleData.googleMapsUrl);
   const googleReview = googleData.reviews.find((review) => !/avis verifie|avis vérifié|client verifie|client vérifié/i.test(review.author));
@@ -534,8 +541,8 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
           {visibility.email !== false && isMeaningful(establishment.email) && <a href={`mailto:${establishment.email}`} className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><Mail size={15} /> Email</a>}
           {canReserve && (
             isMeaningful(establishment.reservationTarget)
-              ? <a href={normalizeExternalUrl(establishment.reservationTarget)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><CalendarDays size={16} /> Réservation</a>
-              : <button onClick={() => onReserve?.(establishment)} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><CalendarDays size={16} /> Réservation</button>
+              ? <a href={normalizeExternalUrl(establishment.reservationTarget)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><CalendarDays size={16} /> {reserveLabel}</a>
+              : <button onClick={() => onReserve?.(establishment)} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><CalendarDays size={16} /> {reserveLabel}</button>
           )}
         </div>
       </div>

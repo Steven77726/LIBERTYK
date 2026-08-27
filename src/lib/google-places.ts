@@ -33,6 +33,26 @@ export type GooglePlaceDetails = {
 
 // Base de données d'enrichissement Google Business & Places pour toutes les adresses de Liberty
 const placeDatabase: Record<string, Partial<GooglePlaceDetails>> = {
+  levinsky: {
+    placeId: "ChIJ_Maison_Levinsky",
+    name: "Maison Levinsky",
+    formattedAddress: "Paris",
+    city: "Paris",
+    rating: 4.8,
+    userRatingsTotal: 185,
+    nearestMetroName: "Pereire",
+    nearestMetroLine: "3",
+  },
+  maison_levinsky: {
+    placeId: "ChIJ_Maison_Levinsky_2",
+    name: "Maison Levinsky",
+    formattedAddress: "Paris",
+    city: "Paris",
+    rating: 4.8,
+    userRatingsTotal: 185,
+    nearestMetroName: "Pereire",
+    nearestMetroLine: "3",
+  },
   afrika: {
     placeId: "ChIJ_Afrika_Levallois_92300",
     name: "Afrika",

@@ -40,6 +40,30 @@ const normalizeExternalUrl = (value?: string) => {
   if (/^(https?:|mailto:|tel:|whatsapp:)/i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
 };
+const normalizeInstagramUrl = (value?: string) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("https://@")) {
+    return `https://instagram.com/${trimmed.slice(9)}`;
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    if (trimmed.includes("instagram.com/")) return trimmed;
+    try {
+      const url = new URL(trimmed);
+      if (!url.hostname.includes(".")) {
+        return `https://instagram.com/${url.hostname}`;
+      }
+    } catch {
+      // ignore
+    }
+    return trimmed;
+  }
+  if (trimmed.startsWith("instagram.com/") || trimmed.startsWith("www.instagram.com/")) {
+    return `https://${trimmed}`;
+  }
+  const clean = trimmed.replace(/^@/, "").replace(/^\/+/, "");
+  return `https://instagram.com/${clean}`;
+};
 const buildAddressQuery = (restaurant: Restaurant) => {
   if (Number.isFinite(restaurant.latitude) && Number.isFinite(restaurant.longitude) && restaurant.latitude !== 48.8566 && restaurant.longitude !== 2.3522) {
     return `${restaurant.latitude},${restaurant.longitude}`;
@@ -275,7 +299,7 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
       image: gallery[0] || "/images/food/restaurants-khan.jpg",
       gallery,
       website: normalizeExternalUrl(item.website),
-      instagram: normalizeExternalUrl(item.instagram),
+      instagram: normalizeInstagramUrl(item.instagram),
       deliverooUrl: item.deliverooUrl,
       uberEatsUrl: item.uberEatsUrl,
       city: item.city || "Paris",

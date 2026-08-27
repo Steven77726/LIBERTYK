@@ -210,9 +210,33 @@ function normalizeUrl(value?: string) {
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return "";
   if (/^(https?:|mailto:|tel:|whatsapp:)/i.test(trimmed)) return trimmed;
-  if (trimmed.startsWith("@")) return `https://instagram.com/${trimmed.slice(1)}`;
   if (/^[\w.-]+\/?$/i.test(trimmed)) return `https://${trimmed}`;
   return trimmed;
+}
+
+function normalizeInstagram(value?: string) {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "";
+  if (trimmed.startsWith("https://@")) {
+    return `https://instagram.com/${trimmed.slice(9)}`;
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    if (trimmed.includes("instagram.com/")) return trimmed;
+    try {
+      const url = new URL(trimmed);
+      if (!url.hostname.includes(".")) {
+        return `https://instagram.com/${url.hostname}`;
+      }
+    } catch {
+      // ignore
+    }
+    return trimmed;
+  }
+  if (trimmed.startsWith("instagram.com/") || trimmed.startsWith("www.instagram.com/")) {
+    return `https://${trimmed}`;
+  }
+  const clean = trimmed.replace(/^@/, "").replace(/^\/+/, "");
+  return `https://instagram.com/${clean}`;
 }
 
 function normalizeCoordinate(value?: string) {
@@ -452,7 +476,7 @@ async function establishmentToPayload(establishment: EstablishmentRecord, status
     phone: establishment.phone ?? "",
     whatsapp: establishment.whatsapp ?? "",
     email: establishment.email ?? "",
-    instagram: normalizeUrl(establishment.instagram),
+    instagram: normalizeInstagram(establishment.instagram),
     website: normalizeUrl(establishment.website),
     reservation_url: normalizeUrl(establishment.reservationTarget),
     reservation_target: normalizeUrl(establishment.reservationTarget),

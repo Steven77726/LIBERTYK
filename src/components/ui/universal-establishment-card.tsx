@@ -116,11 +116,32 @@ function safeExternalUrl(value?: string | null): string {
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return "";
   if (/^(https?:|mailto:|tel:|whatsapp:)/i.test(trimmed)) return trimmed;
-  if (trimmed.startsWith("@")) return `https://instagram.com/${trimmed.slice(1)}`;
-  if (/^[a-zA-Z0-9_.-]+$/.test(trimmed) && !trimmed.includes("/")) {
-    return `https://instagram.com/${trimmed}`;
-  }
   return `https://${trimmed}`;
+}
+
+function safeInstagramUrl(value?: string | null): string {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "";
+  if (trimmed.startsWith("https://@")) {
+    return `https://instagram.com/${trimmed.slice(9)}`;
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    if (trimmed.includes("instagram.com/")) return trimmed;
+    try {
+      const url = new URL(trimmed);
+      if (!url.hostname.includes(".")) {
+        return `https://instagram.com/${url.hostname}`;
+      }
+    } catch {
+      // ignore
+    }
+    return trimmed;
+  }
+  if (trimmed.startsWith("instagram.com/") || trimmed.startsWith("www.instagram.com/")) {
+    return `https://${trimmed}`;
+  }
+  const cleanHandle = trimmed.replace(/^@/, "").replace(/^\/+/, "");
+  return `https://instagram.com/${cleanHandle}`;
 }
 
 function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData {
@@ -172,7 +193,7 @@ function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData 
   const phone = record?.phone || restaurant?.phone || brunch?.phone || "";
   const whatsapp = record?.whatsapp || restaurant?.whatsapp || "";
   const rawInstagram = record?.instagram || restaurant?.instagram || brunch?.instagram || "";
-  const instagram = safeExternalUrl(rawInstagram);
+  const instagram = safeInstagramUrl(rawInstagram);
   const website = safeExternalUrl(record?.website || restaurant?.website || brunch?.source || wine?.website || "");
 
   // Horaires

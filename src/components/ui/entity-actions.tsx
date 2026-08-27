@@ -22,7 +22,9 @@ type EntityActionTarget = {
 function getAbsoluteUrl(path?: string) {
   if (typeof window === "undefined") return path ?? "";
   if (!path) return window.location.href;
-  return new URL(path, window.location.origin).toString();
+  const basePath = window.location.pathname.startsWith("/LIBERTYK") ? "/LIBERTYK" : "";
+  const scopedPath = path.startsWith("/") && basePath && !path.startsWith(`${basePath}/`) ? `${basePath}${path}` : path;
+  return new URL(scopedPath, window.location.origin).toString();
 }
 
 export function LikeButton({ entity, className = "", showLabel = false }: { entity: EntityActionTarget; className?: string; showLabel?: boolean }) {

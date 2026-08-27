@@ -109,7 +109,13 @@ export function SubrubricPageView({
                   if (est.status === "Masqué") return false;
                   const subId = (est.subrubricId || "").toLowerCase();
                   const target = subrubricSlug.toLowerCase();
-                  return subId === target || subId === `${rubricSlug}-${target}` || (target.startsWith("deco") && subId.includes("deco"));
+                  return (
+                    subId === target ||
+                    subId === `${rubricSlug}-${target}` ||
+                    (target.startsWith("deco") && subId.includes("deco")) ||
+                    (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
+                    (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
+                  );
                 });
               }
             } catch {
@@ -128,7 +134,9 @@ export function SubrubricPageView({
                 subId === target ||
                 subId === `${rubricSlug}-${target}` ||
                 (target.startsWith("deco") && subId.includes("deco")) ||
-                (target.startsWith("decor") && subId.includes("decor"))
+                (target.startsWith("decor") && subId.includes("decor")) ||
+                (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
+                (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
               );
             });
             setItems(fallback.length > 0 ? fallback : (establishments ?? []));

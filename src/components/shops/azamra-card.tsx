@@ -9,34 +9,37 @@ import { UniversalEstablishmentCard } from "@/components/ui/universal-establishm
 const azamraToEstablishmentRecord = (): EstablishmentRecord => ({
   id: "azamra",
   rubricId: "shopping",
-  subrubricId: "mode",
+  subrubricId: "shopping-mode",
   mainPhoto: azamra.image,
-  photos: [],
+  photos: azamra.photos,
+  photoAlts: ["Azamra Boutique", "Azamra Collection 1", "Azamra Collection 2", "Azamra Collection 3"],
   name: azamra.name,
   slug: azamra.slug,
-  shortDescription: azamra.type,
+  shortDescription: `${azamra.type} · Shopping`,
   description: azamra.description,
-  address: "",
-  city: "Paris",
-  arrondissement: "",
-  postalCode: "",
-  country: "France",
-  email: "",
-  phone: "",
-  whatsapp: "",
-  instagram: "",
-  website: "",
-  hours: "",
+  address: azamra.address,
+  city: azamra.city,
+  arrondissement: azamra.arrondissement,
+  postalCode: azamra.postalCode,
+  country: azamra.country,
+  nearestMetroName: azamra.nearestMetroName,
+  nearestMetroLine: azamra.nearestMetroLine,
+  email: "contact@azamra.fr",
+  phone: azamra.phone,
+  whatsapp: azamra.whatsapp,
+  instagram: azamra.instagram,
+  website: azamra.website,
+  hours: azamra.hours,
   terrace: false,
   delivery: false,
   takeaway: false,
   reservation: false,
   privateHire: false,
-  certification: "",
+  certification: "Non concerné",
   kosherType: "À compléter",
-  averagePrice: "",
-  latitude: "",
-  longitude: "",
+  averagePrice: "€€",
+  latitude: "48.8862",
+  longitude: "2.3025",
   status: "Publié",
   visible: true,
   sponsorshipLevel: "Standard",
@@ -50,9 +53,17 @@ const azamraToEstablishmentRecord = (): EstablishmentRecord => ({
   reservationTarget: "",
   cuisineTypes: azamra.tags,
   order: 1,
-  customerSearches: [],
+  customerSearches: ["azamra", "vêtements", "mode", "homme", "femme", "enfant"],
   visibleTagIds: azamra.tags,
-  fieldVisibility: {},
+  fieldVisibility: {
+    address: true,
+    phone: true,
+    instagram: true,
+    website: true,
+    opening_hours: true,
+    reviews: true,
+    gallery: true,
+  },
 });
 
 export function AzamraCard() {
@@ -62,10 +73,43 @@ export function AzamraCard() {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const records = await listPublishedEstablishments({ rubricSlug: "shopping", subrubricSlug: "mode" }).catch(() => null);
-      const azamraRecord = records?.find((item) => (item.slug ?? item.id) === "azamra") ?? records?.[0];
-      if (!mounted || !azamraRecord) return;
-      setShopRecord(azamraRecord);
+      // 1. Chercher dans le cache local admin
+      if (typeof window !== "undefined") {
+        try {
+          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const ests = (parsed?.establishments as EstablishmentRecord[]) ?? [];
+            const localAzamra = ests.find(
+              (item) => item.id === "azamra" || item.slug === "azamra" || (item.name || "").toLowerCase().includes("azamra")
+            );
+            if (localAzamra && mounted) {
+              setShopRecord({
+                ...azamraToEstablishmentRecord(),
+                ...localAzamra,
+              });
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // 2. Chercher dans Supabase
+      try {
+        const records = await listPublishedEstablishments({ rubricSlug: "shopping" }).catch(() => null);
+        const azamraRecord = records?.find(
+          (item) => item.slug === "azamra" || item.id === "azamra" || (item.name || "").toLowerCase().includes("azamra")
+        ) ?? records?.[0];
+        if (mounted && azamraRecord) {
+          setShopRecord({
+            ...azamraToEstablishmentRecord(),
+            ...azamraRecord,
+          });
+        }
+      } catch {
+        // ignore
+      }
     };
     void load();
     const refresh = () => void load();

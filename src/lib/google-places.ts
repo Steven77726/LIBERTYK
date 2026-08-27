@@ -27,6 +27,8 @@ export type GooglePlaceDetails = {
   reviews: GooglePlaceReview[];
   openingHours: Record<string, string>;
   openNow: boolean | null;
+  nearestMetroName?: string;
+  nearestMetroLine?: string;
 };
 
 // Base de données d'enrichissement Google Business & Places pour toutes les adresses de Liberty
@@ -417,6 +419,8 @@ const placeDatabase: Record<string, Partial<GooglePlaceDetails>> = {
     latitude: 48.8732,
     longitude: 2.3435,
     phone: "01 47 70 86 09",
+    nearestMetroName: "Cadet",
+    nearestMetroLine: "7",
     website: "https://maps.google.com/?q=Douieb+Paris+9",
     googleMapsUrl: "https://maps.google.com/?q=Douieb+Paris+9",
     rating: 4.8,

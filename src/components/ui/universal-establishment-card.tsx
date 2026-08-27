@@ -164,8 +164,8 @@ function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData 
   const distanceKm = restaurant?.distanceKm || brunch?.distanceKm || 0;
 
   // Métro
-  const nearestMetroName = record?.nearestMetroName || restaurant?.nearestMetroName || brunch?.nearestMetroName || "";
-  const nearestMetroLine = record?.nearestMetroLine || restaurant?.nearestMetroLine || brunch?.nearestMetroLine || "";
+  const nearestMetroName = record?.nearestMetroName || restaurant?.nearestMetroName || brunch?.nearestMetroName || googleData?.nearestMetroName || "";
+  const nearestMetroLine = record?.nearestMetroLine || restaurant?.nearestMetroLine || brunch?.nearestMetroLine || googleData?.nearestMetroLine || "";
 
   // Contact
   const phone = record?.phone || restaurant?.phone || brunch?.phone || "";
@@ -175,7 +175,18 @@ function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData 
   const website = safeExternalUrl(record?.website || restaurant?.website || brunch?.source || wine?.website || "");
 
   // Horaires
-  const hours = record?.hours || "";
+  let hours = record?.hours || "";
+  if (!hours && restaurant?.hours) {
+    const lines = Object.entries(restaurant.hours)
+      .map(([day, time]) => (time && !normalize(time).includes("a completer") && !normalize(time).includes("non renseigne") ? `${day.charAt(0).toUpperCase() + day.slice(1)}: ${time}` : ""))
+      .filter(Boolean);
+    hours = lines.join("\n");
+  } else if (!hours && brunch?.hours) {
+    const lines = Object.entries(brunch.hours)
+      .map(([day, time]) => (time && !normalize(time).includes("a completer") && !normalize(time).includes("non renseigne") ? `${day.charAt(0).toUpperCase() + day.slice(1)}: ${time}` : ""))
+      .filter(Boolean);
+    hours = lines.join("\n");
+  }
 
   // URLs livraison
   const deliverooUrl = record?.deliverooUrl || restaurant?.deliverooUrl || "";

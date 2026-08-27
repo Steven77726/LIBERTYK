@@ -365,13 +365,81 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   useEffect(() => {
     let mounted = true;
     const loadAdminRestaurants = async () => {
-      const supabaseRestaurants = await listPublishedEstablishments({ rubricSlug: "food", subrubricSlug: "restaurants" }).catch(() => null);
-      if (!mounted) return;
-      if (supabaseRestaurants?.length) {
-        setRestaurantData(establishmentRecordsToRestaurants(supabaseRestaurants));
-        return;
+      // 1. Base initiale avec map
+      const mergedMap = new Map<string, Restaurant>();
+      initialRestaurants.forEach((r) => mergedMap.set(r.id, r));
+
+      const findMatchingKey = (candidate: Restaurant) => {
+        const candidateNorm = normalize(candidate.name);
+        const candidateIdNorm = normalize(candidate.id);
+        for (const [key, existing] of mergedMap.entries()) {
+          if (
+            key === candidate.id ||
+            normalize(existing.id) === candidateIdNorm ||
+            normalize(existing.name) === candidateNorm ||
+            (candidate.fullAddress && normalize(existing.fullAddress) === normalize(candidate.fullAddress))
+          ) {
+            return key;
+          }
+        }
+        return null;
+      };
+
+      // 2. Vérifier le cache local admin (localStorage)
+      if (typeof window !== "undefined") {
+        try {
+          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const rawEsts = (parsed?.establishments as EstablishmentRecord[]) ?? [];
+            const localFood = rawEsts.filter((est) => {
+              const rubric = (est.rubricId || "").toLowerCase();
+              return (
+                rubric === "food" ||
+                rubric === "restaurant" ||
+                rubric === "restaurants" ||
+                (est.subrubricId || "").toLowerCase().includes("restaurant") ||
+                (est.subrubricId || "").toLowerCase().includes("traiteur")
+              );
+            });
+            if (localFood.length > 0) {
+              const converted = establishmentRecordsToRestaurants(localFood);
+              converted.forEach((c) => {
+                const matchKey = findMatchingKey(c);
+                if (matchKey) {
+                  mergedMap.set(matchKey, { ...mergedMap.get(matchKey)!, ...c });
+                } else {
+                  mergedMap.set(c.id, c);
+                }
+              });
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
-      setRestaurantData(initialRestaurants);
+
+      // 3. Charger depuis Supabase (source de vérité vivante)
+      try {
+        const supabaseRecords = await listPublishedEstablishments({ rubricSlug: "food" }).catch(() => null);
+        if (supabaseRecords && supabaseRecords.length > 0) {
+          const converted = establishmentRecordsToRestaurants(supabaseRecords);
+          converted.forEach((c) => {
+            const matchKey = findMatchingKey(c);
+            if (matchKey) {
+              mergedMap.set(matchKey, { ...mergedMap.get(matchKey)!, ...c });
+            } else {
+              mergedMap.set(c.id, c);
+            }
+          });
+        }
+      } catch {
+        // ignore
+      }
+
+      if (mounted) {
+        setRestaurantData(Array.from(mergedMap.values()));
+      }
     };
 
     void loadAdminRestaurants();

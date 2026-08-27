@@ -91,55 +91,75 @@ export function SubrubricPageView({
 
         setSubrubric(foundSubrubric);
 
-        if (establishments && establishments.length > 0) {
-          setItems(establishments);
-        } else {
-          // Chercher dans le cache admin local
-          let localAdminMatches: EstablishmentRecord[] = [];
-          if (typeof window !== "undefined") {
-            try {
-              const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
-              if (raw) {
-                const parsed = JSON.parse(raw);
-                const rawEsts = (parsed?.establishments as EstablishmentRecord[]) ?? [];
-                localAdminMatches = rawEsts.filter((est) => {
-                  if (est.rubricId !== rubricSlug) return false;
-                  if (est.status === "Masqué") return false;
-                  const subId = (est.subrubricId || "").toLowerCase();
-                  const target = subrubricSlug.toLowerCase();
+        // 1. Initial matching fallback items
+        const target = subrubricSlug.toLowerCase();
+        const matchesSubrubric = (est: EstablishmentRecord) => {
+          if (est.rubricId !== rubricSlug && est.rubricId !== `${rubricSlug}`) return false;
+          if (est.status === "Masqué") return false;
+          const subId = (est.subrubricId || "").toLowerCase();
+          return (
+            subId === target ||
+            subId === `${rubricSlug}-${target}` ||
+            (target.startsWith("deco") && subId.includes("deco")) ||
+            (target.startsWith("decor") && subId.includes("decor")) ||
+            (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
+            (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
+          );
+        };
+
+        const itemMap = new Map<string, EstablishmentRecord>();
+        (localEstablishments as EstablishmentRecord[]).filter(matchesSubrubric).forEach((item) => {
+          itemMap.set(item.id, item);
+        });
+
+        // 2. Merge local admin cache
+        if (typeof window !== "undefined") {
+          try {
+            const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              const rawEsts = (parsed?.establishments as EstablishmentRecord[]) ?? [];
+              rawEsts.filter(matchesSubrubric).forEach((est) => {
+                const matchKey = Array.from(itemMap.keys()).find((k) => {
+                  const existing = itemMap.get(k);
                   return (
-                    subId === target ||
-                    subId === `${rubricSlug}-${target}` ||
-                    (target.startsWith("deco") && subId.includes("deco")) ||
-                    (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
-                    (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
+                    k === est.id ||
+                    existing?.slug === est.slug ||
+                    (existing?.name && est.name && existing.name.toLowerCase() === est.name.toLowerCase())
                   );
                 });
-              }
-            } catch {
-              // ignore
+                if (matchKey) {
+                  itemMap.set(matchKey, { ...itemMap.get(matchKey)!, ...est });
+                } else {
+                  itemMap.set(est.id, est);
+                }
+              });
             }
-          }
-
-          if (localAdminMatches.length > 0) {
-            setItems(localAdminMatches);
-          } else {
-            const fallback = localEstablishments.filter((item) => {
-              if (item.rubricId !== rubricSlug) return false;
-              const subId = item.subrubricId.toLowerCase();
-              const target = subrubricSlug.toLowerCase();
-              return (
-                subId === target ||
-                subId === `${rubricSlug}-${target}` ||
-                (target.startsWith("deco") && subId.includes("deco")) ||
-                (target.startsWith("decor") && subId.includes("decor")) ||
-                (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
-                (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
-              );
-            });
-            setItems(fallback.length > 0 ? fallback : (establishments ?? []));
+          } catch {
+            // ignore
           }
         }
+
+        // 3. Merge Supabase
+        if (establishments && establishments.length > 0) {
+          establishments.forEach((est) => {
+            const matchKey = Array.from(itemMap.keys()).find((k) => {
+              const existing = itemMap.get(k);
+              return (
+                k === est.id ||
+                existing?.slug === est.slug ||
+                (existing?.name && est.name && existing.name.toLowerCase() === est.name.toLowerCase())
+              );
+            });
+            if (matchKey) {
+              itemMap.set(matchKey, { ...itemMap.get(matchKey)!, ...est });
+            } else {
+              itemMap.set(est.id, est);
+            }
+          });
+        }
+
+        setItems(Array.from(itemMap.values()));
       } catch (loadError) {
         if (!mounted) return;
         setItems([]);

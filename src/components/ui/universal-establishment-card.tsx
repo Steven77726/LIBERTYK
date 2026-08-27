@@ -541,9 +541,17 @@ export function UniversalEstablishmentCard({
               </h3>
             </div>
 
+            {/* Accroche / Description courte */}
             {data.shortDescription && (
-              <p className="mt-1 text-xs font-medium text-ink/55 line-clamp-1">
+              <p className="mt-1 text-xs font-semibold text-moss">
                 {data.shortDescription}
+              </p>
+            )}
+
+            {/* Description détaillée / longue */}
+            {data.description && data.description !== data.shortDescription && (
+              <p className="mt-2 text-xs leading-relaxed text-ink/70 whitespace-pre-line">
+                {data.description}
               </p>
             )}
 
@@ -625,7 +633,7 @@ export function UniversalEstablishmentCard({
                       t !== data.certification &&
                       !t.toLowerCase().includes("sponsorise")
                   )
-                  .slice(0, 3)
+                  .slice(0, 8)
                   .map((tag) => (
                     <span
                       key={tag}
@@ -639,18 +647,11 @@ export function UniversalEstablishmentCard({
                   ))}
             </div>
 
-            {/* Description détaillée si disponible */}
-            {data.description && data.description !== data.shortDescription && (
-              <p className="mt-3 text-xs leading-relaxed text-ink/65 line-clamp-2">
-                {data.description}
-              </p>
-            )}
-
             {/* Localisation : Adresse & Arrondissement (Texte explicite) */}
             {data.fieldVisibility.address !== false && hasMeaningfulAddress && (
               <div className="mt-3 flex items-start gap-1.5 text-left text-xs leading-5 text-ink/60">
                 <MapPin size={13} className="mt-0.5 shrink-0 text-moss" />
-                <span className="line-clamp-1">
+                <span className="line-clamp-2">
                   {data.address}
                   {data.city && data.city !== "Paris" ? ` · ${data.city}` : ""}
                   {data.arrondissement ? ` · ${data.arrondissement}${data.arrondissement.includes("e") ? "" : "e"}` : ""}
@@ -680,30 +681,55 @@ export function UniversalEstablishmentCard({
               </div>
             )}
 
-            {/* Horaires d'ouverture / Statut si renseignés */}
+            {/* Horaires d'ouverture complets si renseignés */}
             {data.fieldVisibility.opening_hours !== false && data.hours && (
-              <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-ink/50 font-medium">
-                <Clock size={12} className="text-moss shrink-0" />
-                <span className="truncate">{data.hours.split("\n")[0] || data.hours}</span>
+              <div className="mt-3 rounded-2xl bg-cream/70 p-3 text-[11px]">
+                <div className="flex items-center gap-1.5 font-bold text-ink/80 mb-1.5">
+                  <Clock size={13} className="text-moss shrink-0" />
+                  <span>Horaires d&apos;ouverture</span>
+                </div>
+                <div className="space-y-1 text-ink/65 text-[11px] leading-snug">
+                  {data.hours.split("\n").filter(Boolean).map((line, idx) => {
+                    const parts = line.split(":");
+                    const day = parts[0]?.trim();
+                    const time = parts.slice(1).join(":").trim();
+                    return (
+                      <div key={idx} className="flex items-center justify-between border-b border-black/[.03] pb-0.5 last:border-0 last:pb-0">
+                        <span className="font-medium text-ink/70">{day}</span>
+                        <span className="font-semibold text-ink/90">{time || "—"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {/* Services Resto/Food si applicables */}
-            {(data.services.dineIn || data.services.takeaway || data.services.delivery) && (
-              <div className="mt-3.5 flex items-center gap-3 border-t border-black/[.05] pt-3 text-[10px] text-ink/40">
+            {/* Services & Équipements si applicables */}
+            {(data.services.dineIn || data.services.takeaway || data.services.delivery || data.amenities.terrace || data.amenities.privateHire) && (
+              <div className="mt-3.5 flex flex-wrap items-center gap-3 border-t border-black/[.05] pt-3 text-[10px] text-ink/50">
                 {data.services.dineIn && (
-                  <span className="flex items-center gap-1 text-moss font-medium">
+                  <span className="flex items-center gap-1 text-moss font-semibold">
                     <Store size={12} /> Sur place
                   </span>
                 )}
                 {data.fieldVisibility.takeaway !== false && data.services.takeaway && (
-                  <span className="flex items-center gap-1 text-moss font-medium">
+                  <span className="flex items-center gap-1 text-moss font-semibold">
                     <UtensilsCrossed size={12} /> À emporter
                   </span>
                 )}
                 {data.fieldVisibility.delivery !== false && data.services.delivery && (
-                  <span className="flex items-center gap-1 text-moss font-medium">
+                  <span className="flex items-center gap-1 text-moss font-semibold">
                     <Car size={12} /> Livraison
+                  </span>
+                )}
+                {data.fieldVisibility.terrace !== false && data.amenities.terrace && (
+                  <span className="flex items-center gap-1 text-moss font-semibold">
+                    Terrasse
+                  </span>
+                )}
+                {data.amenities.privateHire && (
+                  <span className="flex items-center gap-1 text-moss font-semibold">
+                    Privatisable
                   </span>
                 )}
               </div>

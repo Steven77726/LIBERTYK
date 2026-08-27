@@ -1,16 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
-  CalendarDays, ChevronLeft, ChevronRight, Clock, Globe2, Instagram,
-  Mail, MessageCircle, Navigation, Phone, X,
+  CalendarDays, ChevronLeft, ChevronRight, Clock, ExternalLink, Globe2, Instagram,
+  Mail, MessageCircle, Navigation, Phone, Star, X,
 } from "lucide-react";
 import { categoryBySlug } from "@/data/categories";
 import { localSubrubrics } from "@/data/subrubrics";
 import { assetPath } from "@/lib/assets";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
-import { EntityActions } from "@/components/ui/entity-actions";
+import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 
@@ -56,6 +57,11 @@ function isMeaningful(value?: string | null) {
 
 function uniqueList(values: Array<string | undefined | null>) {
   return [...new Set(values.map((value) => value?.trim()).filter(Boolean) as string[])];
+}
+
+function isUsableExternalUrl(value?: string | null) {
+  const trimmed = value?.trim() ?? "";
+  return /^https?:\/\/[^\s]+$/i.test(trimmed);
 }
 
 function normalizeExternalUrl(value?: string) {
@@ -125,33 +131,121 @@ function openStatus(hours?: string) {
   return `Ouvert aujourd’hui · ${value}`;
 }
 
+function todayHours(hours?: string) {
+  const lines = parseHours(hours);
+  const today = days[(new Date().getDay() + 6) % 7];
+  return lines.find((line) => line.day === today)?.value ?? "";
+}
+
 function Gallery({ establishment }: { establishment: EstablishmentRecord }) {
   const images = uniqueList([establishment.mainPhoto, ...(establishment.photos ?? [])]);
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(false);
+  const [pausedUntil, setPausedUntil] = useState(0);
+  const touchStartX = useRef<number | null>(null);
   const current = images[index] ?? images[0];
-  if (!images.length) return null;
 
-  const move = (delta: number) => setIndex((currentIndex) => (currentIndex + delta + images.length) % images.length);
+  useEffect(() => {
+    setIndex(0);
+    setOpen(false);
+    setPausedUntil(0);
+  }, [establishment.id]);
+
+  useEffect(() => {
+    if (images.length <= 1 || open) return undefined;
+    const timer = window.setInterval(() => {
+      if (Date.now() < pausedUntil) return;
+      setIndex((currentIndex) => (currentIndex + 1) % images.length);
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [images.length, open, pausedUntil]);
+
+  useEffect(() => {
+    if (images.length <= 1 || typeof window === "undefined") return;
+    const next = images[(index + 1) % images.length];
+    if (!next) return;
+    const img = new window.Image();
+    img.src = assetPath(next);
+  }, [images, index]);
+
+  if (!images.length) {
+    return (
+      <div className="relative aspect-[16/10] overflow-hidden rounded-3xl bg-linear-to-br from-moss via-ink to-[#d7b46a] shadow-sm">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.22),transparent_36%),radial-gradient(circle_at_80%_70%,rgba(215,180,106,.28),transparent_40%)]" />
+        <div className="absolute inset-x-6 bottom-6 text-white">
+          <p className="text-xs font-semibold uppercase tracking-[.18em] text-white/55">Liberty K</p>
+          <p className="mt-1 text-2xl font-semibold tracking-[-.04em]">{establishment.name}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const pause = () => setPausedUntil(Date.now() + 8000);
+  const move = (delta: number) => {
+    pause();
+    setIndex((currentIndex) => (currentIndex + delta + images.length) % images.length);
+  };
+  const onTouchEnd = (clientX: number) => {
+    if (touchStartX.current === null) return;
+    const delta = clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) < 36 || images.length <= 1) return;
+    move(delta < 0 ? 1 : -1);
+  };
 
   return (
     <>
       <div className="grid gap-2">
-        <button onClick={() => setOpen(true)} className="relative aspect-[16/10] overflow-hidden rounded-3xl bg-sage text-left">
-          <img src={assetPath(images[0])} alt={establishment.name} className="size-full object-cover" />
-          <span className="absolute bottom-4 right-4 rounded-full bg-ink/80 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-            {images.length} photo{images.length > 1 ? "s" : ""}
-          </span>
-        </button>
-        {images.length > 1 && (
-          <div className="grid grid-cols-4 gap-2">
-            {images.slice(0, 4).map((image, imageIndex) => (
-              <button key={image} onClick={() => { setIndex(imageIndex); setOpen(true); }} className="aspect-square overflow-hidden rounded-2xl bg-sage">
-                <img src={assetPath(image)} alt="" className="size-full object-cover" />
-              </button>
-            ))}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpen(true);
+            }
+          }}
+          onMouseEnter={pause}
+          onFocus={pause}
+          onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; pause(); }}
+          onTouchEnd={(event) => onTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+          className="group relative aspect-[16/10] cursor-pointer overflow-hidden rounded-3xl bg-sage text-left shadow-sm outline-none focus:ring-2 focus:ring-moss/30"
+        >
+          <img src={assetPath(current)} alt={establishment.name} className="size-full object-cover transition duration-500 group-hover:scale-[1.015]" />
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-linear-to-t from-black/55 to-transparent p-4 text-white">
+            <span className="rounded-full bg-white/18 px-3 py-1.5 text-xs font-semibold backdrop-blur">
+              {index + 1} / {images.length}
+            </span>
+            {images.length > 1 && (
+              <div className="flex items-center gap-1.5">
+                {images.map((image, imageIndex) => (
+                  <span key={image} className={`h-1.5 rounded-full transition-all ${imageIndex === index ? "w-5 bg-white" : "w-1.5 bg-white/45"}`} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => { event.preventDefault(); event.stopPropagation(); move(-1); }}
+                className="absolute left-3 top-1/2 hidden size-9 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-ink opacity-0 shadow-sm transition group-hover:opacity-100 sm:grid"
+                aria-label="Photo précédente"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={(event) => { event.preventDefault(); event.stopPropagation(); move(1); }}
+                className="absolute right-3 top-1/2 hidden size-9 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-ink opacity-0 shadow-sm transition group-hover:opacity-100 sm:grid"
+                aria-label="Photo suivante"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
       {open && (
         <div
@@ -179,6 +273,39 @@ function formatBeautyPrice(price?: number | null, priceFrom?: boolean) {
   return `${priceFrom ? "Dès " : ""}${Number(price).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
 }
 
+function ActionLink({
+  href,
+  label,
+  detail,
+  icon,
+  dark = false,
+}: {
+  href: string;
+  label: string;
+  detail?: string;
+  icon: ReactNode;
+  dark?: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      target={href.startsWith("tel:") || href.startsWith("mailto:") ? undefined : "_blank"}
+      rel={href.startsWith("tel:") || href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
+      className={`flex min-h-14 items-center gap-2 rounded-2xl px-3 py-2 text-left transition ${
+        dark ? "bg-ink text-white shadow-sm hover:bg-ink/90" : "bg-cream text-ink hover:bg-black/[.04]"
+      }`}
+    >
+      <span className={`grid size-8 shrink-0 place-items-center rounded-xl ${dark ? "bg-white/12 text-white" : "bg-white text-moss shadow-xs"}`}>
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-bold">{label}</span>
+        {detail && <span className={`mt-0.5 block truncate text-[10px] font-semibold ${dark ? "text-white/60" : "text-ink/40"}`}>{detail}</span>}
+      </span>
+    </a>
+  );
+}
+
 export function EstablishmentDetailDrawer({ establishment, open, onClose, onReserve, onTag }: Props) {
   const [showHours, setShowHours] = useState(false);
   const visibility = { ...defaultVisibility, ...(establishment?.fieldVisibility ?? {}) };
@@ -190,19 +317,25 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
   const category = categoryBySlug[establishment.rubricId]?.label || establishment.rubricId;
   const subcategory = subrubricLabel(establishment);
   const href = establishmentHref(establishment);
-  const tags = uniqueList([
-    establishment.kosherType,
-    establishment.certification,
-    establishment.averagePrice,
-    ...(establishment.visibleTagIds ?? []),
-    ...(establishment.cuisineTypes ?? []),
-  ]).filter(isMeaningful);
   const address = [establishment.address, establishment.postalCode, establishment.city, establishment.country].filter(isMeaningful).join(", ");
   const wazeUrl = [establishment.latitude, establishment.longitude].every((value) => isMeaningful(value))
     ? `https://waze.com/ul?ll=${establishment.latitude},${establishment.longitude}&navigate=yes`
     : `https://waze.com/ul?q=${encodeURIComponent(address || establishment.name)}`;
+  const mapsUrl = isMeaningful(address)
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    : googleData.googleMapsUrl;
   const canReserve = visibility.reservation !== false && establishment.reservation && (isMeaningful(establishment.reservationTarget) || Boolean(onReserve));
   const beautyServices = (establishment.beautyServices ?? []).filter((service) => service.active);
+  const hasGoogleProof = googleData.userRatingsTotal > 145 && isUsableExternalUrl(googleData.googleMapsUrl);
+  const googleReview = googleData.reviews.find((review) => !/avis verifie|avis vérifié|client verifie|client vérifié/i.test(review.author));
+  const status = openStatus(establishment.hours);
+  const today = todayHours(establishment.hours);
+  const deliverooUrl = isUsableExternalUrl(establishment.deliverooUrl) ? establishment.deliverooUrl : "";
+  const uberEatsUrl = isUsableExternalUrl(establishment.uberEatsUrl) ? establishment.uberEatsUrl : "";
+  const infoGroups = [
+    uniqueList([...(establishment.cuisineTypes ?? []), ...((establishment.visibleTagIds ?? []).filter((tag) => !["bassari", "halavi", "parve", "sponsorise"].includes(normalize(tag).replace(/\s+/g, "-"))))]).filter(isMeaningful),
+    uniqueList([establishment.certification, establishment.kosherType, establishment.averagePrice]).filter(isMeaningful),
+  ].filter((group) => group.length > 0);
 
   return (
     <EntityDrawer open={open} onClose={onClose} title={establishment.name}>
@@ -211,119 +344,72 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
         <div>
           <div className="flex items-center justify-between gap-2">
             {isMeaningful(subcategory) && <p className="text-xs font-semibold uppercase tracking-[.14em] text-moss/55">{subcategory}</p>}
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              {googleData.openNow ? "Ouvert en direct" : "Fermé"}
-            </span>
+            {status && (
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${normalize(status).includes("ferme") ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-700"}`}>
+                <span className={`size-1.5 rounded-full ${normalize(status).includes("ferme") ? "bg-rose-500" : "animate-pulse bg-emerald-500"}`} />
+                {status}
+              </span>
+            )}
           </div>
           <h2 className="mt-1 text-3xl font-semibold tracking-[-.04em]">{establishment.name}</h2>
-          {isMeaningful(category) && <p className="mt-1 text-xs text-ink/40">{category}</p>}
+          {isMeaningful(category) && <p className="mt-1 text-xs text-ink/40">{category}{status ? ` · ${status}` : ""}</p>}
         </div>
 
-        {/* Barre Google Business élégante avec Maps, Waze et Horaires */}
-        <div className="rounded-2xl border border-black/5 bg-white/95 p-3.5 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="grid size-9 shrink-0 place-items-center rounded-xl border border-black/5 bg-white shadow-xs">
-                <svg className="size-4" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-                </svg>
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                  <span>{googleData.rating}</span>
-                  <span className="text-amber-500">★★★★★</span>
-                  <span className="font-normal text-ink/40">({googleData.userRatingsTotal} avis)</span>
-                </div>
-                <p className="text-[10px] font-medium text-emerald-700">Fiche vérifiée Google</p>
-              </div>
-            </div>
-
-            {/* Boutons d'actions groupés : Maps, Waze, Horaires */}
-            <div className="flex items-center gap-1.5 self-end sm:self-auto">
-              <a
-                href={googleData.googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 rounded-xl bg-cream px-3 py-2 text-[11px] font-semibold text-ink/80 transition hover:bg-black/5"
-                title="Ouvrir dans Google Maps"
-              >
-                <Navigation size={12} className="text-[#4285F4]" /> Maps
-              </a>
-
-              <a
-                href={wazeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 rounded-xl bg-cream px-3 py-2 text-[11px] font-semibold text-ink/80 transition hover:bg-black/5"
-                title="Ouvrir dans Waze"
-              >
-                <span className="text-xs font-bold text-[#33CCFF]">W</span> Waze
-              </a>
-
-              <button
-                type="button"
-                onClick={() => setShowHours((prev) => !prev)}
-                className={`flex items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-semibold transition ${
-                  showHours ? "bg-moss text-white shadow-xs" : "bg-cream text-ink/80 hover:bg-black/5"
-                }`}
-                title="Voir les horaires d'ouverture"
-              >
-                <Clock size={12} /> Horaires {showHours ? "▲" : "▼"}
-              </button>
-            </div>
+        <div className="rounded-3xl border border-black/[.04] bg-white/95 p-3 shadow-sm backdrop-blur">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {hasGoogleProof && (
+              <ActionLink href={googleData.googleMapsUrl} label="Google" detail={`${googleData.rating.toLocaleString("fr-FR")} ★ · ${googleData.userRatingsTotal} avis`} icon={<Star size={15} className="text-amber-500" fill="currentColor" />} />
+            )}
+            {visibility.website !== false && isMeaningful(establishment.website) && (
+              <ActionLink href={normalizeExternalUrl(establishment.website)} label="Site" detail="Site web" icon={<Globe2 size={15} />} />
+            )}
+            {visibility.map !== false && isMeaningful(mapsUrl) && (
+              <ActionLink href={mapsUrl} label="Maps" detail="Itinéraire" icon={<Navigation size={15} />} />
+            )}
+            {visibility.map !== false && isMeaningful(wazeUrl) && (
+              <ActionLink href={wazeUrl} label="Waze" detail="Navigation" icon={<span className="text-xs font-black text-[#33B5E5]">W</span>} />
+            )}
+            {visibility.phone !== false && isMeaningful(establishment.phone) && (
+              <ActionLink href={`tel:${establishment.phone.replace(/\s/g, "")}`} label="Téléphone" detail={establishment.phone} icon={<Phone size={15} />} dark />
+            )}
+            {visibility.instagram !== false && isMeaningful(establishment.instagram) && (
+              <ActionLink href={normalizeExternalUrl(establishment.instagram)} label="Instagram" detail="Profil" icon={<Instagram size={15} />} />
+            )}
           </div>
-
-          {/* Panneau déroulant des Horaires Google */}
-          {showHours && (
-            <div className="mt-3.5 border-t border-black/5 pt-3.5">
-              <div className="flex items-center justify-between pb-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink/40">Horaires d&apos;ouverture Google</p>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-                  {googleData.openNow ? "Ouvert actuellement" : "Fermé actuellement"}
-                </span>
-              </div>
-              <div className="space-y-1 rounded-xl bg-cream/70 p-3 text-xs">
-                {days.map((day) => {
-                  const isToday = days[(new Date().getDay() + 6) % 7] === day;
-                  const lineVal = googleData.openingHours[day] || (hours.find((h) => h.day === day)?.value) || "12:00–15:00, 19:30–23:00";
-                  return (
-                    <div
-                      key={day}
-                      className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 transition ${
-                        isToday ? "bg-white font-bold text-moss shadow-xs" : "text-ink/70"
-                      }`}
-                    >
-                      <span className="capitalize">{day} {isToday && "(Aujourd’hui)"}</span>
-                      <span>{lineVal}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
-        <EntityActions entity={{ id: favoriteEntityId(establishment), title: establishment.name, url: href, text: `${establishment.name} · ${address || category}` }} />
-
-        {isMeaningful(establishment.description) && (
-          <p className="text-sm leading-7 text-ink/55">{establishment.description}</p>
+        {hasGoogleProof && (
+          <div className="rounded-3xl border border-black/[.04] bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <span className="text-amber-500">★★★★★</span>
+              <span>{googleData.rating.toLocaleString("fr-FR")} · {googleData.userRatingsTotal} avis Google</span>
+            </div>
+            {googleReview?.text && <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink/55">&ldquo;{googleReview.text}&rdquo;</p>}
+            <a href={googleData.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-moss">
+              Voir tous les avis Google <ExternalLink size={12} />
+            </a>
+          </div>
         )}
 
-        {visibility.tags !== false && tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 text-xs">
-            {tags.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => onTag?.(tag)}
-                className="rounded-full bg-white px-3 py-2 transition hover:bg-sage hover:text-moss"
-              >
-                {tag}
-              </button>
+        <div className="grid grid-cols-2 gap-2">
+          <LikeButton entity={{ id: favoriteEntityId(establishment), title: establishment.name, url: href, text: `${establishment.name} · ${address || category}` }} showLabel className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-cream px-4 py-3 text-xs font-bold text-ink transition hover:bg-sage" />
+          <ShareButton entity={{ id: favoriteEntityId(establishment), title: establishment.name, url: href, text: `${establishment.name} · ${address || category}` }} />
+        </div>
+
+        {(visibility.tags !== false || visibility.certification !== false) && infoGroups.length > 0 && (
+          <div className="space-y-2 rounded-3xl bg-white p-4 shadow-sm">
+            {infoGroups.map((group, groupIndex) => (
+              <div key={groupIndex} className="flex flex-wrap gap-2 text-xs">
+                {group.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => onTag?.(tag)}
+                    className="rounded-full bg-cream px-3 py-2 font-semibold text-ink/65 transition hover:bg-sage hover:text-moss"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -332,6 +418,62 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
           <div className="rounded-3xl bg-[#f6ecd9] p-4 text-sm font-semibold text-[#8f6424]">
             Mise en avant sponsorisée
           </div>
+        )}
+
+        {isMeaningful(establishment.description) && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Description</p>
+            <p className="mt-2 text-sm leading-7 text-ink/60">{establishment.description}</p>
+          </div>
+        )}
+
+        {visibility.address !== false && isMeaningful(address) && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p>
+            <p className="mt-2 text-sm leading-6 text-ink/65">{address}</p>
+          </div>
+        )}
+
+        {visibility.opening_hours !== false && hours.length > 0 && (
+          <div className="rounded-3xl bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Horaires</p>
+                {today && <p className="mt-1 text-sm font-semibold text-ink">Aujourd’hui · {today}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHours((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[11px] font-bold text-ink/65"
+              >
+                <Clock size={13} /> {showHours ? "Réduire" : "Voir la semaine"}
+              </button>
+            </div>
+            {showHours && (
+              <div className="mt-3 space-y-1 rounded-2xl bg-cream/70 p-3 text-xs">
+                {hours.map((line) => {
+                  const isToday = days[(new Date().getDay() + 6) % 7] === line.day;
+                  return (
+                    <div key={line.day} className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 ${isToday ? "bg-white font-bold text-moss shadow-xs" : "text-ink/65"}`}>
+                      <span className="capitalize">{line.day}{isToday ? " · aujourd’hui" : ""}</span>
+                      <span className="text-right">{line.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {(deliverooUrl || uberEatsUrl) && (
+          <DeliveryPlatformButtons
+            name={establishment.name}
+            city={establishment.city}
+            deliverooUrl={deliverooUrl}
+            uberEatsUrl={uberEatsUrl}
+            showDeliveroo={visibility.deliveroo !== false && Boolean(deliverooUrl)}
+            showUberEats={visibility.ubereats !== false && Boolean(uberEatsUrl)}
+          />
         )}
 
         {visibility.services !== false && beautyServices.length > 0 && (
@@ -361,48 +503,9 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
           </div>
         )}
 
-        {visibility.address !== false && isMeaningful(address) && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p>
-            <p className="mt-2 text-sm leading-6 text-ink/65">{address}</p>
-          </div>
-        )}
-
-        {/* Avis Google vérifiés */}
-        {googleData.reviews.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Avis Google vérifiés</p>
-            <div className="mt-3 space-y-2">
-              {googleData.reviews.map((rev, i) => (
-                <div key={i} className="rounded-2xl border border-black/5 bg-white p-3.5 text-xs shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-ink">{rev.author}</span>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-600">
-                      {"★".repeat(rev.rating)} <span className="text-ink/35 font-normal">{rev.relativeTime}</span>
-                    </span>
-                  </div>
-                  <p className="mt-1.5 leading-relaxed text-ink/70">&ldquo;{rev.text}&rdquo;</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <DeliveryPlatformButtons
-          name={establishment.name}
-          city={establishment.city}
-          deliverooUrl={establishment.deliverooUrl}
-          uberEatsUrl={establishment.uberEatsUrl}
-          showDeliveroo={visibility.deliveroo !== false}
-          showUberEats={visibility.ubereats !== false}
-        />
-
         <div className="grid gap-2 sm:grid-cols-2">
-          {visibility.phone !== false && isMeaningful(establishment.phone) && <a href={`tel:${establishment.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><Phone size={15} /> Téléphone</a>}
           {visibility.whatsapp !== false && isMeaningful(establishment.whatsapp) && <a href={`https://wa.me/${establishment.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><MessageCircle size={15} /> WhatsApp</a>}
           {visibility.email !== false && isMeaningful(establishment.email) && <a href={`mailto:${establishment.email}`} className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><Mail size={15} /> Email</a>}
-          {visibility.website !== false && isMeaningful(establishment.website) && <a href={normalizeExternalUrl(establishment.website)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><Globe2 size={15} /> Site web</a>}
-          {visibility.instagram !== false && isMeaningful(establishment.instagram) && <a href={normalizeExternalUrl(establishment.instagram)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold"><Instagram size={15} /> Instagram</a>}
           {canReserve && (
             isMeaningful(establishment.reservationTarget)
               ? <a href={normalizeExternalUrl(establishment.reservationTarget)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white"><CalendarDays size={16} /> Réservation</a>

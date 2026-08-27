@@ -25,7 +25,7 @@ function getAbsoluteUrl(path?: string) {
   return new URL(path, window.location.origin).toString();
 }
 
-export function LikeButton({ entity, className = "" }: { entity: EntityActionTarget; className?: string }) {
+export function LikeButton({ entity, className = "", showLabel = false }: { entity: EntityActionTarget; className?: string; showLabel?: boolean }) {
   const [favorite, setFavorite] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -84,6 +84,7 @@ export function LikeButton({ entity, className = "" }: { entity: EntityActionTar
       title={favorite ? "Favori" : "Ajouter aux favoris"}
     >
       <Heart size={17} fill={favorite ? "currentColor" : "none"} />
+      {showLabel && <span>{favorite ? "Dans mes favoris" : "Ajouter aux favoris"}</span>}
     </button>
   );
 }

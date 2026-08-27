@@ -579,6 +579,24 @@ const certificationSeed: AdminCertification[] = [
   "No Teouda / Friendly",
 ].map((label, index) => ({ id: slugify(label), label, order: index + 1, status: "Publié" as AdminStatus }));
 
+function deduplicateAdminTags(tags: AdminTag[]): AdminTag[] {
+  const seen = new Set<string>();
+  const result: AdminTag[] = [];
+  for (const tag of tags) {
+    const norm = (tag.label || tag.id || "").trim().toLowerCase();
+    const slugNorm = slugify(tag.label || tag.id || "");
+    if (!norm || seen.has(norm) || seen.has(slugNorm)) continue;
+    seen.add(norm);
+    seen.add(slugNorm);
+    result.push({
+      ...tag,
+      id: tag.id || slugNorm,
+      label: tag.label.trim(),
+    });
+  }
+  return result;
+}
+
 function normalizeAdminState(state: Partial<AdminState>): AdminState {
   const seed = createSeedState();
   return {
@@ -601,7 +619,7 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
       createdAt: item.createdAt ?? today,
       updatedAt: item.updatedAt ?? today,
     })),
-    tags: (state.tags ?? seed.tags).map((item) => ({ ...item, kind: item.kind ?? "visible", color: item.color ?? "#1f4d3b", rubricIds: item.rubricIds ?? [], status: item.status ?? "Publié" })),
+    tags: deduplicateAdminTags((state.tags ?? seed.tags).map((item) => ({ ...item, kind: item.kind ?? "visible", color: item.color ?? "#1f4d3b", rubricIds: item.rubricIds ?? [], status: item.status ?? "Publié" }))),
     certifications: state.certifications ?? seed.certifications,
     establishments: (state.establishments ?? seed.establishments).map((item) => ({
       ...item,

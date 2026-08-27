@@ -80,6 +80,20 @@ function tagToPayload(tag: VisibleTagRecord) {
   };
 }
 
+function deduplicateTagRecords(tags: VisibleTagRecord[]): VisibleTagRecord[] {
+  const seen = new Set<string>();
+  const result: VisibleTagRecord[] = [];
+  for (const tag of tags) {
+    const key = (tag.label || tag.id || "").trim().toLowerCase();
+    const slugKey = slugify(tag.label || tag.id || "");
+    if (!key || seen.has(key) || seen.has(slugKey)) continue;
+    seen.add(key);
+    seen.add(slugKey);
+    result.push(tag);
+  }
+  return result;
+}
+
 export async function listAllVisibleTagsForAdmin() {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
@@ -89,7 +103,7 @@ export async function listAllVisibleTagsForAdmin() {
     .order("display_order", { ascending: true })
     .returns<TagRow[]>();
   if (error) throw new Error(readableError(error));
-  return (data ?? []).map(rowToTag);
+  return deduplicateTagRecords((data ?? []).map(rowToTag));
 }
 
 export async function listPublishedVisibleTags() {
@@ -103,7 +117,7 @@ export async function listPublishedVisibleTags() {
     .order("display_order", { ascending: true })
     .returns<TagRow[]>();
   if (error) return [];
-  return (data ?? []).map(rowToTag);
+  return deduplicateTagRecords((data ?? []).map(rowToTag));
 }
 
 export async function upsertVisibleTag(tag: VisibleTagRecord, status?: VisibleTagRecord["status"]) {

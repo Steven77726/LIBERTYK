@@ -1335,12 +1335,13 @@ export function EstablishmentEditor({
                 <div className="mt-3 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-1">
                   {tags
                     .filter((t) => t.status !== "Masqué")
+                    .filter((t, idx, arr) => arr.findIndex((x) => x.label.trim().toLowerCase() === t.label.trim().toLowerCase() || x.id === t.id) === idx)
                     .filter(
                       (t) =>
                         !tagSearch.trim() ||
                         t.label.toLowerCase().includes(tagSearch.toLowerCase())
                     )
-                    .slice(0, 20)
+                    .slice(0, 40)
                     .map((tag) => {
                       const isSelected = establishment.visibleTagIds?.includes(tag.id);
                       return (
@@ -1349,10 +1350,11 @@ export function EstablishmentEditor({
                           type="button"
                           onClick={() => {
                             const current = establishment.visibleTagIds ?? [];
+                            const next = isSelected
+                              ? current.filter((id: string) => id !== tag.id)
+                              : [...new Set([...current, tag.id])];
                             onUpdate({
-                              visibleTagIds: isSelected
-                                ? current.filter((id: string) => id !== tag.id)
-                                : [...current, tag.id],
+                              visibleTagIds: next,
                             });
                           }}
                           className={`rounded-full px-3 py-1 text-xs font-medium transition cursor-pointer ${

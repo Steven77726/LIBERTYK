@@ -10,7 +10,6 @@ import {
   type LibertyReview,
 } from "@/lib/client-store";
 import { favoritesChangedEvent, isFavorite, toggleFavorite } from "@/lib/favorites/favorites-service";
-import { getCurrentUser, openAuthModal } from "@/lib/auth/auth-service";
 
 type EntityActionTarget = {
   id: string;
@@ -44,17 +43,9 @@ export function LikeButton({ entity, className = "", showLabel = false }: { enti
     };
   }, [entity.id]);
 
-  const toggle = async () => {
+  const toggle = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (pending) return;
-    const user = getCurrentUser();
-    if (!user) {
-      openAuthModal({
-        reason: "favorite",
-        pendingFavoriteId: entity.id,
-        pendingFavoriteTitle: entity.title,
-      });
-      return;
-    }
 
     const previous = favorite;
     setPending(true);
@@ -63,15 +54,8 @@ export function LikeButton({ entity, className = "", showLabel = false }: { enti
       const next = await toggleFavorite(entity.id);
       setFavorite(next);
       trackEvent(next ? "favorite_added" : "favorite_removed", entity.title, entity.id);
-    } catch (err) {
+    } catch {
       setFavorite(previous);
-      if (err instanceof Error && err.message === "AUTH_REQUIRED") {
-        openAuthModal({
-          reason: "favorite",
-          pendingFavoriteId: entity.id,
-          pendingFavoriteTitle: entity.title,
-        });
-      }
     } finally {
       setPending(false);
     }
@@ -79,13 +63,14 @@ export function LikeButton({ entity, className = "", showLabel = false }: { enti
 
   return (
     <button
+      type="button"
       onClick={toggle}
       disabled={pending}
-      className={className || `grid size-10 place-items-center rounded-full transition ${favorite ? "bg-[#a54b4b] text-white" : "bg-white/90 text-ink hover:bg-cream"}`}
+      className={className || `grid size-10 place-items-center rounded-full transition cursor-pointer shadow-xs ${favorite ? "bg-[#a54b4b] text-white" : "bg-white/95 text-ink/70 hover:bg-cream hover:text-ink"}`}
       aria-label={favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
       title={favorite ? "Favori" : "Ajouter aux favoris"}
     >
-      <Heart size={17} fill={favorite ? "currentColor" : "none"} />
+      <Heart size={17} fill={favorite ? "currentColor" : "none"} className={favorite ? "scale-110 transition-transform" : "transition-transform"} />
       {showLabel && <span>{favorite ? "Dans mes favoris" : "Ajouter aux favoris"}</span>}
     </button>
   );

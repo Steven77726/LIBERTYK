@@ -48,16 +48,14 @@ const routeOverrides: Record<string, string> = {
   "food/brunch": "/food/brunch",
 };
 
-function getFavoritesStorageKey(): string | null {
+function getFavoritesStorageKey(): string {
   const user = getCurrentUser();
-  if (!user) return null;
-  return `liberty-favorites-${user.id}`;
+  return user ? `liberty-favorites-${user.id}` : "liberty-favorites-guest";
 }
 
 function readLocalFavorites(): string[] {
   if (typeof window === "undefined") return [];
   const key = getFavoritesStorageKey();
-  if (!key) return [];
   try {
     const raw = window.localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as string[]) : [];
@@ -69,7 +67,6 @@ function readLocalFavorites(): string[] {
 function writeLocalFavorites(values: string[]) {
   if (typeof window === "undefined") return;
   const key = getFavoritesStorageKey();
-  if (!key) return;
   window.localStorage.setItem(key, JSON.stringify([...new Set(values)]));
   window.dispatchEvent(new CustomEvent(FAVORITES_CHANGED_EVENT));
 }
@@ -231,12 +228,11 @@ async function listLocalFavoriteRecords(localIds = readLocalFavorites()) {
 }
 
 export async function listFavorites(): Promise<FavoriteRecord[]> {
+  const local = await listLocalFavoriteRecords();
   const user = getCurrentUser();
-  if (!user) return [];
-
   const supabase = getSupabaseBrowserClient();
   const userId = await getUserId();
-  if (!supabase || !userId) return listLocalFavoriteRecords();
+  if (!user || !supabase || !userId) return local;
 
   try {
     const { data, error } = await supabase
@@ -246,17 +242,29 @@ export async function listFavorites(): Promise<FavoriteRecord[]> {
       .order("created_at", { ascending: false })
       .returns<UserFavoriteRow[]>();
 
-    if (error) throw new Error(error.message);
-    if (!data || data.length === 0) return listLocalFavoriteRecords();
+    if (error || !data || data.length === 0) return local;
     const rows = data.filter((item) => item.establishments).map((item) => ({ row: item.establishments!, createdAt: item.created_at }));
     const photos = await getPhotoMap(rows.map((item) => item.row.id));
-    return rows.map((item) => rowToFavorite(item.row, item.createdAt, photos.get(item.row.id)));
+    const remote = rows.map((item) => rowToFavorite(item.row, item.createdAt, photos.get(item.row.id)));
+
+    const map = new Map<string, FavoriteRecord>();
+    remote.forEach((r) => map.set(r.establishmentId || r.id, r));
+    local.forEach((l) => {
+      if (!map.has(l.establishmentId || l.id)) map.set(l.establishmentId || l.id, l);
+    });
+    return Array.from(map.values());
   } catch {
-    return listLocalFavoriteRecords();
+    return local;
   }
 }
 
 export async function isFavorite(entityId: string) {
+  const localFavorites = readLocalFavorites();
+  const normalized = normalizeEntityId(entityId);
+  if (localFavorites.includes(entityId) || localFavorites.includes(normalized)) {
+    return true;
+  }
+
   const user = getCurrentUser();
   if (!user) return false;
 
@@ -264,8 +272,7 @@ export async function isFavorite(entityId: string) {
   const userId = await getUserId();
   const establishmentId = await resolveEstablishmentId(entityId);
   if (!supabase || !userId || !establishmentId) {
-    const localFavorites = readLocalFavorites();
-    return localFavorites.includes(entityId) || localFavorites.includes(normalizeEntityId(entityId)) || (establishmentId ? localFavorites.includes(establishmentId) : false);
+    return establishmentId ? localFavorites.includes(establishmentId) : false;
   }
 
   try {
@@ -277,54 +284,38 @@ export async function isFavorite(entityId: string) {
       .maybeSingle<{ id: string }>();
     return Boolean(data);
   } catch {
-    const localFavorites = readLocalFavorites();
-    return localFavorites.includes(entityId) || localFavorites.includes(normalizeEntityId(entityId)) || (establishmentId ? localFavorites.includes(establishmentId) : false);
+    return localFavorites.includes(entityId) || localFavorites.includes(normalized) || (establishmentId ? localFavorites.includes(establishmentId) : false);
   }
 }
 
 export async function toggleFavorite(entityId: string) {
-  const user = getCurrentUser();
-  if (!user) {
-    throw new Error("AUTH_REQUIRED");
-  }
+  const localFavorites = readLocalFavorites();
+  const normalized = normalizeEntityId(entityId);
+  const existsLocally = localFavorites.includes(entityId) || localFavorites.includes(normalized);
+  const nextFavorites = existsLocally
+    ? localFavorites.filter((id) => id !== entityId && id !== normalized)
+    : [entityId, ...localFavorites];
+  writeLocalFavorites(nextFavorites);
 
+  const user = getCurrentUser();
   const supabase = getSupabaseBrowserClient();
   const userId = await getUserId();
   const establishmentId = await resolveEstablishmentId(entityId);
-  if (!supabase || !userId || !establishmentId) {
-    const localId = establishmentId ?? entityId;
-    const current = readLocalFavorites();
-    const next = current.includes(localId) || current.includes(entityId)
-      ? current.filter((id) => id !== localId && id !== entityId)
-      : [localId, ...current];
-    writeLocalFavorites(next);
-    return next.includes(localId);
-  }
 
-  const favorite = await isFavorite(establishmentId);
-  if (favorite) {
+  if (user && supabase && userId && establishmentId) {
     try {
-      await supabase.from("user_favorites").delete().eq("user_id", userId).eq("establishment_id", establishmentId);
+      if (existsLocally) {
+        await supabase.from("user_favorites").delete().eq("user_id", userId).eq("establishment_id", establishmentId);
+      } else {
+        await supabase.from("user_favorites").upsert({ user_id: userId, establishment_id: establishmentId }, { onConflict: "user_id,establishment_id" });
+      }
     } catch {
-      // Local fallback
+      // local fallback active
     }
-    const localId = establishmentId ?? entityId;
-    const current = readLocalFavorites();
-    writeLocalFavorites(current.filter((id) => id !== localId && id !== entityId));
-    notifyFavoritesChanged();
-    return false;
   }
 
-  try {
-    await supabase.from("user_favorites").upsert({ user_id: userId, establishment_id: establishmentId }, { onConflict: "user_id,establishment_id" });
-  } catch {
-    // Local fallback
-  }
-  const localId = establishmentId ?? entityId;
-  const current = readLocalFavorites();
-  writeLocalFavorites([localId, ...current.filter((id) => id !== localId && id !== entityId)]);
   notifyFavoritesChanged();
-  return true;
+  return !existsLocally;
 }
 
 export async function mergeLocalFavorites() {

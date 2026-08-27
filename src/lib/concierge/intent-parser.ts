@@ -147,9 +147,52 @@ const CATEGORY_MAP: Record<string, { rubric: string; subrubric?: string; label: 
   taxi: { rubric: "services-utiles", label: "Chauffeurs" },
 };
 
-// 2. Normalisation du texte
+// 2. Normalisation phonétique et vocale (Français parlé & dictée Web Speech)
+export function normalizeSpokenFrench(raw: string): string {
+  let text = raw.toLowerCase().trim();
+
+  // Nombres parlés vers arrondissements / chiffres
+  text = text
+    .replace(/\b(dix[- ]septi[eè]me|dix[- ]sept)\b/g, "17e")
+    .replace(/\b(dix[- ]huiti[eè]me|dix[- ]huit)\b/g, "18e")
+    .replace(/\b(dix[- ]neuvi[eè]me|dix[- ]neuf)\b/g, "19e")
+    .replace(/\b(vingti[eè]me|vingt)\b/g, "20e")
+    .replace(/\b(seizi[eè]me|seize)\b/g, "16e")
+    .replace(/\b(quinzi[eè]me|quinze)\b/g, "15e")
+    .replace(/\b(quatorzi[eè]me|quatorze)\b/g, "14e")
+    .replace(/\b(treizi[eè]me|treize)\b/g, "13e")
+    .replace(/\b(douzi[eè]me|douze)\b/g, "12e")
+    .replace(/\b(onzi[eè]me|onze)\b/g, "11e")
+    .replace(/\b(dixi[eè]me|dix)\b/g, "10e")
+    .replace(/\b(neuvi[eè]me|neuf)\b/g, "9e")
+    .replace(/\b(huiti[eè]me|huit)\b/g, "8e")
+    .replace(/\b(septi[eè]me|sept)\b/g, "7e")
+    .replace(/\b(sixi[eè]me|six)\b/g, "6e")
+    .replace(/\b(cinqui[eè]me|cinq)\b/g, "5e")
+    .replace(/\b(quatri[eè]me|quatre)\b/g, "4e")
+    .replace(/\b(troisi[eè]me|trois)\b/g, "3e")
+    .replace(/\b(deuxi[eè]me|seconde?|deux)\b/g, "2e")
+    .replace(/\b(premi[eè]re?|premier)\b/g, "1er");
+
+  // Variations de dictée courantes
+  text = text
+    .replace(/\b(restaurent|restau|restaus)\b/g, "restaurant")
+    .replace(/\b(bassarie|basari|basserie|bassary)\b/g, "bassari")
+    .replace(/\b(halavie|halav|halaviye)\b/g, "halavi")
+    .replace(/\b(coifure|coifeuse)\b/g, "coiffeuse")
+    .replace(/\b(lisage|lissages)\b/g, "lissage")
+    .replace(/\b(cavist)\b/g, "caviste")
+    .replace(/\b(patiserie)\b/g, "pâtisserie")
+    .replace(/\b(manucur)\b/g, "manucure")
+    .replace(/\b(mikveh)\b/g, "mikve");
+
+  return text;
+}
+
+// 3. Normalisation du texte
 export function normalizeText(text: string): string {
-  return text
+  const spokenNormalized = normalizeSpokenFrench(text);
+  return spokenNormalized
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -159,12 +202,12 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
-// 3. Extraction d'arrondissement parisien
+// 4. Extraction d'arrondissement parisien
 export function extractArrondissement(text: string): string | undefined {
   const norm = normalizeText(text);
 
   const match = norm.match(/\b(7500[1-9]|7501[0-9]|75020)\b/) ||
-                norm.match(/\b([1-9]|1[0-9]|20)\s*(e|eme|eme|er|ere)?\s*(arrondissement|arrond|arr)?\b/) ||
+                norm.match(/\b([1-9]|1[0-9]|20)\s*(e|eme|er|ere)?\s*(arrondissement|arrond|arr)?\b/) ||
                 norm.match(/\bparis\s*([1-9]|1[0-9]|20)\b/);
 
   if (match) {

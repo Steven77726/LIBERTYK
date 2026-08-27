@@ -90,8 +90,8 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     });
   }, []);
 
-  // Exécution de la recherche conversationnelle
-  const runConciergeSearch = useCallback(
+  // Exécution centrale et unifiée de la recherche conversationnelle
+  const runConciergeQuery = useCallback(
     async (rawQuery: string, overrideCoords?: { latitude: number; longitude: number }) => {
       const trimmed = rawQuery.trim();
       if (!trimmed || trimmed.length < 2) {
@@ -110,7 +110,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
       setError("");
 
       try {
-        // 1. Analyse de l'intention et accumulation du contexte de session
+        // 1. Analyse de l'intention avec normalisation phonétique & vocale
         const parsedCriteria = parseConciergeIntent(trimmed, sessionCriteria);
         setSessionCriteria((prev) => ({ ...prev, ...parsedCriteria }));
 
@@ -124,7 +124,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             coordsToUse = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
             setUserCoords(coordsToUse);
           } catch {
-            // Permission refusée ou timeout
+            // Refus de géolocalisation ou timeout
           }
         }
 
@@ -142,7 +142,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
 
           trackEvent("liberty_concierge_query", trimmed, `${nextResults.length}_results`);
         }
-      } catch (searchError) {
+      } catch {
         if (requestRef.current === requestId) {
           setResults([]);
           setError("Recherche momentanément indisponible.");
@@ -158,14 +158,21 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     [sessionCriteria, speakResponse, userCoords]
   );
 
-  // Gestion des inputs vocaux
-  const handleVoiceTranscript = (transcript: string) => {
-    setQuery(transcript);
+  // 1. Déclencheur vocal : Exécute immédiatement la recherche dès la fin de dictée
+  const handleVoiceTranscript = useCallback((transcript: string) => {
+    const cleanTranscript = transcript.trim();
+    if (!cleanTranscript) return;
+
+    // Mise à jour visuelle du champ pour que l'utilisateur puisse le modifier s'il le souhaite
+    setQuery(cleanTranscript);
     setFocused(true);
     setMicState("searching");
-    void runConciergeSearch(transcript);
-  };
 
+    // Lancement direct et garanti de la recherche avec le texte transcrit
+    void runConciergeQuery(cleanTranscript);
+  }, [runConciergeQuery]);
+
+  // 2. Déclencheur chips / raccourcis
   const handleChipClick = (chipQuery: string) => {
     setQuery(chipQuery);
     setFocused(true);
@@ -176,18 +183,19 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
         (pos) => {
           const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
           setUserCoords(coords);
-          void runConciergeSearch(chipQuery, coords);
+          void runConciergeQuery(chipQuery, coords);
         },
         () => {
-          void runConciergeSearch("restaurant paris");
+          void runConciergeQuery("restaurant paris");
         }
       );
       return;
     }
 
-    void runConciergeSearch(chipQuery);
+    void runConciergeQuery(chipQuery);
   };
 
+  // 3. Déclencheur saisie manuelle
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.currentTarget.value;
     setQuery(value);
@@ -212,12 +220,11 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     inputRef.current?.focus();
   };
 
+  // 4. Déclencheur validation clavier / bouton de recherche
   const submit = () => {
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
-    setFocused(false);
-    trackEvent("concierge_submit_fullpage", trimmed, trimmed);
-    router.push(`/recherche?q=${encodeURIComponent(trimmed)}`);
+    void runConciergeQuery(trimmed);
   };
 
   const openResult = (result: EstablishmentSearchResult | undefined) => {
@@ -255,12 +262,12 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
 
   // Débounce sur frappe manuelle
   useEffect(() => {
-    if (!focused || query.trim().length < 2) return;
+    if (!focused || query.trim().length < 2 || micState === "listening") return;
     const timer = window.setTimeout(() => {
-      void runConciergeSearch(query);
+      void runConciergeQuery(query);
     }, 280);
     return () => window.clearTimeout(timer);
-  }, [focused, query, runConciergeSearch]);
+  }, [focused, query, micState, runConciergeQuery]);
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {

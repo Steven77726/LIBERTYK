@@ -14,15 +14,22 @@ type VoiceMicrophoneButtonProps = {
   size?: "sm" | "md" | "lg";
 };
 
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+  confidence?: number;
+}
+
+interface SpeechRecognitionResultLike {
+  isFinal: boolean;
+  length: number;
+  [index: number]: SpeechRecognitionAlternativeLike;
+}
+
 interface SpeechRecognitionEventLike {
+  resultIndex?: number;
   results: {
     length: number;
-    [index: number]: {
-      isFinal: boolean;
-      [index: number]: {
-        transcript: string;
-      };
-    };
+    [index: number]: SpeechRecognitionResultLike;
   };
 }
 
@@ -62,6 +69,8 @@ export function VoiceMicrophoneButton({
   const [isSupported, setIsSupported] = useState(true);
   const [permissionError, setPermissionError] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const bestTranscriptRef = useRef<string>("");
+  const dispatchedRef = useRef<boolean>(false);
 
   const currentState = onStateChange ? state : internalState;
   const updateState = useCallback((next: MicState) => {
@@ -92,6 +101,19 @@ export function VoiceMicrophoneButton({
     }
   }, [currentState, updateState]);
 
+  const dispatchFinalTranscript = useCallback((text: string) => {
+    if (dispatchedRef.current) return;
+    const clean = text.trim();
+    if (!clean) {
+      updateState("idle");
+      return;
+    }
+    dispatchedRef.current = true;
+    updateState("transcribing");
+    onTranscript(clean);
+    updateState("searching");
+  }, [onTranscript, updateState]);
+
   const startListening = useCallback(() => {
     if (typeof window === "undefined") return;
     const win = window as unknown as IWindow;
@@ -105,29 +127,54 @@ export function VoiceMicrophoneButton({
 
     try {
       stopListening();
+      bestTranscriptRef.current = "";
+      dispatchedRef.current = false;
 
       const recognition = new SpeechClass();
       recognition.lang = "fr-FR";
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
+      recognition.maxAlternatives = 3;
 
       recognition.onstart = () => {
         setPermissionError(false);
+        bestTranscriptRef.current = "";
+        dispatchedRef.current = false;
         updateState("listening");
       };
 
       recognition.onresult = (event: SpeechRecognitionEventLike) => {
-        const lastResult = event.results[event.results.length - 1];
-        if (lastResult) {
-          const transcript = lastResult[0].transcript;
-          if (lastResult.isFinal) {
-            updateState("transcribing");
-            setTimeout(() => {
-              onTranscript(transcript);
-              updateState("searching");
-            }, 300);
+        let fullAccumulated = "";
+        let isFinalDetected = false;
+
+        for (let i = 0; i < event.results.length; i++) {
+          const res = event.results[i];
+          if (res && res.length > 0) {
+            // Sélection de la meilleure hypothèse par indice de confiance
+            let bestAlt = res[0].transcript;
+            let highestConfidence = res[0].confidence ?? 0;
+            for (let a = 1; a < res.length; a++) {
+              const alt = res[a];
+              if (alt && (alt.confidence ?? 0) > highestConfidence && alt.transcript) {
+                bestAlt = alt.transcript;
+                highestConfidence = alt.confidence ?? 0;
+              }
+            }
+            fullAccumulated += (fullAccumulated ? " " : "") + bestAlt;
+            if (res.isFinal) {
+              isFinalDetected = true;
+            }
           }
+        }
+
+        const trimmed = fullAccumulated.trim();
+        if (trimmed) {
+          bestTranscriptRef.current = trimmed;
+        }
+
+        // Si fin de phrase détectée par le moteur
+        if (isFinalDetected && trimmed) {
+          dispatchFinalTranscript(trimmed);
         }
       };
 
@@ -139,22 +186,25 @@ export function VoiceMicrophoneButton({
           onError?.("Une erreur vocale est survenue.");
         }
         updateState("error");
-        setTimeout(() => updateState("idle"), 2200);
+        setTimeout(() => updateState("idle"), 2000);
       };
 
       recognition.onend = () => {
-        if (currentState === "listening") {
+        // Garantit le déclenchement immédiat même si isFinal n'était pas explicite sur Safari iOS
+        if (!dispatchedRef.current && bestTranscriptRef.current.trim()) {
+          dispatchFinalTranscript(bestTranscriptRef.current);
+        } else if (!dispatchedRef.current) {
           updateState("idle");
         }
       };
 
       recognitionRef.current = recognition;
       recognition.start();
-    } catch (err) {
+    } catch {
       updateState("error");
       setTimeout(() => updateState("idle"), 2000);
     }
-  }, [currentState, onError, onTranscript, stopListening, updateState]);
+  }, [dispatchFinalTranscript, onError, stopListening, updateState]);
 
   const toggleMic = (e: React.MouseEvent) => {
     e.preventDefault();

@@ -96,6 +96,8 @@ create table if not exists public.establishments (
   city text,
   arrondissement text,
   postal_code text,
+  nearest_metro_name text,
+  nearest_metro_line text,
   email text,
   phone text,
   whatsapp text,

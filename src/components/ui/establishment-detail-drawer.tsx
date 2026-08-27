@@ -14,6 +14,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
+import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 
 type Props = {
   establishment: EstablishmentRecord | null;
@@ -343,6 +344,7 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
   const today = todayHours(establishment.hours);
   const deliverooUrl = isUsableExternalUrl(establishment.deliverooUrl) ? establishment.deliverooUrl : "";
   const uberEatsUrl = isUsableExternalUrl(establishment.uberEatsUrl) ? establishment.uberEatsUrl : "";
+  const metroStyle = getMetroLineStyle(establishment.nearestMetroLine);
   const infoGroups = [
     uniqueList([...(establishment.cuisineTypes ?? []), ...((establishment.visibleTagIds ?? []).filter((tag) => !["bassari", "halavi", "parve", "sponsorise"].includes(normalize(tag).replace(/\s+/g, "-"))))]).filter(isMeaningful),
     uniqueList([establishment.certification, establishment.kosherType, establishment.averagePrice]).filter(isMeaningful),
@@ -442,6 +444,19 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
           <div>
             <p className="text-xs font-semibold uppercase tracking-[.14em] text-ink/35">Adresse</p>
             <p className="mt-2 text-sm leading-6 text-ink/65">{address}</p>
+            {isMeaningful(establishment.nearestMetroName) && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-black/[.04] bg-cream px-3 py-2 text-xs font-semibold text-ink/55">
+                <span>Métro {establishment.nearestMetroName}</span>
+                {metroStyle && (
+                  <span
+                    className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-1.5 text-[11px] font-black"
+                    style={{ backgroundColor: metroStyle.background, color: metroStyle.foreground, borderColor: metroStyle.border }}
+                  >
+                    {metroStyle.label}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 

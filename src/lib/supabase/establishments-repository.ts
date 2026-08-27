@@ -27,6 +27,8 @@ type EstablishmentRow = {
   arrondissement: string | null;
   district: string | null;
   country: string | null;
+  nearest_metro_name?: string | null;
+  nearest_metro_line?: string | null;
   latitude: number | string | null;
   longitude: number | string | null;
   phone: string | null;
@@ -101,7 +103,7 @@ type EstablishmentFilters = {
 
 const selectColumns = `
   id,external_id,rubric_id,subrubric_id,slug,name,short_description,description,address,city,postal_code,
-  arrondissement,district,country,latitude,longitude,phone,whatsapp,email,instagram,website,reservation_url,
+  arrondissement,district,country,nearest_metro_name,nearest_metro_line,latitude,longitude,phone,whatsapp,email,instagram,website,reservation_url,
   reservation_target,hours,amenities,services,certification,kosher_type,average_price,customer_searches,
   visible_tags,field_visibility,display_order,sponsorship,sponsor_priority,sponsor_starts_at,sponsor_ends_at,sponsor_placement,
   sponsor_notes,reservation_enabled,status,is_visible,owner_id,created_at,updated_at,
@@ -360,6 +362,8 @@ function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = [], tagM
     arrondissement: row.district ?? row.arrondissement ?? "",
     postalCode: row.postal_code ?? "",
     country: row.country ?? "France",
+    nearestMetroName: row.nearest_metro_name ?? "",
+    nearestMetroLine: row.nearest_metro_line ?? "",
     email: row.email ?? "",
     phone: row.phone ?? "",
     whatsapp: row.whatsapp ?? "",
@@ -441,6 +445,8 @@ async function establishmentToPayload(establishment: EstablishmentRecord, status
     arrondissement: establishment.arrondissement ?? "",
     district: establishment.arrondissement ?? "",
     country: establishment.country || "France",
+    nearest_metro_name: establishment.nearestMetroName?.trim() || null,
+    nearest_metro_line: establishment.nearestMetroLine?.trim() || null,
     latitude: normalizeCoordinate(establishment.latitude),
     longitude: normalizeCoordinate(establishment.longitude),
     phone: establishment.phone ?? "",

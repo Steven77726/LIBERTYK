@@ -252,6 +252,8 @@ type AdminEstablishment = {
   arrondissement: string;
   postalCode?: string;
   country?: string;
+  nearestMetroName?: string;
+  nearestMetroLine?: string;
   email?: string;
   phone: string;
   whatsapp: string;
@@ -2829,6 +2831,8 @@ export function AdminDashboard() {
         arrondissement: "",
         postalCode: "",
         country: "France",
+        nearestMetroName: "",
+        nearestMetroLine: "",
         email: "",
         phone: "",
         whatsapp: "",
@@ -4738,6 +4742,14 @@ export function AdminDashboard() {
                       <Field label="Arrondissement" value={selectedEstablishment.arrondissement} onChange={(value) => updateEstablishment(selectedEstablishment.id, { arrondissement: value })} />
                       <Field label="Code postal" value={selectedEstablishment.postalCode ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { postalCode: value })} />
                       <Field label="Pays" value={selectedEstablishment.country ?? "France"} onChange={(value) => updateEstablishment(selectedEstablishment.id, { country: value })} />
+                      <div className="rounded-3xl border border-black/[.06] bg-white p-5 shadow-sm lg:col-span-2">
+                        <p className="text-xs font-semibold uppercase tracking-[.16em] text-ink/35">Transport & Accès</p>
+                        <p className="mt-1 text-xs leading-5 text-ink/45">Optionnel. Renseignez séparément la station et la ligne pour que Liberty affiche automatiquement la bonne couleur.</p>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_160px]">
+                          <Field label="Métro le plus proche" value={selectedEstablishment.nearestMetroName ?? ""} placeholder="Ex. Ternes" onChange={(value) => updateEstablishment(selectedEstablishment.id, { nearestMetroName: value })} />
+                          <Field label="Ligne" value={selectedEstablishment.nearestMetroLine ?? ""} placeholder="Ex. 2, 3bis, 7bis" onChange={(value) => updateEstablishment(selectedEstablishment.id, { nearestMetroLine: value })} />
+                        </div>
+                      </div>
                       <Field label="Email" value={selectedEstablishment.email ?? ""} onChange={(value) => updateEstablishment(selectedEstablishment.id, { email: value })} />
                       <Field label="Téléphone" value={selectedEstablishment.phone} onChange={(value) => updateEstablishment(selectedEstablishment.id, { phone: value })} />
                       <Field label="WhatsApp" value={selectedEstablishment.whatsapp} onChange={(value) => updateEstablishment(selectedEstablishment.id, { whatsapp: value })} />

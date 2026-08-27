@@ -10,6 +10,7 @@ import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/sup
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { LikeButton } from "@/components/ui/entity-actions";
+import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 
 type Props = {
   rubricSlug: string;
@@ -207,6 +208,7 @@ export function SubrubricPageView({
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {items.map((item) => {
               const entityUrl = `/${[rubricSlug, subrubricSlug].filter(Boolean).join("/")}#${item.slug ?? item.id}`;
+              const metroStyle = getMetroLineStyle(item.nearestMetroLine);
               return (
               <article
                 key={item.id}
@@ -240,6 +242,19 @@ export function SubrubricPageView({
                       <p className="mt-1 flex items-center gap-1 text-sm text-ink/45">
                         <MapPin size={13} /> {[item.address, item.city].filter(Boolean).join(" · ")}
                       </p>
+                      {item.nearestMetroName && (
+                        <p className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-cream px-2.5 py-1 text-[11px] font-semibold text-ink/50">
+                          <span className="truncate">Métro {item.nearestMetroName}</span>
+                          {metroStyle && (
+                            <span
+                              className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border px-1 text-[10px] font-black"
+                              style={{ backgroundColor: metroStyle.background, color: metroStyle.foreground, borderColor: metroStyle.border }}
+                            >
+                              {metroStyle.label}
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </div>
                     <span className="grid size-9 shrink-0 place-items-center rounded-full bg-cream text-ink/35 transition group-hover:bg-ink group-hover:text-white">
                       <ArrowUpRight size={15} />

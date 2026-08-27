@@ -25,6 +25,8 @@ export type LocalEstablishment = {
   arrondissement: string;
   postalCode?: string;
   country?: string;
+  nearestMetroName?: string;
+  nearestMetroLine?: string;
   email?: string;
   phone: string;
   whatsapp: string;

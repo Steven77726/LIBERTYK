@@ -312,6 +312,17 @@ export function EstablishmentDetailDrawer({ establishment, open, onClose, onRese
   const hours = useMemo(() => parseHours(establishment?.hours), [establishment?.hours]);
   const googleData = useMemo(() => getEstablishmentGoogleBusiness(establishment?.name), [establishment?.name]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!establishment) return null;
 
   const category = categoryBySlug[establishment.rubricId]?.label || establishment.rubricId;

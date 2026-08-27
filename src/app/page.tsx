@@ -25,10 +25,12 @@ export default function HomePage() {
             <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
           </div>
           <div className="relative mx-auto max-w-5xl text-center">
-            <h1 className="text-[clamp(2rem,4vw,3.7rem)] font-semibold leading-[.92] tracking-[-.065em]">
-              Demandez.{" "}
-              <span className="bg-gradient-to-r from-white/45 via-white via-45% to-[#e7d39a] bg-clip-text text-transparent drop-shadow-[0_12px_45px_rgba(255,255,255,.12)]">Liberty K trouve.</span>
+            <h1 className="text-[clamp(2rem,4.5vw,3.6rem)] font-extrabold leading-[0.95] tracking-[-0.05em] uppercase text-white drop-shadow-[0_10px_35px_rgba(255,255,255,.12)]">
+              DEMANDEZ À LIBERTY
             </h1>
+            <p className="mx-auto mt-2.5 max-w-xl text-sm font-medium text-white/75 sm:text-base">
+              Parlez ou écrivez naturellement, Liberty trouve pour vous.
+            </p>
 
             <AiSearch />
           </div>

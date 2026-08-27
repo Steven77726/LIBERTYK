@@ -148,4 +148,76 @@ button, a { -webkit-tap-highlight-color: transparent; }
   animation: attention-blink-dot 1.2s ease-in-out infinite;
 }
 
+/* =========================================================================
+   LIBERTY AI CONCIERGE — MICROPHONE HALO ANIMATIONS (BESPOKE LIBERTY K)
+   ========================================================================= */
+
+@keyframes liberty-halo-spin-slow {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes liberty-halo-breathe {
+  0%, 100% {
+    opacity: 0.65;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes liberty-halo-spin-fast {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes liberty-halo-listening-wave {
+  0%, 100% {
+    transform: scale(1.05);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.16);
+    opacity: 1;
+  }
+}
+
+.liberty-halo-idle {
+  background: conic-gradient(from 0deg, #3b82f6, #8b5cf6, #ec4899, #d5bb7d, #10b981, #3b82f6);
+  animation: liberty-halo-spin-slow 9s linear infinite, liberty-halo-breathe 4.5s ease-in-out infinite;
+}
+
+.liberty-halo-searching {
+  background: conic-gradient(from 0deg, #d5bb7d, #10b981, #3b82f6, #8b5cf6, #d5bb7d);
+  animation: liberty-halo-spin-fast 2s linear infinite;
+}
+
+.liberty-halo-listening {
+  background: conic-gradient(from 0deg, #3b82f6, #ec4899, #f59e0b, #ef4444, #8b5cf6, #3b82f6);
+  animation: liberty-halo-spin-slow 4s linear infinite, liberty-halo-listening-wave 1.8s ease-in-out infinite;
+}
+
+/* Accessibilité : Prise en compte de prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .liberty-halo-idle,
+  .liberty-halo-searching,
+  .liberty-halo-listening {
+    animation: none !important;
+    background: radial-gradient(circle, rgba(213,187,125,0.7) 0%, rgba(139,92,246,0.5) 50%, transparent 70%) !important;
+    opacity: 0.8 !important;
+    transform: none !important;
+  }
+}
+
+
 

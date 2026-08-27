@@ -7,7 +7,6 @@ import { categoryBySlug } from "@/data/categories";
 import { localEstablishments } from "@/data/establishments";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 type Props = {
@@ -36,7 +35,6 @@ export function SubrubricPageView({
   const rubric = categoryBySlug[rubricSlug];
   const [subrubric, setSubrubric] = useState<SubrubricRecord | null>(null);
   const [items, setItems] = useState<EstablishmentRecord[]>([]);
-  const [selectedEstablishment, setSelectedEstablishment] = useState<EstablishmentRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -212,18 +210,12 @@ export function SubrubricPageView({
               <UniversalEstablishmentCard
                 key={item.id}
                 establishment={item}
-                onOpen={() => setSelectedEstablishment(item)}
                 priorityImage={index < 3}
               />
             ))}
           </div>
         )}
       </section>
-      <EstablishmentDetailDrawer
-        establishment={selectedEstablishment}
-        open={Boolean(selectedEstablishment)}
-        onClose={() => setSelectedEstablishment(null)}
-      />
     </>
   );
 }

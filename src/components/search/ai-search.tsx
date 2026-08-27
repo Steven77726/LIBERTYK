@@ -8,7 +8,6 @@ import { ArrowUpRight, Search, X } from "lucide-react";
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
 import { assetPath } from "@/lib/assets";
 import { trackEvent } from "@/lib/client-store";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 
 const rotatingExamples = [
   "Où trouver un avocado toast dans le 17e ouvert dimanche ?",
@@ -44,7 +43,6 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedResult, setSelectedResult] = useState<EstablishmentSearchResult | null>(null);
   const [dropdownRect, setDropdownRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -223,10 +221,22 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     if (query.trim().length >= 2) trackEvent("ai_search", query.trim(), result.id);
     setFocused(false);
 
-    if (result.establishment) {
-      setSelectedResult(result);
-    } else if (result.href) {
+    if (result.href) {
       router.push(result.href);
+    } else if (result.establishment) {
+      const est = result.establishment;
+      const rubric = est.rubricId || "food";
+      const sub = est.subrubricId || "";
+      const cleanSub = sub.startsWith(`${rubric}-`) ? sub.slice(rubric.length + 1) : sub;
+      const targetPath =
+        rubric === "food" && (cleanSub === "restaurants" || !cleanSub)
+          ? `/food/restaurants#${est.slug || est.id}`
+          : rubric === "food" && cleanSub === "brunch"
+          ? `/food/brunch/${est.slug || est.id}`
+          : rubric === "shopping" && est.slug === "azamra"
+          ? `/shopping/vetements/azamra`
+          : `/${rubric}/${cleanSub || "decouverte"}#${est.slug || est.id}`;
+      router.push(targetPath);
     }
   };
 
@@ -425,12 +435,6 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
           </AnimatePresence>,
           document.body,
         )}
-
-      <EstablishmentDetailDrawer
-        establishment={selectedResult?.establishment ?? null}
-        open={Boolean(selectedResult?.establishment)}
-        onClose={() => setSelectedResult(null)}
-      />
     </div>
   );
 }

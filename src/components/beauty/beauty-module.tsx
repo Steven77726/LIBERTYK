@@ -6,7 +6,6 @@ import { assetPath } from "@/lib/assets";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listBeautyCategories, listBeautyServices } from "@/lib/supabase/beauty-repository";
 import type { BeautyCategory, BeautyService } from "@/lib/beauty/types";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 function normalize(value: string) {
@@ -36,7 +35,6 @@ export function BeautyModule() {
   const [city, setCity] = useState("");
   const [atHome, setAtHome] = useState(false);
   const [onSite, setOnSite] = useState(false);
-  const [selectedProfessional, setSelectedProfessional] = useState<EstablishmentRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -167,14 +165,11 @@ export function BeautyModule() {
             <UniversalEstablishmentCard
               key={professional.id}
               establishment={professional}
-              onOpen={() => setSelectedProfessional(professional)}
               priorityImage={index < 3}
             />
           ))}
         </div>
       </section>
-
-      <EstablishmentDetailDrawer establishment={selectedProfessional} open={Boolean(selectedProfessional)} onClose={() => setSelectedProfessional(null)} />
     </>
   );
 }

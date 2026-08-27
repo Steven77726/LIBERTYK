@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { LayoutGrid, Map, Search } from "lucide-react";
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { quickSuggestions } from "@/components/search/ai-search";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
@@ -20,7 +19,6 @@ export function SearchResultsPage() {
   const [results, setResults] = useState<EstablishmentSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"list" | "map">("list");
-  const [selectedEstablishment, setSelectedEstablishment] = useState<EstablishmentRecord | null>(null);
   const [selectedMapItem, setSelectedMapItem] = useState<MapEstablishment | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("Tous");
   const [kosherFilter, setKosherFilter] = useState("Tous");
@@ -264,10 +262,14 @@ export function SearchResultsPage() {
               onSelect={setSelectedMapItem}
               onOpenDetail={(item) => {
                 const found = filteredResults.find((r) => r.id === item.id);
-                if (found?.establishment) {
-                  setSelectedEstablishment(found.establishment);
-                } else if (found?.href) {
+                if (found?.href) {
                   router.push(found.href);
+                } else if (found?.establishment) {
+                  const est = found.establishment;
+                  const rubric = est.rubricId || "food";
+                  const sub = est.subrubricId || "";
+                  const cleanSub = sub.startsWith(`${rubric}-`) ? sub.slice(rubric.length + 1) : sub;
+                  router.push(`/${rubric}/${cleanSub || "decouverte"}#${est.slug || est.id}`);
                 }
               }}
               className="h-[650px] w-full"
@@ -326,15 +328,6 @@ export function SearchResultsPage() {
                 <UniversalEstablishmentCard
                   key={result.id}
                   establishment={establishment}
-                  onOpen={() => {
-                    if (result.establishment) {
-                      setSelectedEstablishment(result.establishment);
-                    } else if (result.href) {
-                      router.push(result.href);
-                    } else {
-                      setSelectedEstablishment(establishment);
-                    }
-                  }}
                   priorityImage={index < 3}
                 />
               );
@@ -342,13 +335,6 @@ export function SearchResultsPage() {
           </div>
         )}
       </div>
-
-      {/* Tiroir d'établissement complet */}
-      <EstablishmentDetailDrawer
-        establishment={selectedEstablishment}
-        open={Boolean(selectedEstablishment)}
-        onClose={() => setSelectedEstablishment(null)}
-      />
     </div>
   );
 }

@@ -10,7 +10,6 @@ import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-ra
 import { assetPath } from "@/lib/assets";
 import { LikeButton } from "@/components/ui/entity-actions";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
@@ -214,7 +213,6 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
   const [view, setView] = useState<"list" | "map">("list");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selected, setSelected] = useState<Brunch | null>(null);
-  const [detailBrunch, setDetailBrunch] = useState<Brunch | null>(null);
   const toggleFilter = (value: string) => setFilters((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
 
   const handleUserLocation = ({ latitude, longitude }: { latitude: number; longitude: number }) => {
@@ -376,7 +374,6 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
                   <UniversalEstablishmentCard
                     key={brunch.slug}
                     establishment={brunch}
-                    onOpen={() => setDetailBrunch(brunch)}
                     priorityImage={index < 4}
                   />
                 ))}
@@ -401,7 +398,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
                 onSelect={(item) => setSelected(item ? brunchData.find((b) => b.slug === item.id) ?? null : null)}
                 onOpenDetail={(item) => {
                   const found = brunchData.find((b) => b.slug === item.id);
-                  if (found) setDetailBrunch(found);
+                  if (found) setSelected(found);
                 }}
                 onUserLocationChange={handleUserLocation}
                 className="h-[calc(100vh-7rem)] min-h-[560px]"
@@ -410,12 +407,6 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
           </div>
         </div>
       </section>
-
-      <EstablishmentDetailDrawer
-        establishment={detailBrunch ? brunchToEstablishmentRecord(detailBrunch) : null}
-        open={!!detailBrunch}
-        onClose={() => setDetailBrunch(null)}
-      />
     </>
   );
 }

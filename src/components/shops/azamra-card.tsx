@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { azamra } from "@/data/shops";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 const azamraToEstablishmentRecord = (): EstablishmentRecord => ({
@@ -67,7 +66,6 @@ const azamraToEstablishmentRecord = (): EstablishmentRecord => ({
 });
 
 export function AzamraCard() {
-  const [open, setOpen] = useState(false);
   const [shopRecord, setShopRecord] = useState<EstablishmentRecord>(() => azamraToEstablishmentRecord());
 
   useEffect(() => {
@@ -121,12 +119,8 @@ export function AzamraCard() {
   }, []);
 
   return (
-    <>
-      <UniversalEstablishmentCard
-        establishment={shopRecord}
-        onOpen={() => setOpen(true)}
-      />
-      <EstablishmentDetailDrawer establishment={shopRecord} open={open} onClose={() => setOpen(false)} />
-    </>
+    <UniversalEstablishmentCard
+      establishment={shopRecord}
+    />
   );
 }

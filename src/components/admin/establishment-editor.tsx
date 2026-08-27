@@ -31,7 +31,6 @@ import { assetPath } from "@/lib/assets";
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { uploadLibertyImage } from "@/lib/supabase/storage";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import type {
   AdminCertification,
   AdminEstablishment,
@@ -149,7 +148,6 @@ export function EstablishmentEditor({
 }: EstablishmentEditorProps) {
   const [activeTab, setActiveTab] = useState<EditorTab>("identite");
   const [tagSearch, setTagSearch] = useState("");
-  const [testDrawerOpen, setTestDrawerOpen] = useState(false);
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [galleryUploadMessage, setGalleryUploadMessage] = useState("");
@@ -1498,27 +1496,16 @@ export function EstablishmentEditor({
         ========================================================================= */}
         {activeTab === "preview" && (
           <div className="space-y-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-base font-bold text-ink">Aperçu en direct</h3>
-                <p className="text-xs text-ink/45">
-                  Rendu exact de votre fiche telle qu&apos;elle apparaîtra pour les utilisateurs.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setTestDrawerOpen(true)}
-                className="rounded-full bg-ink px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-moss cursor-pointer"
-              >
-                Ouvrir le tiroir de détail →
-              </button>
+            <div>
+              <h3 className="text-base font-bold text-ink">Aperçu de la fiche publique autonome</h3>
+              <p className="text-xs text-ink/45">
+                Rendu exact de votre fiche autonome telle qu&apos;elle apparaît sur le site public. Cliquez sur la photo pour tester le zoom Lightbox.
+              </p>
             </div>
 
             <div className="max-w-md mx-auto py-4">
               <UniversalEstablishmentCard
                 establishment={establishment}
-                onOpen={() => setTestDrawerOpen(true)}
               />
             </div>
           </div>
@@ -1579,13 +1566,6 @@ export function EstablishmentEditor({
           </button>
         </div>
       </div>
-
-      {/* Drawer de test pour l'aperçu */}
-      <EstablishmentDetailDrawer
-        establishment={establishment}
-        open={testDrawerOpen}
-        onClose={() => setTestDrawerOpen(false)}
-      />
     </div>
   );
 }

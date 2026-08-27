@@ -14,7 +14,6 @@ import { CustomerRating } from "@/components/ui/customer-rating";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ReservationForm } from "@/components/restaurants/reservation-form";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
@@ -353,35 +352,6 @@ function FilterSection({ title, options, active, toggle }: { title: string; opti
 
 
 
-function HoursPanel({ restaurant, open, onClose }: { restaurant: Restaurant | null; open: boolean; onClose: () => void }) {
-  if (!restaurant) return null;
-  const status = getOpenStatus(restaurant);
-  return (
-    <EntityDrawer open={open} onClose={onClose} title="Horaires">
-      <div className="space-y-5 p-6">
-        <div className="rounded-3xl bg-white p-5">
-          <p className={`text-sm font-semibold ${status.open ? "text-moss" : "text-rose-600"}`}>{status.label}</p>
-          <p className="mt-1 text-xs text-ink/45">{restaurant.name}</p>
-        </div>
-        <div className="overflow-hidden rounded-3xl bg-white">
-          {days.map((day, index) => {
-            const value = restaurant.hours[day]?.trim();
-            const today = index === dayIndex();
-            return (
-              <div key={day} className={`flex items-center justify-between gap-4 border-b border-black/[.05] px-5 py-4 text-sm last:border-0 ${today ? "bg-sage/70 font-semibold text-moss" : ""}`}>
-                <span className="capitalize">{day}</span>
-                <span className="text-right text-ink/65">{value || "Horaires non renseignés"}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </EntityDrawer>
-  );
-}
-
-
-
 export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants: Restaurant[] }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<string[]>([]);
@@ -389,9 +359,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   const [showFilters, setShowFilters] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
   const [selected, setSelected] = useState<Restaurant | null>(null);
-  const [detailRestaurant, setDetailRestaurant] = useState<Restaurant | null>(null);
   const [reservationRestaurant, setReservationRestaurant] = useState<Restaurant | null>(null);
-  const [hoursRestaurant, setHoursRestaurant] = useState<Restaurant | null>(null);
   const [restaurantData, setRestaurantData] = useState(initialRestaurants);
 
   useEffect(() => {
@@ -442,7 +410,6 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
 
   const toggleFilter = (filter: string) => setFilters((current) => current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter]);
   const applyTagFilter = (tag: string) => {
-    setDetailRestaurant(null);
     setView("list");
     setFilters([tag]);
     setQuery("");
@@ -600,9 +567,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
               <UniversalEstablishmentCard
                 key={restaurant.id}
                 establishment={restaurant}
-                onOpen={() => setDetailRestaurant(restaurant)}
                 onReserve={() => setReservationRestaurant(restaurant)}
-                onHours={() => setHoursRestaurant(restaurant)}
                 onTag={applyTagFilter}
                 priorityImage={index < 4}
               />
@@ -617,7 +582,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
                 onSelect={(item) => setSelected(item ? restaurantData.find((r) => r.id === item.id) ?? null : null)}
                 onOpenDetail={(item) => {
                   const found = restaurantData.find((r) => r.id === item.id);
-                  if (found) setDetailRestaurant(found);
+                  if (found) setSelected(found);
                 }}
                 onUserLocationChange={({ latitude, longitude }) => {
                   setRestaurantData((current) => current.map((r) => ({
@@ -631,14 +596,6 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
           </div>
         </div>
       </section>
-      <EstablishmentDetailDrawer
-        establishment={detailRestaurant ? restaurantToEstablishmentRecord(detailRestaurant) : null}
-        open={!!detailRestaurant}
-        onClose={() => setDetailRestaurant(null)}
-        onReserve={() => detailRestaurant && setReservationRestaurant(detailRestaurant)}
-        onTag={applyTagFilter}
-      />
-      <HoursPanel restaurant={hoursRestaurant} open={!!hoursRestaurant} onClose={() => setHoursRestaurant(null)} />
       <EntityDrawer open={!!reservationRestaurant} onClose={() => setReservationRestaurant(null)} title="Demande de réservation">
         {reservationRestaurant && <ReservationForm restaurant={reservationRestaurant} onDone={() => setReservationRestaurant(null)} />}
       </EntityDrawer>

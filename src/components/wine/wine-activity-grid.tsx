@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { WineActivity } from "@/data/wine-activities";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 const activityToEstablishmentRecord = (activity: WineActivity, index: number): EstablishmentRecord => ({
@@ -57,7 +56,6 @@ const activityToEstablishmentRecord = (activity: WineActivity, index: number): E
 
 export function WineActivityGrid({ activities }: { activities: WineActivity[] }) {
   const [activityData, setActivityData] = useState<EstablishmentRecord[]>(() => activities.map(activityToEstablishmentRecord));
-  const [selected, setSelected] = useState<EstablishmentRecord | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -76,18 +74,14 @@ export function WineActivityGrid({ activities }: { activities: WineActivity[] })
   }, [activities]);
 
   return (
-    <>
-      <div className="grid gap-5 md:grid-cols-2">
-        {activityData.map((activity, index) => (
-          <UniversalEstablishmentCard
-            key={activity.id}
-            establishment={activity}
-            onOpen={() => setSelected(activity)}
-            priorityImage={index < 2}
-          />
-        ))}
-      </div>
-      <EstablishmentDetailDrawer establishment={selected} open={!!selected} onClose={() => setSelected(null)} />
-    </>
+    <div className="grid gap-5 md:grid-cols-2">
+      {activityData.map((activity, index) => (
+        <UniversalEstablishmentCard
+          key={activity.id}
+          establishment={activity}
+          priorityImage={index < 2}
+        />
+      ))}
+    </div>
   );
 }

@@ -19,7 +19,7 @@ import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-ra
 import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
-import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
+import { PhotoLightboxModal } from "@/components/ui/photo-lightbox-modal";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 
 const azamraDefaultRecord = (): EstablishmentRecord => ({
@@ -95,7 +95,8 @@ function safeExternalUrl(value?: string | null): string {
 
 export function AzamraDetailView() {
   const [record, setRecord] = useState<EstablishmentRecord>(() => azamraDefaultRecord());
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [activePhoto, setActivePhoto] = useState(0);
 
   useEffect(() => {
@@ -171,24 +172,22 @@ export function AzamraDetailView() {
         >
           <ArrowLeft size={14} /> Retour à Vêtements
         </Link>
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          className="rounded-full bg-cream px-3.5 py-1.5 text-xs font-bold text-ink transition hover:bg-sage hover:text-moss"
-        >
-          Tiroir d&apos;informations rapides →
-        </button>
       </div>
 
       <div className="overflow-hidden rounded-[2.25rem] bg-white shadow-soft border border-black/[.05]">
-        {/* Grande Couverture / Galerie */}
-        <div className="relative min-h-[420px] sm:min-h-[500px] bg-sage select-none overflow-hidden">
+        {/* Grande Couverture / Galerie (clic photo = zoom lightbox) */}
+        <div className="relative min-h-[420px] sm:min-h-[500px] bg-sage select-none overflow-hidden cursor-pointer">
           <img
             src={assetPath(allPhotos[activePhoto] || record.mainPhoto || "/images/shopping/azamra.jpg")}
             alt={record.name}
-            className="absolute inset-0 size-full object-cover object-center transition duration-500"
+            onClick={() => {
+              setLightboxIndex(activePhoto);
+              setLightboxOpen(true);
+            }}
+            title="Cliquer pour agrandir la photo"
+            className="absolute inset-0 size-full object-cover object-center transition duration-500 hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/20 pointer-events-none" />
 
           {/* Badges supérieurs */}
           <div className="absolute left-6 top-6 right-6 flex items-start justify-between">
@@ -451,11 +450,13 @@ export function AzamraDetailView() {
         </div>
       </div>
 
-      {/* Tiroir de détail interactif */}
-      <EstablishmentDetailDrawer
-        establishment={record}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+      {/* Lightbox Photo Plein Écran */}
+      <PhotoLightboxModal
+        photos={allPhotos}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        title={record.name}
       />
     </section>
   );

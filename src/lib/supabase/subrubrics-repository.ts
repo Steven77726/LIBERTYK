@@ -16,6 +16,7 @@ export type SubrubricRecord = {
   imageAlt?: string;
   visible?: boolean;
   showPublicly?: boolean;
+  isDormant?: boolean;
   format?: SubrubricFormat;
   gridColumns?: 1 | 2 | 3 | 4;
   columnsDesktop?: 2 | 3 | 4;
@@ -41,6 +42,7 @@ type SubrubricRow = {
   image_url: string | null;
   image_alt: string | null;
   show_publicly: boolean | null;
+  is_dormant?: boolean | null;
   search_keywords: string[] | null;
   display_order: number | null;
   status: StatusDb;
@@ -99,6 +101,16 @@ function readableError(error: unknown) {
   return "Erreur Supabase inconnue.";
 }
 
+function isColumnMissingError(error: unknown) {
+  if (!error) return false;
+  const err = error as { code?: string; message?: string };
+  return (
+    err.code === "42703" ||
+    err.code === "PGRST204" ||
+    Boolean(err.message && (err.message.includes("is_dormant") || err.message.includes("schema cache")))
+  );
+}
+
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -112,6 +124,7 @@ function getClientOrThrow() {
 function rowToSubrubric(row: SubrubricRow): SubrubricRecord {
   const parentId = row.rubrics?.external_id || row.rubrics?.slug || row.rubric_id;
   const desktop = asColumns(row.desktop_columns, 3);
+  const isDormant = row.is_dormant === true || (row.search_keywords || []).includes("__dormant__");
   return {
     id: row.external_id || row.id,
     rubricId: parentId,
@@ -123,12 +136,13 @@ function rowToSubrubric(row: SubrubricRow): SubrubricRecord {
     imageAlt: row.image_alt ?? "",
     visible: row.show_publicly ?? true,
     showPublicly: row.show_publicly ?? true,
+    isDormant,
     format: (row.display_format as SubrubricFormat | null) ?? "Carré standard",
     gridColumns: desktop,
     columnsDesktop: desktop,
     columnsTablet: asColumns(row.tablet_columns, 2),
     columnsMobile: asColumns(row.mobile_columns, 1),
-    searchKeywords: row.search_keywords ?? [],
+    searchKeywords: (row.search_keywords || []).filter((k) => k !== "__dormant__"),
     order: row.display_order ?? 0,
     status: statusFromDb[row.status] ?? "Brouillon",
     createdAt: row.created_at ?? undefined,
@@ -159,6 +173,13 @@ async function subrubricToPayload(subrubric: SubrubricRecord, statusOverride?: S
   if (!rubricId) throw new Error(`Rubrique parente introuvable pour ${subrubric.name}.`);
   const slug = normalizeSlug(subrubric.slug || subrubric.name || subrubric.id);
   const showPublicly = subrubric.showPublicly ?? subrubric.visible ?? true;
+  const keywords = Array.from(
+    new Set([
+      ...(subrubric.searchKeywords ?? []).filter((k) => k !== "__dormant__"),
+      ...(subrubric.isDormant ? ["__dormant__"] : []),
+    ])
+  );
+
   return {
     external_id: subrubric.id,
     rubric_id: rubricId,
@@ -169,7 +190,8 @@ async function subrubricToPayload(subrubric: SubrubricRecord, statusOverride?: S
     image_url: subrubric.photo ?? "",
     image_alt: subrubric.imageAlt ?? subrubric.name,
     show_publicly: showPublicly,
-    search_keywords: subrubric.searchKeywords ?? [],
+    is_dormant: subrubric.isDormant === true,
+    search_keywords: keywords,
     display_order: Number(subrubric.order) || 0,
     status: statusOverride ?? statusToDb[subrubric.status] ?? "draft",
     display_format: subrubric.format ?? "Carré standard",
@@ -243,7 +265,22 @@ async function upsertSubrubric(subrubric: SubrubricRecord, statusOverride?: Stat
       .eq("id", subrubric.id)
       .select(selectColumns)
       .maybeSingle<SubrubricRow>();
-    if (updateError) throw new Error(readableError(updateError));
+    if (updateError) {
+      if (isColumnMissingError(updateError)) {
+        const safePayload = { ...payload };
+        delete (safePayload as { is_dormant?: boolean }).is_dormant;
+        const { data: fbUpdated, error: fbError } = await supabase
+          .from("subrubrics")
+          .update(safePayload)
+          .eq("id", subrubric.id)
+          .select(selectColumns)
+          .maybeSingle<SubrubricRow>();
+        if (fbError) throw new Error(readableError(fbError));
+        if (fbUpdated) return rowToSubrubric(fbUpdated);
+      } else {
+        throw new Error(readableError(updateError));
+      }
+    }
     if (updated) return rowToSubrubric(updated);
   }
   const { data, error } = await supabase
@@ -251,7 +288,20 @@ async function upsertSubrubric(subrubric: SubrubricRecord, statusOverride?: Stat
     .upsert(payload, { onConflict: "external_id" })
     .select(selectColumns)
     .single<SubrubricRow>();
-  if (error) throw new Error(readableError(error));
+  if (error) {
+    if (isColumnMissingError(error)) {
+      const safePayload = { ...payload };
+      delete (safePayload as { is_dormant?: boolean }).is_dormant;
+      const { data: fbData, error: fbError } = await supabase
+        .from("subrubrics")
+        .upsert(safePayload, { onConflict: "external_id" })
+        .select(selectColumns)
+        .single<SubrubricRow>();
+      if (fbError) throw new Error(readableError(fbError));
+      return rowToSubrubric(fbData);
+    }
+    throw new Error(readableError(error));
+  }
   return rowToSubrubric(data);
 }
 

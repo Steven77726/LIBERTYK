@@ -71,6 +71,7 @@ import {
   moveSubrubricToTrash as moveSubrubricToTrashInSupabase,
   publishSubrubric as publishSubrubricInSupabase,
   restoreSubrubric as restoreSubrubricInSupabase,
+  updateSubrubric as updateSubrubricInSupabase,
   updateSubrubricOrder,
 } from "@/lib/supabase/subrubrics-repository";
 import {
@@ -208,6 +209,7 @@ export type AdminSubrubric = {
   imageAlt?: string;
   visible?: boolean;
   showPublicly?: boolean;
+  isDormant?: boolean;
   format?: RubricFormat;
   gridColumns?: 1 | 2 | 3 | 4;
   columnsDesktop?: 2 | 3 | 4;
@@ -3444,6 +3446,59 @@ export function AdminDashboard() {
     }
   };
 
+  const toggleSubrubricDormant = async (subrubric: AdminSubrubric, isDormant: boolean) => {
+    if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
+    setRubricsOperation(`subdormant-${subrubric.id}`);
+    setSavingAction(isDormant ? "Mise en sommeil" : "Réactivation sous-rubrique");
+
+    const next: AdminSubrubric = {
+      ...subrubric,
+      isDormant,
+      status: "Publié" as AdminStatus,
+      visible: true,
+      showPublicly: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Mise à jour optimiste immédiate dans l'état local et le localStorage
+    setState((current) => {
+      const updated = normalizeAdminState({
+        ...current,
+        subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? next : item)),
+      });
+      persistAdminStateSnapshot(updated);
+      return updated;
+    });
+
+    window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+    window.dispatchEvent(new Event("storage"));
+
+    setAdminMessage(
+      isDormant
+        ? `Sous-rubrique "${subrubric.name}" mise en sommeil (Bientôt disponible).`
+        : `Sous-rubrique "${subrubric.name}" réactivée.`
+    );
+
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await updateSubrubricInSupabase(next);
+        applySubrubricLocally(
+          saved,
+          isDormant
+            ? `Sous-rubrique "${subrubric.name}" mise en sommeil (Bientôt disponible).`
+            : `Sous-rubrique "${subrubric.name}" réactivée.`
+        );
+      }
+      audit(isDormant ? "sommeil" : "activation", "sous-rubrique", subrubric.id, subrubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec synchronisation Supabase : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
   const trashSubrubric = async (subrubric: AdminSubrubric) => {
     if (savingAction || rubricsOperation) return;
     if (!requireAdminWrite()) return;
@@ -4418,10 +4473,43 @@ export function AdminDashboard() {
                           clearSubrubricValidationError(subrubric.id, "order");
                         }}
                       />
-                      <SelectField label="Statut" value={subrubric.status} onChange={(value) => updateSubrubric(subrubric.id, { status: value as AdminStatus })}>
-                        <option>Publié</option><option>Brouillon</option><option>Masqué</option>
+                      <SelectField
+                        label="Statut"
+                        value={subrubric.isDormant ? "En sommeil" : subrubric.status}
+                        onChange={(value) => {
+                          if (value === "En sommeil") {
+                            void toggleSubrubricDormant(subrubric, true);
+                          } else if (value === "Publié") {
+                            if (subrubric.isDormant) {
+                              void toggleSubrubricDormant(subrubric, false);
+                            } else {
+                              updateSubrubric(subrubric.id, { status: "Publié", isDormant: false });
+                            }
+                          } else if (value === "Brouillon") {
+                            updateSubrubric(subrubric.id, { status: "Brouillon", isDormant: false });
+                          } else if (value === "Masqué") {
+                            updateSubrubric(subrubric.id, { status: "Masqué", isDormant: false });
+                          }
+                        }}
+                      >
+                        <option value="Publié">Publié (Actif)</option>
+                        <option value="En sommeil">En sommeil (Bientôt disponible)</option>
+                        <option value="Brouillon">Brouillon</option>
+                        <option value="Masqué">Masqué</option>
                       </SelectField>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
+                        <button
+                          type="button"
+                          title={subrubric.isDormant ? "Sous-rubrique en sommeil — Cliquer pour activer" : "Sous-rubrique active — Cliquer pour mettre en sommeil"}
+                          onClick={() => void toggleSubrubricDormant(subrubric, !subrubric.isDormant)}
+                          className={`px-2 py-1 text-[10px] font-bold rounded-lg transition shrink-0 ${
+                            subrubric.isDormant
+                              ? "bg-amber-100 text-amber-800 border border-amber-300 shadow-xs"
+                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          }`}
+                        >
+                          {subrubric.isDormant ? "🟠 SOMMEIL" : "🟢 ACTIVE"}
+                        </button>
                         <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
                         <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
                         <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateSubrubric(subrubric)} className="grid size-8 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45"><Plus size={13} /></button>
@@ -4437,6 +4525,8 @@ export function AdminDashboard() {
                         <FormActionBar
                           disabled={Boolean(savingAction || rubricsOperation)}
                           publishing={rubricsOperation === `subpublish-${subrubric.id}`}
+                          isDormant={subrubric.isDormant}
+                          onDormant={() => void toggleSubrubricDormant(subrubric, !subrubric.isDormant)}
                           onDraft={() => void saveSubrubricDraft(subrubric)}
                           onPreview={() => previewSubrubricDraft(subrubric)}
                           onPublish={() => void publishSubrubric(subrubric)}

@@ -33,6 +33,7 @@ type SubrubricPreview = {
   imageAlt?: string;
   visible?: boolean;
   showPublicly?: boolean;
+  isDormant?: boolean;
   order: number;
   status: "Publié" | "Brouillon" | "Masqué";
 };
@@ -85,6 +86,7 @@ function normalizeSubrubric(record: SubrubricRecord): SubrubricPreview {
     imageAlt: record.imageAlt,
     visible: record.visible,
     showPublicly: record.showPublicly,
+    isDormant: record.isDormant === true,
     order: record.order,
     status: record.status,
   };
@@ -292,6 +294,39 @@ function SubrubricCard({
   const Icon = iconForSubrubric(rubricSlug, item);
   const image = imageForSubrubric(rubricSlug, item, fallbackCards);
   const description = descriptionForSubrubric(item, fallbackCards);
+
+  if (item.isDormant) {
+    return (
+      <div
+        role="status"
+        aria-label={`${item.name} — Bientôt disponible`}
+        className={`group relative overflow-hidden rounded-[1.75rem] bg-ink/90 text-white shadow-sm ring-1 ring-white/10 select-none cursor-default ${
+          featured ? "min-h-[350px] sm:col-span-2" : "min-h-[255px]"
+        }`}
+      >
+        <img
+          src={assetPath(image)}
+          alt={item.imageAlt || item.name}
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 size-full object-cover grayscale-[0.88] opacity-45 brightness-75"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+        <span className="absolute right-3.5 top-3.5 z-10 inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-black/80 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#d5bb7d] shadow-[0_8px_20px_rgba(0,0,0,0.5)] backdrop-blur-md">
+          Bientôt disponible
+        </span>
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
+          <div className="min-w-0">
+            <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/10 bg-white/10 opacity-60 backdrop-blur">
+              <Icon size={18} />
+            </span>
+            <h3 className="truncate text-xl font-semibold tracking-tight text-white/85">{item.name}</h3>
+            {description && <p className="mt-1 line-clamp-2 text-xs text-white/55">{description}</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Link

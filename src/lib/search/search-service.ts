@@ -799,18 +799,29 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
   const rawRows = error ? [] : data ?? [];
   if (error) return fallbackSearch(query);
 
-  const { rubrics } = await getTaxonomyRows();
+  const { rubrics, subrubrics } = await getTaxonomyRows();
   const dormantRubricIds = new Set(
     rubrics
       .filter((r) => r.is_dormant === true)
       .flatMap((r) => [r.id, r.slug, `rubric-${r.slug}`].filter(Boolean))
   );
+  const dormantSubrubricIds = new Set(
+    subrubrics
+      .filter((s) => (s as { is_dormant?: boolean; search_keywords?: string[] }).is_dormant === true || ((s as { search_keywords?: string[] }).search_keywords || []).includes("__dormant__"))
+      .flatMap((s) => [s.id, s.slug, `subrubric-${s.slug}`].filter(Boolean))
+  );
 
-  const rows = dormantRubricIds.size > 0
+  const rows = (dormantRubricIds.size > 0 || dormantSubrubricIds.size > 0)
     ? rawRows.filter((row) => {
-        const id = row.rubric_id ?? "";
-        const slug = row.rubrics?.slug ?? "";
-        return (!id || !dormantRubricIds.has(id)) && (!slug || !dormantRubricIds.has(slug));
+        const rId = row.rubric_id ?? "";
+        const rSlug = row.rubrics?.slug ?? "";
+        const sId = row.subrubric_id ?? "";
+        const sSlug = row.subrubrics?.slug ?? "";
+        if (rId && dormantRubricIds.has(rId)) return false;
+        if (rSlug && dormantRubricIds.has(rSlug)) return false;
+        if (sId && dormantSubrubricIds.has(sId)) return false;
+        if (sSlug && dormantSubrubricIds.has(sSlug)) return false;
+        return true;
       })
     : rawRows;
 

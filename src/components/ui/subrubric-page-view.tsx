@@ -106,6 +106,14 @@ export function SubrubricPageView({
 
         setSubrubric(foundSubrubric);
 
+        if (foundSubrubric?.isDormant) {
+          setIsParentDormant(true);
+          setParentRubricName(foundSubrubric.name || readableTitle(subrubricSlug));
+          setItems([]);
+          setLoading(false);
+          return;
+        }
+
         // 1. Initial matching fallback items
         const target = subrubricSlug.toLowerCase();
         const matchesSubrubric = (est: EstablishmentRecord) => {

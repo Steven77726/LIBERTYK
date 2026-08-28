@@ -36,8 +36,27 @@ export function SubrubricPageView({
 }: Props) {
   const rubric = categoryBySlug[rubricSlug];
   const [subrubric, setSubrubric] = useState<SubrubricRecord | null>(null);
-  const [items, setItems] = useState<EstablishmentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<EstablishmentRecord[]>(() => {
+    const target = subrubricSlug.toLowerCase();
+    return (localEstablishments as EstablishmentRecord[]).filter((est) => {
+      if (est.rubricId !== rubricSlug && est.rubricId !== `${rubricSlug}`) return false;
+      if (est.status === "Masqué") return false;
+      const subId = (est.subrubricId || "").toLowerCase();
+      return (
+        subId === target ||
+        subId === `${rubricSlug}-${target}` ||
+        (target.startsWith("even") && (subId.includes("even") || subId.includes("event"))) ||
+        (target.startsWith("soiree") && (subId.includes("soiree") || subId.includes("celibat"))) ||
+        (target.startsWith("concert") && subId.includes("concert")) ||
+        (target.startsWith("degust") && subId.includes("degust")) ||
+        (target.startsWith("deco") && subId.includes("deco")) ||
+        (target.startsWith("decor") && subId.includes("decor")) ||
+        (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
+        (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
+      );
+    });
+  });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isParentDormant, setIsParentDormant] = useState(false);
   const [parentRubricName, setParentRubricName] = useState("");
@@ -52,7 +71,6 @@ export function SubrubricPageView({
     let mounted = true;
 
     async function load() {
-      setLoading(true);
       setError("");
       try {
         const [remoteRubrics, remoteSubrubrics, establishments] = await Promise.all([
@@ -123,6 +141,10 @@ export function SubrubricPageView({
           return (
             subId === target ||
             subId === `${rubricSlug}-${target}` ||
+            (target.startsWith("even") && (subId.includes("even") || subId.includes("event"))) ||
+            (target.startsWith("soiree") && (subId.includes("soiree") || subId.includes("celibat"))) ||
+            (target.startsWith("concert") && subId.includes("concert")) ||
+            (target.startsWith("degust") && subId.includes("degust")) ||
             (target.startsWith("deco") && subId.includes("deco")) ||
             (target.startsWith("decor") && subId.includes("decor")) ||
             (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||

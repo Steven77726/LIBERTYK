@@ -132,7 +132,7 @@ function subrubricHref(rubricSlug: string, subrubricSlug: string) {
 }
 
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {
-  const [items, setItems] = useState<SubrubricPreview[] | null>(null);
+  const [items, setItems] = useState<SubrubricPreview[]>(fallback);
   const [isDormant, setIsDormant] = useState(false);
 
   useEffect(() => {

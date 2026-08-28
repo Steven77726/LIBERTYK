@@ -139,17 +139,29 @@ export function CategoryGrid() {
         subrubricCount: 0,
       }));
     }
+
     return adminRubrics
       .filter((rubric) => rubric.status === "Publié" && rubric.showOnHome !== false)
       .sort((a, b) => a.order - b.order)
       .map((rubric) => {
-        const fallback = categories.find((category) => category.slug === (rubric.slug ?? rubric.id));
+        const rubricSlug = rubric.slug || rubric.id;
+        const fallback = categories.find((c) => c.slug === rubricSlug || c.slug === rubric.id || (rubricSlug.includes(c.slug)));
+
+        // Préserver l'image HD d'origine si l'image en DB est externe/invalide
+        const isDbImageValid =
+          rubric.image &&
+          (rubric.image.includes("supabase.co") ||
+            rubric.image.includes("images.unsplash.com") ||
+            rubric.image.startsWith("/"));
+
+        const finalImage = (isDbImageValid ? rubric.image : fallback?.image) || fallback?.image || rubric.image || "/images/food/restaurants-khan.jpg";
+
         return {
-          slug: rubric.slug ?? rubric.id,
-          label: rubric.name,
-          description: rubric.description,
-          image: rubric.image || fallback?.image || "/images/food/restaurants-khan.jpg",
-          imageAlt: rubric.imageAlt ?? rubric.name,
+          slug: fallback?.slug || rubricSlug,
+          label: fallback?.label || rubric.name,
+          description: fallback?.description || rubric.description,
+          image: finalImage,
+          imageAlt: rubric.imageAlt ?? fallback?.label ?? rubric.name,
           format: rubric.format ?? "Carré standard",
           icon: fallback?.icon ?? Store,
           softColor: fallback?.softColor ?? "#e2eae4",

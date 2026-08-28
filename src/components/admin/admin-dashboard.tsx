@@ -1563,35 +1563,53 @@ function HoursEditor({ value, onChange }: { value: string; onChange: (value: str
 function FormActionBar({
   disabled,
   publishing,
+  isDormant,
   onDraft,
   onPreview,
   onPublish,
+  onDormant,
   onHide,
   onTrash,
 }: {
   disabled?: boolean;
   publishing?: boolean;
+  isDormant?: boolean;
   onDraft: () => void;
   onPreview: () => void;
   onPublish: () => void;
+  onDormant?: () => void;
   onHide: () => void;
   onTrash: () => void;
 }) {
   return (
     <div className="sticky bottom-4 z-20 mt-5 flex flex-wrap items-center gap-2 rounded-3xl border border-black/[.06] bg-white/92 p-3 shadow-[0_18px_60px_rgba(16,26,21,.12)] backdrop-blur-xl">
-      <button disabled={disabled} onClick={onDraft} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-45">
+      <button disabled={disabled} onClick={onDraft} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-45 hover:bg-black/5 transition cursor-pointer">
         Enregistrer en brouillon
       </button>
-      <button disabled={disabled} onClick={onPreview} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-45">
+      <button disabled={disabled} onClick={onPreview} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-45 hover:bg-black/5 transition cursor-pointer">
         Prévisualiser
       </button>
-      <button disabled={disabled} onClick={onPublish} className="rounded-full bg-ink px-5 py-2.5 text-xs font-semibold uppercase tracking-[.08em] text-white shadow-[0_14px_32px_rgba(16,26,21,.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45">
+      <button disabled={disabled} onClick={onPublish} className="rounded-full bg-ink px-5 py-2.5 text-xs font-semibold uppercase tracking-[.08em] text-white shadow-[0_14px_32px_rgba(16,26,21,.18)] transition hover:-translate-y-0.5 hover:bg-moss disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer">
         {publishing ? "Publication en cours…" : "Valider et publier"}
       </button>
-      <button disabled={disabled} onClick={onHide} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink/55 shadow-sm disabled:cursor-not-allowed disabled:opacity-45">
-        Annuler
+      {onDormant && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onDormant}
+          className={`rounded-full px-4 py-2.5 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 cursor-pointer ${
+            isDormant
+              ? "bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+              : "bg-amber-50 text-amber-800 border border-amber-200/80 hover:bg-amber-100"
+          }`}
+        >
+          {isDormant ? "🟠 Réactiver (Sortir du sommeil)" : "🟠 Mettre en sommeil"}
+        </button>
+      )}
+      <button disabled={disabled} onClick={onHide} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink/55 shadow-sm disabled:cursor-not-allowed disabled:opacity-45 hover:bg-black/5 transition cursor-pointer">
+        Masquer
       </button>
-      <button disabled={disabled} onClick={onTrash} className="rounded-full bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-500 disabled:cursor-not-allowed disabled:opacity-45">
+      <button disabled={disabled} onClick={onTrash} className="rounded-full bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-500 disabled:cursor-not-allowed disabled:opacity-45 hover:bg-rose-100 transition cursor-pointer">
         Supprimer
       </button>
     </div>
@@ -4257,9 +4275,11 @@ export function AdminDashboard() {
                       <FormActionBar
                         disabled={Boolean(savingAction || rubricsOperation)}
                         publishing={rubricsOperation === `publish-${rubric.id}`}
+                        isDormant={rubric.isDormant}
                         onDraft={() => saveRubricDraft(rubric)}
                         onPreview={() => previewRubricDraft(rubric)}
                         onPublish={() => publishRubric(rubric)}
+                        onDormant={() => void toggleRubricDormant(rubric, !rubric.isDormant)}
                         onHide={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : hideRubric(rubric))}
                         onTrash={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : trashRubric(rubric))}
                       />
@@ -4294,8 +4314,29 @@ export function AdminDashboard() {
                       </div>
 
                       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <SelectField label="Statut" value={rubric.status} onChange={(value) => updateRubric(rubric.id, { status: value as AdminStatus })}>
-                          <option>Publié</option><option>Brouillon</option><option>Masqué</option>
+                        <SelectField
+                          label="Statut"
+                          value={rubric.isDormant ? "En sommeil" : rubric.status}
+                          onChange={(value) => {
+                            if (value === "En sommeil") {
+                              void toggleRubricDormant(rubric, true);
+                            } else if (value === "Publié") {
+                              if (rubric.isDormant) {
+                                void toggleRubricDormant(rubric, false);
+                              } else {
+                                updateRubric(rubric.id, { status: "Publié", isDormant: false });
+                              }
+                            } else if (value === "Brouillon") {
+                              updateRubric(rubric.id, { status: "Brouillon", isDormant: false });
+                            } else if (value === "Masqué") {
+                              updateRubric(rubric.id, { status: "Masqué", isDormant: false });
+                            }
+                          }}
+                        >
+                          <option value="Publié">Publié (Actif)</option>
+                          <option value="En sommeil">En sommeil (Bientôt disponible)</option>
+                          <option value="Brouillon">Brouillon</option>
+                          <option value="Masqué">Masqué</option>
                         </SelectField>
                       <SelectField label="Format de carte" value={rubric.format ?? "Carré"} onChange={(value) => updateRubric(rubric.id, { format: value as RubricFormat })}>
                         <option>Petit carré</option>

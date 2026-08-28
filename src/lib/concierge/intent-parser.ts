@@ -395,11 +395,13 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
     }
   }
 
-  const arrondissement = extractArrondissement(rawInput) ?? sessionContext?.arrondissement;
-  const city = extractCity(rawInput) ?? sessionContext?.city ?? (arrondissement ? "Paris" : undefined);
-  const kosherType = extractKosherType(rawInput) ?? sessionContext?.kosherType;
-  const certification = extractCertification(rawInput) ?? sessionContext?.certification;
-  const serviceMode = extractServiceMode(rawInput) ?? sessionContext?.serviceMode;
+  // Si une nouvelle catégorie ou nouveau sujet est explicitement mentionné, ne pas hériter des anciens arrondissements / cacherout
+  const isNewIntent = Boolean(matchedCategory);
+  const arrondissement = extractArrondissement(rawInput) ?? (isNewIntent ? undefined : sessionContext?.arrondissement);
+  const city = extractCity(rawInput) ?? (isNewIntent ? (arrondissement ? "Paris" : undefined) : sessionContext?.city ?? (arrondissement ? "Paris" : undefined));
+  const kosherType = extractKosherType(rawInput) ?? (isNewIntent ? undefined : sessionContext?.kosherType);
+  const certification = extractCertification(rawInput) ?? (isNewIntent ? undefined : sessionContext?.certification);
+  const serviceMode = extractServiceMode(rawInput) ?? (isNewIntent ? undefined : sessionContext?.serviceMode);
   const { maxPrice, priceLevel } = extractPriceCriteria(rawInput);
   const services = extractServices(rawInput);
   const nearMe = isNearMeQuery(rawInput);
@@ -418,22 +420,22 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
   return {
     rawQuery: rawInput.trim(),
     category: matchedCategory ?? sessionContext?.category,
-    subrubric: matchedSubrubric ?? sessionContext?.subrubric,
+    subrubric: matchedSubrubric ?? (isNewIntent ? undefined : sessionContext?.subrubric),
     arrondissement,
     city,
     kosherType,
     certification,
     serviceMode,
     services: {
-      terrace: services.terrace ?? sessionContext?.services?.terrace,
-      delivery: services.delivery ?? sessionContext?.services?.delivery,
-      takeaway: services.takeaway ?? sessionContext?.services?.takeaway,
-      reservation: services.reservation ?? sessionContext?.services?.reservation,
-      openNow: services.openNow ?? sessionContext?.services?.openNow,
-      openSunday: services.openSunday ?? sessionContext?.services?.openSunday,
+      terrace: services.terrace ?? (isNewIntent ? undefined : sessionContext?.services?.terrace),
+      delivery: services.delivery ?? (isNewIntent ? undefined : sessionContext?.services?.delivery),
+      takeaway: services.takeaway ?? (isNewIntent ? undefined : sessionContext?.services?.takeaway),
+      reservation: services.reservation ?? (isNewIntent ? undefined : sessionContext?.services?.reservation),
+      openNow: services.openNow ?? (isNewIntent ? undefined : sessionContext?.services?.openNow),
+      openSunday: services.openSunday ?? (isNewIntent ? undefined : sessionContext?.services?.openSunday),
     },
-    maxPrice: maxPrice ?? sessionContext?.maxPrice,
-    priceLevel: priceLevel ?? sessionContext?.priceLevel,
+    maxPrice: maxPrice ?? (isNewIntent ? undefined : sessionContext?.maxPrice),
+    priceLevel: priceLevel ?? (isNewIntent ? undefined : sessionContext?.priceLevel),
     searchTerms,
     nearMe,
   };

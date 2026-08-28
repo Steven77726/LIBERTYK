@@ -185,6 +185,7 @@ export type AdminRubric = {
   image: string;
   imageAlt?: string;
   showOnHome?: boolean;
+  isDormant?: boolean;
   format?: RubricFormat;
   columnsDesktop?: 2 | 3 | 4;
   columnsTablet?: 1 | 2 | 3;
@@ -602,7 +603,7 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
   return {
     ...seed,
     ...state,
-    rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), image: safeImageUrl(item.image), imageAlt: item.imageAlt ?? item.name, showOnHome: item.showOnHome ?? true, format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
+    rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), image: safeImageUrl(item.image), imageAlt: item.imageAlt ?? item.name, showOnHome: item.showOnHome ?? true, isDormant: item.isDormant === true, format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
     subrubrics: (state.subrubrics ?? seed.subrubrics).map((item) => ({
       ...item,
       slug: item.slug ?? slugify(item.name),
@@ -4178,7 +4179,18 @@ export function AdminDashboard() {
                   {state.rubrics.sort((a, b) => a.order - b.order).map((rubric) => (
                     <article id={`rubric-form-${rubric.id}`} key={rubric.id} className="rounded-3xl border border-black/5 bg-white p-5">
                       <div className="flex items-center justify-between gap-3">
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(rubric.status)}`}>{rubric.status}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(rubric.status)}`}>{rubric.status}</span>
+                          {rubric.isDormant ? (
+                            <span className="rounded-full border border-amber-500/40 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+                              🟠 EN SOMMEIL
+                            </span>
+                          ) : rubric.status === "Publié" ? (
+                            <span className="rounded-full border border-emerald-500/40 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+                              🟢 ACTIVE
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="flex gap-2">
                           <button disabled={Boolean(savingAction || rubricsOperation || isUnsavedRubric(rubric))} onClick={() => void duplicateRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45">
                             <Plus size={15} />
@@ -4223,6 +4235,22 @@ export function AdminDashboard() {
                         <Field label="Texte alternatif" value={rubric.imageAlt ?? ""} onChange={(value) => updateRubric(rubric.id, { imageAlt: value })} />
                         <Field label="Ordre" value={rubric.order} type="number" onChange={(value) => updateRubric(rubric.id, { order: Number(value) })} />
                       </div>
+
+                      {/* Bloc État de la rubrique / En sommeil */}
+                      <div className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-amber-900">État de la rubrique</p>
+                        <div className="mt-2">
+                          <Toggle
+                            label="Rubrique en sommeil"
+                            checked={rubric.isDormant ?? false}
+                            onChange={(value) => updateRubric(rubric.id, { isDormant: value })}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs font-medium text-amber-900/80">
+                          Lorsqu&apos;elle est en sommeil, la rubrique reste visible sur Liberty K mais son accès est temporairement désactivé.
+                        </p>
+                      </div>
+
                       <div className="mt-4 grid gap-3 sm:grid-cols-3">
                         <SelectField label="Statut" value={rubric.status} onChange={(value) => updateRubric(rubric.id, { status: value as AdminStatus })}>
                           <option>Publié</option><option>Brouillon</option><option>Masqué</option>

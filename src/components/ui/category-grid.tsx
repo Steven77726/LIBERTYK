@@ -16,6 +16,7 @@ type AdminRubricPreview = {
   image: string;
   imageAlt?: string;
   showOnHome?: boolean;
+  isDormant?: boolean;
   format?: "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
   order: number;
   status: "Publié" | "Brouillon" | "Masqué";
@@ -51,6 +52,7 @@ export function CategoryGrid() {
               image: rubric.image,
               imageAlt: rubric.imageAlt,
               showOnHome: rubric.showOnHome,
+              isDormant: rubric.isDormant === true,
               format: rubric.format,
               order: rubric.order,
               status: rubric.status,
@@ -75,6 +77,7 @@ export function CategoryGrid() {
                   image?: string;
                   imageAlt?: string;
                   showOnHome?: boolean;
+                  isDormant?: boolean;
                   format?: AdminRubricPreview["format"];
                   order?: number;
                   status?: AdminRubricPreview["status"];
@@ -86,6 +89,7 @@ export function CategoryGrid() {
                   image: rubric.image || "",
                   imageAlt: rubric.imageAlt || rubric.name,
                   showOnHome: rubric.showOnHome ?? true,
+                  isDormant: rubric.isDormant === true,
                   format: rubric.format ?? "Carré standard",
                   order: rubric.order ?? 1,
                   status: rubric.status ?? "Publié",
@@ -131,6 +135,7 @@ export function CategoryGrid() {
         format: "Carré standard" as const,
         icon: category.icon,
         softColor: category.softColor,
+        isDormant: false,
         subrubricCount: 0,
       }));
     }
@@ -148,6 +153,7 @@ export function CategoryGrid() {
           format: rubric.format ?? "Carré standard",
           icon: fallback?.icon ?? Store,
           softColor: fallback?.softColor ?? "#e2eae4",
+          isDormant: rubric.isDormant === true,
           subrubricCount: rubric.subrubricCount ?? 0,
         };
       });
@@ -165,24 +171,62 @@ export function CategoryGrid() {
     <section className="page-shell py-8 sm:py-10">
       <div className="mb-5 max-w-3xl"><p className="eyebrow">Tous vos univers</p><h2 className="text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Tout ce qui compte. <span className="text-ink/28">Au même endroit.</span></h2></div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format, subrubricCount }) => (
-          <Link key={slug} href={rubricHref(slug)} className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}>
-            <img src={assetPath(image)} alt={imageAlt ?? label} loading="lazy" decoding="async" className="liberty-image-grade absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.055]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.20),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.91),rgba(0,0,0,.38)_48%,rgba(0,0,0,.05))]" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70" />
-            <span className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-full border border-white/20 bg-white/15 text-xs font-semibold text-white/75 shadow-[0_10px_28px_rgba(0,0,0,.16)] backdrop-blur-xl" aria-label={`${subrubricCount} sous-rubriques disponibles`}>
-              {subrubricCount}
-            </span>
-            <div className="absolute inset-x-0 bottom-0 p-4">
-              <div className="mb-2.5 flex items-center justify-between">
-                <span className="grid size-8 place-items-center rounded-xl border border-white/20 bg-white/15 shadow-[0_10px_28px_rgba(0,0,0,.18)] backdrop-blur-xl transition duration-300 group-hover:scale-105" style={{ color: softColor }}><Icon size={15} strokeWidth={2.2} /></span>
-                <span className="grid size-8 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 shadow-[0_12px_28px_rgba(0,0,0,.22)] transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowUpRight size={14} /></span>
+        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format, isDormant, subrubricCount }) => {
+          if (isDormant) {
+            return (
+              <div
+                key={slug}
+                role="status"
+                aria-label={`${label} — Bientôt disponible`}
+                className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink/90 text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 select-none cursor-default ${formatClass(format)}`}
+              >
+                <img
+                  src={assetPath(image)}
+                  alt={imageAlt ?? label}
+                  loading="lazy"
+                  decoding="async"
+                  className="liberty-image-grade absolute inset-0 size-full object-cover grayscale-[0.88] opacity-45 brightness-75"
+                />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.10),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.94),rgba(0,0,0,.60)_48%,rgba(0,0,0,.30))]" />
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent opacity-60" />
+
+                {/* Badge élégant Bientôt disponible */}
+                <span className="absolute right-3.5 top-3.5 z-10 inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-black/80 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#d5bb7d] shadow-[0_8px_20px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                  Bientôt disponible
+                </span>
+
+                <div className="absolute inset-x-0 bottom-0 p-4">
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <span className="grid size-8 place-items-center rounded-xl border border-white/10 bg-white/10 shadow-[0_10px_28px_rgba(0,0,0,.18)] opacity-60 backdrop-blur-xl" style={{ color: softColor }}>
+                      <Icon size={15} strokeWidth={2.2} />
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-semibold tracking-[-.045em] text-white/85 drop-shadow-[0_8px_24px_rgba(0,0,0,.28)]">{label}</h3>
+                  <p className="mt-1 max-w-md text-[11px] leading-4 text-white/55">{description}</p>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold tracking-[-.045em] drop-shadow-[0_8px_24px_rgba(0,0,0,.28)]">{label}</h3>
-              <p className="mt-1 max-w-md text-[11px] leading-4 text-white/68 transition duration-300 group-hover:text-white/78">{description}</p>
-            </div>
-          </Link>
-        ))}
+            );
+          }
+
+          return (
+            <Link key={slug} href={rubricHref(slug)} className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}>
+              <img src={assetPath(image)} alt={imageAlt ?? label} loading="lazy" decoding="async" className="liberty-image-grade absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.055]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.20),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.91),rgba(0,0,0,.38)_48%,rgba(0,0,0,.05))]" />
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70" />
+              <span className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-full border border-white/20 bg-white/15 text-xs font-semibold text-white/75 shadow-[0_10px_28px_rgba(0,0,0,.16)] backdrop-blur-xl" aria-label={`${subrubricCount} sous-rubriques disponibles`}>
+                {subrubricCount}
+              </span>
+              <div className="absolute inset-x-0 bottom-0 p-4">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <span className="grid size-8 place-items-center rounded-xl border border-white/20 bg-white/15 shadow-[0_10px_28px_rgba(0,0,0,.18)] backdrop-blur-xl transition duration-300 group-hover:scale-105" style={{ color: softColor }}><Icon size={15} strokeWidth={2.2} /></span>
+                  <span className="grid size-8 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 shadow-[0_12px_28px_rgba(0,0,0,.22)] transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowUpRight size={14} /></span>
+                </div>
+                <h3 className="text-xl font-semibold tracking-[-.045em] drop-shadow-[0_8px_24px_rgba(0,0,0,.28)]">{label}</h3>
+                <p className="mt-1 max-w-md text-[11px] leading-4 text-white/68 transition duration-300 group-hover:text-white/78">{description}</p>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

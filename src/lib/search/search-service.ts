@@ -53,6 +53,8 @@ type EstablishmentSearchRow = {
   sponsorship: "standard" | "sponsored" | "partner" | "liberty_favorite";
   sponsor_priority: number | null;
   display_order: number | null;
+  rubric_id?: string | null;
+  subrubric_id?: string | null;
   rubrics?: { name: string; slug: string } | null;
   subrubrics?: { name: string; slug: string } | null;
   professional_services?: Array<{
@@ -89,6 +91,7 @@ type TaxonomyRow = {
   id: string;
   name: string;
   slug: string;
+  is_dormant?: boolean | null;
 };
 
 type TaxonomyMatch = {
@@ -612,10 +615,10 @@ async function getTaxonomyRows() {
   if (taxonomyCache && taxonomyCache.expiresAt > Date.now()) {
     return { rubrics: taxonomyCache.rubrics, subrubrics: taxonomyCache.subrubrics };
   }
-  const [{ data: rubrics }, { data: subrubrics }] = await Promise.all([
+  const [{ data: rubrics, error: rError }, { data: subrubrics }] = await Promise.all([
     supabase
       .from("rubrics")
-      .select("id,name,slug")
+      .select("id,name,slug,is_dormant")
       .eq("status", "published")
       .is("deleted_at", null)
       .returns<TaxonomyRow[]>(),
@@ -626,9 +629,21 @@ async function getTaxonomyRows() {
       .is("deleted_at", null)
       .returns<TaxonomyRow[]>(),
   ]);
+
+  let finalRubrics = rubrics ?? [];
+  if (rError && (rError as { code?: string }).code === "42703") {
+    const { data: fbRubrics } = await supabase
+      .from("rubrics")
+      .select("id,name,slug")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .returns<TaxonomyRow[]>();
+    finalRubrics = fbRubrics ?? [];
+  }
+
   const next = {
     expiresAt: Date.now() + DICTIONARY_CACHE_TTL_MS,
-    rubrics: rubrics ?? [],
+    rubrics: finalRubrics,
     subrubrics: subrubrics ?? [],
   };
   taxonomyCache = next;
@@ -741,8 +756,23 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
   if (options.signal) request = request.abortSignal(options.signal);
 
   const { data, error } = await request.returns<EstablishmentSearchRow[]>();
-  const rows = error ? [] : data ?? [];
+  const rawRows = error ? [] : data ?? [];
   if (error) return fallbackSearch(query);
+
+  const { rubrics } = await getTaxonomyRows();
+  const dormantRubricIds = new Set(
+    rubrics
+      .filter((r) => r.is_dormant === true)
+      .flatMap((r) => [r.id, r.slug, `rubric-${r.slug}`].filter(Boolean))
+  );
+
+  const rows = dormantRubricIds.size > 0
+    ? rawRows.filter((row) => {
+        const id = row.rubric_id ?? "";
+        const slug = row.rubrics?.slug ?? "";
+        return (!id || !dormantRubricIds.has(id)) && (!slug || !dormantRubricIds.has(slug));
+      })
+    : rawRows;
 
   if (!normalizedQuery) {
     const tagMap = tagRowsToMap(await getTagRows());

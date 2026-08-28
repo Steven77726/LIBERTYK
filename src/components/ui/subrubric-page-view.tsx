@@ -7,6 +7,7 @@ import { categoryBySlug } from "@/data/categories";
 import { localEstablishments } from "@/data/establishments";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
+import { listPublishedRubrics } from "@/lib/supabase/rubrics-repository";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 type Props = {
@@ -37,6 +38,8 @@ export function SubrubricPageView({
   const [items, setItems] = useState<EstablishmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isParentDormant, setIsParentDormant] = useState(false);
+  const [parentRubricName, setParentRubricName] = useState("");
 
   const title = subrubric?.name || fallbackTitle || readableTitle(subrubricSlug);
   const description = subrubric?.description || fallbackDescription || `Les fiches publiées dans ${title}.`;
@@ -51,11 +54,22 @@ export function SubrubricPageView({
       setLoading(true);
       setError("");
       try {
-        const [remoteSubrubrics, establishments] = await Promise.all([
+        const [remoteRubrics, remoteSubrubrics, establishments] = await Promise.all([
+          listPublishedRubrics().catch(() => []),
           listPublishedSubrubrics(rubricSlug).catch(() => []),
           listPublishedEstablishments({ rubricSlug, subrubricSlug }).catch(() => null),
         ]);
         if (!mounted) return;
+
+        const foundParent = (remoteRubrics ?? []).find((r) => r.slug === rubricSlug || r.id === rubricSlug);
+        if (foundParent?.isDormant) {
+          setIsParentDormant(true);
+          setParentRubricName(foundParent.name || rubric?.label || readableTitle(rubricSlug));
+          setItems([]);
+          setLoading(false);
+          return;
+        }
+
         let foundSubrubric = (remoteSubrubrics ?? []).find((item) => item.slug === subrubricSlug) ?? null;
 
         // Si non trouvée dans Supabase, chercher dans le cache local admin
@@ -177,12 +191,33 @@ export function SubrubricPageView({
       mounted = false;
       window.removeEventListener("liberty-admin-published", refresh);
     };
-  }, [rubricSlug, subrubricSlug, fallbackImage]);
+  }, [rubricSlug, subrubricSlug, fallbackImage, rubric?.label]);
 
   const countLabel = useMemo(() => {
     if (loading) return "Chargement…";
     return `${items.length} fiche${items.length > 1 ? "s" : ""}`;
   }, [items.length, loading]);
+
+  if (isParentDormant) {
+    return (
+      <section className="page-shell py-16 sm:py-24 text-center">
+        <div className="mx-auto max-w-lg rounded-3xl border border-black/10 bg-white/90 p-8 shadow-sm backdrop-blur">
+          <span className="inline-block rounded-full border border-amber-500/30 bg-amber-50 px-4 py-1.5 text-xs font-bold tracking-wider text-amber-800 uppercase">
+            Bientôt disponible
+          </span>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{parentRubricName || backLabel}</h1>
+          <p className="mt-2 text-sm leading-6 text-ink/60">
+            Cette rubrique Liberty K sera prochainement disponible.
+          </p>
+          <div className="mt-6">
+            <Link href="/" className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-moss">
+              <ArrowLeft size={14} /> Retour à l’accueil
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <>

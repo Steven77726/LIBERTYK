@@ -14,6 +14,7 @@ export type RubricRecord = {
   image: string;
   imageAlt?: string;
   showOnHome?: boolean;
+  isDormant?: boolean;
   format?: RubricFormat;
   columnsDesktop?: 2 | 3 | 4;
   columnsTablet?: 1 | 2 | 3;
@@ -35,6 +36,7 @@ type RubricRow = {
   image_url: string | null;
   image_alt: string | null;
   show_on_home: boolean | null;
+  is_dormant?: boolean | null;
   search_keywords: string[] | null;
   display_order: number | null;
   status: "published" | "draft" | "hidden" | "trashed";
@@ -103,6 +105,7 @@ export function rowToRubric(row: RubricRow): RubricRecord {
     image: row.image_url ?? "",
     imageAlt: row.image_alt ?? "",
     showOnHome: row.show_on_home ?? true,
+    isDormant: row.is_dormant === true,
     format: (row.display_format as RubricFormat | null) ?? "Carré standard",
     columnsDesktop: asColumns(row.desktop_columns, 3),
     columnsTablet: asColumns(row.tablet_columns, 2),
@@ -126,6 +129,7 @@ function rubricToPayload(rubric: RubricRecord, statusOverride?: RubricRow["statu
     image_url: rubric.image ?? "",
     image_alt: rubric.imageAlt ?? rubric.name,
     show_on_home: rubric.showOnHome ?? true,
+    is_dormant: rubric.isDormant === true,
     search_keywords: rubric.searchKeywords ?? [],
     display_order: Number(rubric.order) || 0,
     status: statusOverride ?? statusToDb[rubric.status] ?? "draft",
@@ -153,18 +157,38 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+const rubricSelectWithDormant = "id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,is_dormant,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at";
+const rubricSelectWithoutDormant = "id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at";
+
 export async function listPublishedRubrics() {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return null;
+
   const { data, error } = await supabase
     .from("rubrics")
-    .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+    .select(rubricSelectWithDormant)
     .eq("status", "published")
     .eq("show_on_home", true)
     .is("deleted_at", null)
     .order("display_order", { ascending: true })
     .returns<RubricRow[]>();
-  if (error) throw new Error(readableError(error));
+
+  if (error) {
+    // Si la colonne is_dormant n'est pas encore migrée dans postgres, fallback transparent
+    if ((error as { code?: string }).code === "42703") {
+      const { data: fbData, error: fbError } = await supabase
+        .from("rubrics")
+        .select(rubricSelectWithoutDormant)
+        .eq("status", "published")
+        .eq("show_on_home", true)
+        .is("deleted_at", null)
+        .order("display_order", { ascending: true })
+        .returns<RubricRow[]>();
+      if (fbError) throw new Error(readableError(fbError));
+      return (fbData ?? []).map(rowToRubric);
+    }
+    throw new Error(readableError(error));
+  }
   return (data ?? []).map(rowToRubric);
 }
 
@@ -172,11 +196,24 @@ export async function listAllRubricsForAdmin() {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
     .from("rubrics")
-    .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+    .select(rubricSelectWithDormant)
     .is("deleted_at", null)
     .order("display_order", { ascending: true })
     .returns<RubricRow[]>();
-  if (error) throw new Error(readableError(error));
+
+  if (error) {
+    if ((error as { code?: string }).code === "42703") {
+      const { data: fbData, error: fbError } = await supabase
+        .from("rubrics")
+        .select(rubricSelectWithoutDormant)
+        .is("deleted_at", null)
+        .order("display_order", { ascending: true })
+        .returns<RubricRow[]>();
+      if (fbError) throw new Error(readableError(fbError));
+      return (fbData ?? []).map(rowToRubric);
+    }
+    throw new Error(readableError(error));
+  }
   return (data ?? []).map(rowToRubric);
 }
 
@@ -188,17 +225,45 @@ export async function createRubric(rubric: RubricRecord) {
       .from("rubrics")
       .update(payload)
       .eq("id", rubric.id)
-      .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+      .select(rubricSelectWithDormant)
       .maybeSingle<RubricRow>();
-    if (updateError) throw new Error(readableError(updateError));
+    if (updateError) {
+      if ((updateError as { code?: string }).code === "42703") {
+        const safePayload = { ...payload };
+        delete (safePayload as { is_dormant?: boolean }).is_dormant;
+        const { data: fbUpdated, error: fbError } = await supabase
+          .from("rubrics")
+          .update(safePayload)
+          .eq("id", rubric.id)
+          .select(rubricSelectWithoutDormant)
+          .maybeSingle<RubricRow>();
+        if (fbError) throw new Error(readableError(fbError));
+        if (fbUpdated) return rowToRubric(fbUpdated);
+      } else {
+        throw new Error(readableError(updateError));
+      }
+    }
     if (updated) return rowToRubric(updated);
   }
   const { data, error } = await supabase
     .from("rubrics")
     .upsert(payload, { onConflict: "external_id" })
-    .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+    .select(rubricSelectWithDormant)
     .single<RubricRow>();
-  if (error) throw new Error(readableError(error));
+  if (error) {
+    if ((error as { code?: string }).code === "42703") {
+      const safePayload = { ...payload };
+      delete (safePayload as { is_dormant?: boolean }).is_dormant;
+      const { data: fbData, error: fbError } = await supabase
+        .from("rubrics")
+        .upsert(safePayload, { onConflict: "external_id" })
+        .select(rubricSelectWithoutDormant)
+        .single<RubricRow>();
+      if (fbError) throw new Error(readableError(fbError));
+      return rowToRubric(fbData);
+    }
+    throw new Error(readableError(error));
+  }
   return rowToRubric(data);
 }
 
@@ -210,17 +275,45 @@ export async function updateRubric(rubric: RubricRecord) {
       .from("rubrics")
       .update(payload)
       .eq("id", rubric.id)
-      .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+      .select(rubricSelectWithDormant)
       .maybeSingle<RubricRow>();
-    if (updateError) throw new Error(readableError(updateError));
+    if (updateError) {
+      if ((updateError as { code?: string }).code === "42703") {
+        const safePayload = { ...payload };
+        delete (safePayload as { is_dormant?: boolean }).is_dormant;
+        const { data: fbUpdated, error: fbError } = await supabase
+          .from("rubrics")
+          .update(safePayload)
+          .eq("id", rubric.id)
+          .select(rubricSelectWithoutDormant)
+          .maybeSingle<RubricRow>();
+        if (fbError) throw new Error(readableError(fbError));
+        if (fbUpdated) return rowToRubric(fbUpdated);
+      } else {
+        throw new Error(readableError(updateError));
+      }
+    }
     if (updated) return rowToRubric(updated);
   }
   const { data, error } = await supabase
     .from("rubrics")
     .upsert(payload, { onConflict: "external_id" })
-    .select("id,external_id,slug,name,description,icon,image_url,image_alt,show_on_home,search_keywords,display_order,status,display_format,desktop_columns,tablet_columns,mobile_columns,created_at,updated_at")
+    .select(rubricSelectWithDormant)
     .single<RubricRow>();
-  if (error) throw new Error(readableError(error));
+  if (error) {
+    if ((error as { code?: string }).code === "42703") {
+      const safePayload = { ...payload };
+      delete (safePayload as { is_dormant?: boolean }).is_dormant;
+      const { data: fbData, error: fbError } = await supabase
+        .from("rubrics")
+        .upsert(safePayload, { onConflict: "external_id" })
+        .select(rubricSelectWithoutDormant)
+        .single<RubricRow>();
+      if (fbError) throw new Error(readableError(fbError));
+      return rowToRubric(fbData);
+    }
+    throw new Error(readableError(error));
+  }
   return rowToRubric(data);
 }
 

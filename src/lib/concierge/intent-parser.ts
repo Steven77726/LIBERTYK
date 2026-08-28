@@ -5,6 +5,7 @@
  */
 
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
+import { listPublishedRubrics } from "@/lib/supabase/rubrics-repository";
 
 export type ConciergeCriteria = {
   rawQuery: string;
@@ -403,7 +404,11 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
 }
 
 // 12. Génération de réponse naturelle & chaleureuse en français courant
-export function generateConciergeResponse(criteria: ConciergeCriteria, resultCount: number): string {
+export function generateConciergeResponse(criteria: ConciergeCriteria, resultCount: number, isDormantCategory?: boolean): string {
+  if (isDormantCategory) {
+    return "Cette rubrique sera bientôt disponible sur Liberty K.";
+  }
+
   if (resultCount === 0) {
     const loc = criteria.arrondissement ? ` dans le ${criteria.arrondissement}e` : criteria.city ? ` à ${criteria.city}` : "";
     return `Je n’ai trouvé aucun établissement correspondant exactement à votre demande${loc}. Souhaitez-vous élargir la recherche ?`;
@@ -449,15 +454,40 @@ export function computeDistanceKm(lat1: number, lon1: number, lat2: number, lon2
   return Math.round(R * c * 10) / 10;
 }
 
-// 14. Exécution déterministe de la recherche Concierge
+// 14. Exécution déterministe de la recherche Supabase sans hallucination
 export async function executeConciergeSearch(
   criteria: ConciergeCriteria,
   userCoords?: { latitude: number; longitude: number }
 ): Promise<EstablishmentSearchResult[]> {
-  const rawQuery = criteria.rawQuery.trim();
-  const rawResults = await searchEstablishments(rawQuery, { limit: 50 });
+  const [rawResults, publishedRubrics] = await Promise.all([
+    searchEstablishments(criteria.rawQuery, { limit: 50 }),
+    listPublishedRubrics().catch(() => []),
+  ]);
+
+  const dormantRubricSet = new Set(
+    (publishedRubrics ?? [])
+      .filter((r) => r.isDormant)
+      .flatMap((r) => [r.slug, r.id, r.name?.toLowerCase()].filter(Boolean) as string[])
+  );
+
+  // Si la catégorie demandée est explicitement en sommeil, zéro résultat
+  if (
+    criteria.category &&
+    (dormantRubricSet.has(criteria.category) || dormantRubricSet.has(`rubric-${criteria.category}`))
+  ) {
+    return [];
+  }
 
   const filtered = rawResults.filter((item) => {
+    const rubricSlug = item.establishment?.rubricId || item.category || "";
+    if (
+      dormantRubricSet.has(rubricSlug) ||
+      dormantRubricSet.has(rubricSlug.toLowerCase()) ||
+      dormantRubricSet.has(`rubric-${rubricSlug}`)
+    ) {
+      return false;
+    }
+
     const categoryNorm = (item.establishment?.rubricId || item.category || "").toLowerCase();
 
     // 1. Filtrage Catégorie

@@ -16,6 +16,7 @@ import type { EstablishmentSearchResult } from "@/lib/search/search-service";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { trackEvent } from "@/lib/client-store";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
+import { listPublishedRubrics } from "@/lib/supabase/rubrics-repository";
 
 const rotatingExamples = [
   "Parlez à Liberty ou écrivez ici…",
@@ -130,14 +131,28 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
         }
 
         // 3. Exécution déterministe Supabase
-        const nextResults = await executeConciergeSearch(parsedCriteria, coordsToUse);
+        const [nextResults, publishedRubrics] = await Promise.all([
+          executeConciergeSearch(parsedCriteria, coordsToUse),
+          listPublishedRubrics().catch(() => []),
+        ]);
+
+        const dormantRubricSet = new Set(
+          (publishedRubrics ?? [])
+            .filter((r) => r.isDormant)
+            .flatMap((r) => [r.slug, r.id, r.name?.toLowerCase()].filter(Boolean) as string[])
+        );
+
+        const isDormantCategory = Boolean(
+          parsedCriteria.category &&
+          (dormantRubricSet.has(parsedCriteria.category) || dormantRubricSet.has(`rubric-${parsedCriteria.category}`))
+        );
 
         if (requestRef.current === requestId) {
           setResults(nextResults);
           setActiveIndex(0);
 
           // 4. Formulation de la réponse naturelle
-          const responseText = generateConciergeResponse(parsedCriteria, nextResults.length);
+          const responseText = generateConciergeResponse(parsedCriteria, nextResults.length, isDormantCategory);
           setConciergeMessage(responseText);
           speakResponse(responseText);
 

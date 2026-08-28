@@ -3173,6 +3173,44 @@ export function AdminDashboard() {
     }
   };
 
+  const toggleRubricDormant = async (rubric: AdminRubric, isDormant: boolean) => {
+    if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
+    setRubricsOperation(`dormant-${rubric.id}`);
+    setSavingAction(isDormant ? "Mise en sommeil" : "Réactivation rubrique");
+
+    const next = { ...rubric, isDormant, updatedAt: new Date().toISOString() };
+
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await updateRubricInSupabase(next);
+        applyRubricLocally(
+          saved,
+          isDormant
+            ? `Rubrique "${rubric.name}" mise en sommeil (Bientôt disponible).`
+            : `Rubrique "${rubric.name}" réactivée.`
+        );
+      } else {
+        commitState(
+          (current) => ({
+            ...current,
+            rubrics: current.rubrics.map((item) => (item.id === rubric.id ? next : item)),
+          }),
+          isDormant
+            ? `Rubrique "${rubric.name}" mise en sommeil.`
+            : `Rubrique "${rubric.name}" réactivée.`,
+          isDormant ? "Mise en sommeil" : "Réactivation"
+        );
+      }
+      audit(isDormant ? "sommeil" : "activation", "rubrique", rubric.id, rubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec mise en sommeil : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
   const duplicateRubric = async (rubric: AdminRubric) => {
     if (savingAction || rubricsOperation) return;
     if (!requireAdminWrite()) return;
@@ -4181,15 +4219,19 @@ export function AdminDashboard() {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(rubric.status)}`}>{rubric.status}</span>
-                          {rubric.isDormant ? (
-                            <span className="rounded-full border border-amber-500/40 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
-                              🟠 EN SOMMEIL
-                            </span>
-                          ) : rubric.status === "Publié" ? (
-                            <span className="rounded-full border border-emerald-500/40 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                              🟢 ACTIVE
-                            </span>
-                          ) : null}
+                          <button
+                            type="button"
+                            disabled={Boolean(savingAction || rubricsOperation)}
+                            onClick={() => void toggleRubricDormant(rubric, !rubric.isDormant)}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition cursor-pointer shadow-2xs ${
+                              rubric.isDormant
+                                ? "border-amber-500/40 bg-amber-100 text-amber-900 hover:bg-amber-200"
+                                : "border-emerald-500/30 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                            }`}
+                            title={rubric.isDormant ? "Cliquer pour réactiver la rubrique" : "Cliquer pour mettre la rubrique en sommeil"}
+                          >
+                            {rubric.isDormant ? "🟠 EN SOMMEIL" : "🟢 ACTIVE"}
+                          </button>
                         </div>
                         <div className="flex gap-2">
                           <button disabled={Boolean(savingAction || rubricsOperation || isUnsavedRubric(rubric))} onClick={() => void duplicateRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45">
@@ -4243,7 +4285,7 @@ export function AdminDashboard() {
                           <Toggle
                             label="Rubrique en sommeil"
                             checked={rubric.isDormant ?? false}
-                            onChange={(value) => updateRubric(rubric.id, { isDormant: value })}
+                            onChange={(value) => void toggleRubricDormant(rubric, value)}
                           />
                         </div>
                         <p className="mt-2 text-xs font-medium text-amber-900/80">

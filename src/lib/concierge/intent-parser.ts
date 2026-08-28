@@ -50,6 +50,39 @@ const CATEGORY_MAP: Record<string, { rubric: string; subrubric?: string; label: 
   restos: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
   restaurant: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
   restaurants: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  manger: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  mange: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  dejeuner: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  diner: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  repas: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  entrecote: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  entrecotes: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  steak: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  steaks: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  viande: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  viandes: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  grillade: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  grillades: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  grill: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  burger: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  burgers: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  pizza: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  pizzas: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  sushi: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  sushis: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  pates: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  italien: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  japonais: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  asiatique: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  israelien: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  shawarma: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  chawarma: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  falafel: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  bagel: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  bagels: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  salade: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  sandwich: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
+  sandwichs: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
   brunch: { rubric: "food", subrubric: "brunch", label: "Brunch" },
   brunches: { rubric: "food", subrubric: "brunch", label: "Brunch" },
   petit_dejeuner: { rubric: "food", subrubric: "brunch", label: "Brunch" },
@@ -102,6 +135,7 @@ const CATEGORY_MAP: Record<string, { rubric: string; subrubric?: string; label: 
   whisky: { rubric: "vin-spiritueux", label: "Spiritueux" },
   vodka: { rubric: "vin-spiritueux", label: "Spiritueux" },
   degustation: { rubric: "vin-spiritueux", label: "Dégustations de vin" },
+  boire: { rubric: "vin-spiritueux", label: "Vin & Spiritueux" },
 
   // Sorties & Événements
   sortie: { rubric: "sorties", label: "Sorties & Loisirs" },
@@ -263,8 +297,8 @@ export function extractCity(text: string): string | undefined {
 // 5. Extraction du type de Cacherout
 export function extractKosherType(text: string): "Bassari" | "Halavi" | "Parvé" | undefined {
   const norm = normalizeText(text);
-  if (/\b(bassari|viande|viandes|meat)\b/.test(norm)) return "Bassari";
-  if (/\b(halavi|lait|fromage|dairy)\b/.test(norm)) return "Halavi";
+  if (/\b(bassari|viande|viandes|meat|entrecote|entrecotes|steak|steaks|grill|grillades|burger|burgers|poulet|chawarma|shawarma)\b/.test(norm)) return "Bassari";
+  if (/\b(halavi|lait|fromage|dairy|pizza|pizzas|pates)\b/.test(norm)) return "Halavi";
   if (/\b(parve|parve|neutre)\b/.test(norm)) return "Parvé";
   return undefined;
 }
@@ -373,8 +407,10 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
   // Termes de recherche résiduels (mots porteurs de sens)
   const stopWords = new Set([
     "trouve", "trouver", "cherche", "chercher", "un", "une", "des", "le", "la", "les", "du", "de", "dans",
-    "a", "au", "aux", "pour", "avec", "qui", "fait", "fais", "est", "sont", "moi", "je", "nous", "vous",
-    "veux", "voudrais", "svp", "merci", "paris", "liberty", "cacher", "casher", "kosher"
+    "a", "au", "aux", "pour", "avec", "qui", "fait", "fais", "est", "sont", "moi", "je", "j", "nous", "vous",
+    "veux", "voudrais", "vais", "va", "aller", "manger", "mange", "boire", "prendre", "faire", "svp", "merci",
+    "paris", "liberty", "cacher", "casher", "kosher", "bon", "bonne", "bons", "bonnes", "meilleur", "meilleure",
+    "meilleurs", "meilleures", "table", "place", "chez", "sur", "en", "vers", "adresse", "adresses", "endroit", "endroits"
   ]);
 
   const searchTerms = words.filter((w) => !stopWords.has(w) && w.length > 2);
@@ -578,7 +614,13 @@ export async function executeConciergeSearch(
     // 3. Filtrage Cacherout
     if (criteria.kosherType) {
       const itemKosher = (item.filters?.kosherType || item.establishment?.kosherType || "").toLowerCase();
-      if (!itemKosher.includes(criteria.kosherType.toLowerCase())) return false;
+      // Si Bassari : exclure uniquement les établissements explicitement Halavi
+      if (criteria.kosherType === "Bassari" && itemKosher.includes("halavi")) return false;
+      // Si Halavi : exclure uniquement les établissements explicitement Bassari
+      if (criteria.kosherType === "Halavi" && itemKosher.includes("bassari")) return false;
+      if (itemKosher && !itemKosher.includes("à compléter") && !itemKosher.includes("a completer") && !itemKosher.includes(criteria.kosherType.toLowerCase())) {
+        return false;
+      }
     }
 
     // 4. Filtrage Mode de service (domicile vs sur place)
@@ -600,7 +642,7 @@ export async function executeConciergeSearch(
       if (!hasDelivery) return false;
     }
 
-    // 7. Filtrage des termes de recherche résiduels spécifiques (zéro hallucination sur termes inconnus)
+    // 7. Boost de pertinence sur les termes spécifiques du plat / service
     const nonCategoryTerms = criteria.searchTerms.filter(
       (term) =>
         term !== "restaurant" &&
@@ -642,17 +684,22 @@ export async function executeConciergeSearch(
         .join(" ")
         .toLowerCase();
 
-      const matchesAllSpecific = nonCategoryTerms.every((term) => {
+      const hasSpecificMatch = nonCategoryTerms.some((term) => {
         const t = term.toLowerCase();
         const root = t.endsWith("e") || t.endsWith("s") || t.endsWith("x") ? t.slice(0, -1) : t;
         const stem = t.length > 5 ? t.slice(0, 5) : root;
         return itemCorpus.includes(t) || itemCorpus.includes(root) || itemCorpus.includes(stem);
       });
-      if (!matchesAllSpecific) return false;
+      if (hasSpecificMatch) {
+        item.score = (item.score || 100) + 50;
+      }
     }
 
     return true;
   });
+
+  // Tri par pertinence décroissante
+  filtered.sort((a, b) => (b.score || 0) - (a.score || 0));
 
   // Géolocalisation & distance
   if (userCoords && userCoords.latitude && userCoords.longitude) {

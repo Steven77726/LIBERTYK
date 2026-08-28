@@ -367,10 +367,10 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
               }}
               aria-label="Demandez à Liberty"
               placeholder={rotatingExamples[exampleIndex]}
-              type="search"
+              type="text"
               inputMode="search"
               autoComplete="off"
-              className="w-full bg-transparent px-1 text-[15px] font-semibold text-ink outline-hidden placeholder:font-medium placeholder:text-ink/35 sm:px-2 sm:text-base"
+              className="w-full bg-transparent px-1 text-[15px] font-semibold text-ink outline-hidden placeholder:font-medium placeholder:text-ink/35 sm:px-2 sm:text-base [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
             />
           )}
         </div>

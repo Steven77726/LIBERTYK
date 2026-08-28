@@ -183,7 +183,11 @@ function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData 
   const city = record?.city || restaurant?.city || "Paris";
   const arrondissement = String(record?.arrondissement || restaurant?.arrondissement || brunch?.arrondissement || (wine?.address?.includes("75017") ? "17" : ""));
   const postalCode = record?.postalCode || restaurant?.postalCode || brunch?.postalCode || (wine?.address?.match(/750\d{2}/)?.[0] ?? "");
-  const distanceKm = restaurant?.distanceKm || brunch?.distanceKm || 0;
+  const distanceKm =
+    (raw as { distanceKm?: number })?.distanceKm ??
+    restaurant?.distanceKm ??
+    brunch?.distanceKm ??
+    0;
 
   // Métro
   const nearestMetroName = record?.nearestMetroName || restaurant?.nearestMetroName || brunch?.nearestMetroName || googleData?.nearestMetroName || "";

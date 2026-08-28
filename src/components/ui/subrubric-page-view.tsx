@@ -9,6 +9,7 @@ import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/sup
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { listPublishedRubrics } from "@/lib/supabase/rubrics-repository";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
+import { sortFichesByDistance } from "@/lib/geo/distance";
 
 type Props = {
   rubricSlug: string;
@@ -192,6 +193,22 @@ export function SubrubricPageView({
       window.removeEventListener("liberty-admin-published", refresh);
     };
   }, [rubricSlug, subrubricSlug, fallbackImage, rubric?.label]);
+
+  // Tri automatique des fiches par distance dès que la position GPS est obtenue
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        setItems((current) => sortFichesByDistance(current, userLat, userLng));
+      },
+      (error) => {
+        console.warn("Géolocalisation refusée ou indisponible", error);
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
+    );
+  }, []);
 
   const countLabel = useMemo(() => {
     if (loading) return "Chargement…";

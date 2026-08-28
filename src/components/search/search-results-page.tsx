@@ -8,6 +8,7 @@ import { InteractiveMap, type MapEstablishment } from "@/components/map/interact
 import { quickSuggestions } from "@/components/search/ai-search";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
+import { sortFichesByDistance } from "@/lib/geo/distance";
 
 export function SearchResultsPage() {
   const searchParams = useSearchParams();
@@ -22,6 +23,20 @@ export function SearchResultsPage() {
   const [selectedMapItem, setSelectedMapItem] = useState<MapEstablishment | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("Tous");
   const [kosherFilter, setKosherFilter] = useState("Tous");
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      },
+      (error) => {
+        console.warn("Géolocalisation refusée ou indisponible", error);
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
+    );
+  }, []);
 
   useEffect(() => {
     const q = searchParams.get("q") || "";
@@ -73,9 +88,9 @@ export function SearchResultsPage() {
     return ["Tous", ...Array.from(cats)];
   }, [results]);
 
-  // Filtrage
+  // Filtrage et tri par distance GPS
   const filteredResults = useMemo(() => {
-    return results.filter((item) => {
+    const list = results.filter((item) => {
       if (categoryFilter !== "Tous" && item.category !== categoryFilter) return false;
       if (kosherFilter !== "Tous") {
         const itemKosher = item.filters?.kosherType || item.establishment?.kosherType || "";
@@ -83,7 +98,12 @@ export function SearchResultsPage() {
       }
       return true;
     });
-  }, [results, categoryFilter, kosherFilter]);
+
+    if (userCoords) {
+      return sortFichesByDistance(list, userCoords.latitude, userCoords.longitude);
+    }
+    return list;
+  }, [results, categoryFilter, kosherFilter, userCoords]);
 
   // Transformation pour la carte interactive Leaflet
   const mapItems = useMemo<MapEstablishment[]>(() => {

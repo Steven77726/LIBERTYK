@@ -40,7 +40,7 @@ export default function CGVPage() {
               Champ d&apos;Application et Services Proposés
             </h2>
             <p>
-              Les présentes Conditions Générales de Vente régissent l&apos;ensemble des relations contractuelles entre la société éditrice de <strong>Libertyk</strong> et tout professionnel ou établissement (restaurateur, commerçant, traiteur, organisateur d&apos;événements) souscrivant à des prestations payantes sur le site.
+              Les présentes Conditions Générales de Vente régissent l&apos;ensemble des relations contractuelles entre la société éditrice de <strong>Libertyk</strong> (LIBERTYK SAS – Steven Ohayon, Avenue de Flandre, 75019 Paris) et tout professionnel ou établissement (restaurateur, commerçant, traiteur, organisateur d&apos;événements) souscrivant à des prestations payantes sur le site.
             </p>
             <p>Les services proposés incluent notamment :</p>
             <ul className="list-disc pl-5 space-y-1.5 text-ink/75">

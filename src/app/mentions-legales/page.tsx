@@ -43,10 +43,10 @@ export default function MentionsLegalesPage() {
               <p><strong>Dénomination sociale :</strong> LIBERTYK SAS</p>
               <p><strong>Forme juridique :</strong> Société par Actions Simplifiée (SAS)</p>
               <p><strong>Capital social :</strong> 10 000,00 €</p>
-              <p><strong>Siège social :</strong> 10 Rue de la Paix, 75002 Paris, France</p>
+              <p><strong>Siège social :</strong> Avenue de Flandre, 75019 Paris, France</p>
               <p><strong>Numéro RCS / SIREN :</strong> 912 345 678 R.C.S. Paris</p>
               <p><strong>Numéro TVA Intracommunautaire :</strong> FR 89 912345678</p>
-              <p><strong>Directeur de la publication :</strong> Steven Ohayon (Président)</p>
+              <p><strong>Directeur de la publication :</strong> Steven Ohayon (Président / Fondateur)</p>
               <p><strong>Contact Email :</strong> <a href="mailto:contact@libertyk.com" className="text-moss font-bold underline">contact@libertyk.com</a></p>
               <p><strong>Téléphone support :</strong> +33 1 42 00 00 00</p>
             </div>
@@ -76,7 +76,7 @@ export default function MentionsLegalesPage() {
               La marque <strong>Libertyk</strong>, son logotype, sa charte graphique et l&apos;ensemble de ses déclinaisons iconographiques sont des marques déposées et protégées auprès de l&apos;Institut National de la Propriété Industrielle (INPI).
             </p>
             <p>
-              Toute reproduction, imitation ou utilisation totale ou partielle sans autorisation préalable expresse de LIBERTYK SAS constitue une contrefaçon sanctionnée par les articles L. 713-2 et suivants du Code de la propriété intellectuelle.
+              Toute reproduction, imitation ou utilisation totale ou partielle sans autorisation préalable expresse de LIBERTYK SAS (Steven Ohayon) constitue une contrefaçon sanctionnée par les articles L. 713-2 et suivants du Code de la propriété intellectuelle.
             </p>
           </section>
 
@@ -86,9 +86,9 @@ export default function MentionsLegalesPage() {
               Pour toute question relative au traitement de vos données personnelles ou pour exercer vos droits d&apos;accès, rectification, effacement et opposition, vous pouvez vous adresser à notre Délégué à la Protection des Données (DPO) :
             </p>
             <div className="rounded-2xl bg-cream/70 p-4 border border-black/5 text-xs text-ink/80 space-y-1">
-              <p><strong>DPO Libertyk :</strong> Service Juridique & Protection des Données</p>
+              <p><strong>DPO Libertyk :</strong> Steven Ohayon – Service Juridique & Protection des Données</p>
               <p><strong>Email dédié :</strong> <a href="mailto:dpo@libertyk.com" className="font-bold text-moss underline">dpo@libertyk.com</a></p>
-              <p><strong>Adresse postale :</strong> LIBERTYK SAS – DPO, 10 Rue de la Paix, 75002 Paris</p>
+              <p><strong>Adresse postale :</strong> LIBERTYK SAS – Steven Ohayon, Avenue de Flandre, 75019 Paris</p>
             </div>
           </section>
 

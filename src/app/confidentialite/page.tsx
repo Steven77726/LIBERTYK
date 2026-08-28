@@ -127,7 +127,7 @@ export default function ConfidentialitePage() {
               <li><strong>Droit à la portabilité :</strong> Export de vos favoris et données au format JSON structuré.</li>
             </ul>
             <p className="pt-2">
-              Pour exercer ces droits, adressez votre demande accompagnée d&apos;un justificatif d&apos;identité par email à <a href="mailto:dpo@libertyk.com" className="font-bold text-moss underline">dpo@libertyk.com</a>. Nous nous engageons à vous répondre dans un délai maximal d&apos;un (1) mois.
+              Pour exercer ces droits, adressez votre demande accompagnée d&apos;un justificatif d&apos;identité par email à <a href="mailto:dpo@libertyk.com" className="font-bold text-moss underline">dpo@libertyk.com</a> ou par courrier postal à <strong>LIBERTYK SAS – Steven Ohayon, Avenue de Flandre, 75019 Paris</strong>. Nous nous engageons à vous répondre dans un délai maximal d&apos;un (1) mois.
             </p>
           </section>
 

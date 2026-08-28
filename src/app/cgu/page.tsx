@@ -40,7 +40,7 @@ export default function CGUPage() {
               Objet de la Plateforme Libertyk
             </h2>
             <p>
-              La plateforme <strong>Libertyk</strong> (accessible via le site web, applications mobiles et services associés) est un guide numérique et un annuaire d&apos;information dédié aux établissements et services cachers en France et en Europe (restaurants, salons de thé, boulangeries, traiteurs, boucheries, boutiques et prestataires spécialisés).
+              La plateforme <strong>Libertyk</strong> (accessible via le site web, applications mobiles et services associés, éditée par LIBERTYK SAS – Steven Ohayon, Avenue de Flandre, 75019 Paris) est un guide numérique et un annuaire d&apos;information dédié aux établissements et services cachers en France et en Europe (restaurants, salons de thé, boulangeries, traiteurs, boucheries, boutiques et prestataires spécialisés).
             </p>
             <p>
               Libertyk a pour vocation exclusive de faciliter la découverte, la mise en relation, la consultation d&apos;avis et l&apos;accès à l&apos;information (horaires, géolocalisation, certifications religieuses, plateformes de livraison partenaires telles que Deliveroo ou Uber Eats). Libertyk agit en qualité de simple intermédiaire technique et éditeur de contenus d&apos;information.

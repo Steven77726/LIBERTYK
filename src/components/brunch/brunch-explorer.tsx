@@ -264,13 +264,23 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
       return true;
     });
     return list.sort((a, b) => {
-      if (sort === "Ordre alphabétique") return a.name.localeCompare(b.name, "fr");
+      if (sort === "Ordre alphabétique") return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
       if (sort === "Prix croissant") return (a.price?.length ?? 9) - (b.price?.length ?? 9);
       if (sort === "Prix décroissant") return (b.price?.length ?? 0) - (a.price?.length ?? 0);
-      if (sort === "Les mieux notés") return (b.rating ?? 0) - (a.rating ?? 0);
-      if (sort === "Les plus populaires") return b.reviewCount - a.reviewCount;
-      if (sort === "Les nouveautés") return b.importedAt.localeCompare(a.importedAt);
-      return a.distanceKm - b.distanceKm;
+      if (sort === "Les mieux notés") {
+        const diff = (b.rating ?? 0) - (a.rating ?? 0);
+        return diff !== 0 ? diff : b.reviewCount - a.reviewCount;
+      }
+      if (sort === "Les plus populaires") {
+        const diff = b.reviewCount - a.reviewCount;
+        return diff !== 0 ? diff : (b.rating ?? 0) - (a.rating ?? 0);
+      }
+      if (sort === "Les nouveautés") {
+        const diff = (b.importedAt || "").localeCompare(a.importedAt || "");
+        return diff !== 0 ? diff : (b.rating ?? 0) - (a.rating ?? 0);
+      }
+      const distDiff = (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
+      return distDiff !== 0 ? distDiff : (b.rating ?? 0) - (a.rating ?? 0);
     });
   }, [brunchData, query, filters, sort]);
 

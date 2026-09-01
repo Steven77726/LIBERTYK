@@ -569,11 +569,21 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       return true;
     });
     return filtered.sort((a, b) => {
-      if (sort === "Ordre alphabétique") return a.name.localeCompare(b.name, "fr");
-      if (sort === "Les mieux notés") return (b.rating ?? 0) - (a.rating ?? 0);
-      if (sort === "Les plus populaires") return b.reviewCount - a.reviewCount;
-      if (sort === "Les nouveautés") return b.importedAt.localeCompare(a.importedAt);
-      return a.distanceKm - b.distanceKm;
+      if (sort === "Ordre alphabétique") return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
+      if (sort === "Les mieux notés") {
+        const diff = (b.rating ?? 0) - (a.rating ?? 0);
+        return diff !== 0 ? diff : b.reviewCount - a.reviewCount;
+      }
+      if (sort === "Les plus populaires") {
+        const diff = b.reviewCount - a.reviewCount;
+        return diff !== 0 ? diff : (b.rating ?? 0) - (a.rating ?? 0);
+      }
+      if (sort === "Les nouveautés") {
+        const diff = (b.importedAt || "").localeCompare(a.importedAt || "");
+        return diff !== 0 ? diff : (b.rating ?? 0) - (a.rating ?? 0);
+      }
+      const distDiff = (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
+      return distDiff !== 0 ? distDiff : (b.rating ?? 0) - (a.rating ?? 0);
     });
   }, [restaurantData, query, filters, sort]);
 

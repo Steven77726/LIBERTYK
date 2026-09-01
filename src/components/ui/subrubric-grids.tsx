@@ -19,7 +19,6 @@ import { categories } from "@/data/categories";
 import { localSubrubrics } from "@/data/subrubrics";
 import { assetPath } from "@/lib/assets";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
-import { listPublishedRubrics } from "@/lib/supabase/rubrics-repository";
 import { listPublishedEstablishmentCountsBySubrubric } from "@/lib/supabase/establishments-repository";
 
 type SubrubricPreview = {
@@ -33,7 +32,6 @@ type SubrubricPreview = {
   imageAlt?: string;
   visible?: boolean;
   showPublicly?: boolean;
-  isDormant?: boolean;
   order: number;
   status: "Publié" | "Brouillon" | "Masqué";
 };
@@ -74,21 +72,20 @@ function slugify(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function normalizeSubrubric(record: SubrubricRecord): SubrubricPreview {
+function normalizeSubrubric(item: SubrubricRecord | SubrubricPreview): SubrubricPreview {
   return {
-    id: record.id,
-    rubricId: record.rubricId,
-    slug: record.slug,
-    name: record.name,
-    description: record.description,
-    icon: record.icon,
-    photo: record.photo,
-    imageAlt: record.imageAlt,
-    visible: record.visible,
-    showPublicly: record.showPublicly,
-    isDormant: record.isDormant === true,
-    order: record.order,
-    status: record.status,
+    id: item.id,
+    rubricId: item.rubricId,
+    slug: item.slug,
+    name: item.name,
+    description: item.description,
+    icon: item.icon,
+    photo: "photo" in item ? item.photo : undefined,
+    imageAlt: item.imageAlt,
+    visible: item.visible,
+    showPublicly: item.showPublicly,
+    order: item.order,
+    status: item.status,
   };
 }
 
@@ -132,25 +129,13 @@ function subrubricHref(rubricSlug: string, subrubricSlug: string) {
 }
 
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {
-  const [items, setItems] = useState<SubrubricPreview[]>(fallback);
-  const [isDormant, setIsDormant] = useState(false);
+  const [items, setItems] = useState<SubrubricPreview[] | null>(null);
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       try {
-        const [remoteRubrics, remote] = await Promise.all([
-          listPublishedRubrics().catch(() => []),
-          listPublishedSubrubrics(rubricSlug).catch(() => []),
-        ]);
-
-        const parentRubric = (remoteRubrics ?? []).find((r) => r.slug === rubricSlug || r.id === rubricSlug);
-        if (mounted && parentRubric?.isDormant) {
-          setIsDormant(true);
-          setItems([]);
-          return;
-        }
-
+        const remote = await listPublishedSubrubrics(rubricSlug);
         if (mounted && remote?.length) {
           setItems(dedupe(remote.map(normalizeSubrubric)));
           return;
@@ -218,7 +203,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
     };
   }, [fallback, rubricSlug]);
 
-  return { items: items ?? fallback, isDormant };
+  return items ?? fallback;
 }
 
 function usePublishedEstablishmentCounts(rubricSlug: string) {
@@ -295,39 +280,6 @@ function SubrubricCard({
   const image = imageForSubrubric(rubricSlug, item, fallbackCards);
   const description = descriptionForSubrubric(item, fallbackCards);
 
-  if (item.isDormant) {
-    return (
-      <div
-        role="status"
-        aria-label={`${item.name} — Bientôt disponible`}
-        className={`group relative overflow-hidden rounded-[1.75rem] bg-ink/90 text-white shadow-sm ring-1 ring-white/10 select-none cursor-default ${
-          featured ? "min-h-[350px] sm:col-span-2" : "min-h-[255px]"
-        }`}
-      >
-        <img
-          src={assetPath(image)}
-          alt={item.imageAlt || item.name}
-          loading="lazy"
-          decoding="async"
-          className="absolute inset-0 size-full object-cover grayscale-[0.88] opacity-45 brightness-75"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-        <span className="absolute right-3.5 top-3.5 z-10 inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-black/80 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[#d5bb7d] shadow-[0_8px_20px_rgba(0,0,0,0.5)] backdrop-blur-md">
-          Bientôt disponible
-        </span>
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
-          <div className="min-w-0">
-            <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/10 bg-white/10 opacity-60 backdrop-blur">
-              <Icon size={18} />
-            </span>
-            <h3 className="truncate text-xl font-semibold tracking-tight text-white/85">{item.name}</h3>
-            {description && <p className="mt-1 line-clamp-2 text-xs text-white/55">{description}</p>}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Link
       href={subrubricHref(rubricSlug, slug)}
@@ -350,19 +302,8 @@ function SubrubricCard({
 
 export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
-  const { items, isDormant } = usePublishedSubrubrics(rubricSlug, fallback);
+  const items = usePublishedSubrubrics(rubricSlug, fallback);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
-
-  if (isDormant) {
-    return (
-      <div className="mt-8 rounded-3xl border border-black/10 bg-white/80 p-8 text-center shadow-sm backdrop-blur">
-        <span className="inline-block rounded-full border border-amber-500/30 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-800 uppercase tracking-wider">
-          Bientôt disponible
-        </span>
-        <p className="mt-3 text-sm text-ink/60">Cette rubrique sera prochainement disponible sur Liberty K.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -378,19 +319,8 @@ export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
 
 export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubrubricCard[] }) {
   const fallback = useMemo(() => localSubrubricsFor("food"), []);
-  const { items, isDormant } = usePublishedSubrubrics("food", fallback);
+  const items = usePublishedSubrubrics("food", fallback);
   const counts = usePublishedEstablishmentCounts("food");
-
-  if (isDormant) {
-    return (
-      <div className="mt-8 rounded-3xl border border-black/10 bg-white/80 p-8 text-center shadow-sm backdrop-blur">
-        <span className="inline-block rounded-full border border-amber-500/30 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-800 uppercase tracking-wider">
-          Bientôt disponible
-        </span>
-        <p className="mt-3 text-sm text-ink/60">Cette rubrique sera prochainement disponible sur Liberty K.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -411,19 +341,8 @@ export function CardSubrubricGrid({
   columns?: string;
 }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
-  const { items, isDormant } = usePublishedSubrubrics(rubricSlug, fallback);
+  const items = usePublishedSubrubrics(rubricSlug, fallback);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
-
-  if (isDormant) {
-    return (
-      <div className="mt-8 rounded-3xl border border-black/10 bg-white/80 p-8 text-center shadow-sm backdrop-blur">
-        <span className="inline-block rounded-full border border-amber-500/30 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-800 uppercase tracking-wider">
-          Bientôt disponible
-        </span>
-        <p className="mt-3 text-sm text-ink/60">Cette rubrique sera prochainement disponible sur Liberty K.</p>
-      </div>
-    );
-  }
 
   return (
     <div className={`mt-9 grid gap-5 ${columns}`}>

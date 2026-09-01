@@ -5,7 +5,6 @@
  */
 
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
-import { listPublishedRubrics } from "@/lib/supabase/rubrics-repository";
 
 export type ConciergeCriteria = {
   rawQuery: string;
@@ -50,39 +49,6 @@ const CATEGORY_MAP: Record<string, { rubric: string; subrubric?: string; label: 
   restos: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
   restaurant: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
   restaurants: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  manger: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  mange: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  dejeuner: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  diner: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  repas: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  entrecote: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  entrecotes: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  steak: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  steaks: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  viande: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  viandes: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  grillade: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  grillades: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  grill: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  burger: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  burgers: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  pizza: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  pizzas: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  sushi: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  sushis: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  pates: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  italien: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  japonais: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  asiatique: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  israelien: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  shawarma: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  chawarma: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  falafel: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  bagel: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  bagels: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  salade: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  sandwich: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
-  sandwichs: { rubric: "food", subrubric: "restaurants", label: "Restaurants" },
   brunch: { rubric: "food", subrubric: "brunch", label: "Brunch" },
   brunches: { rubric: "food", subrubric: "brunch", label: "Brunch" },
   petit_dejeuner: { rubric: "food", subrubric: "brunch", label: "Brunch" },
@@ -135,7 +101,6 @@ const CATEGORY_MAP: Record<string, { rubric: string; subrubric?: string; label: 
   whisky: { rubric: "vin-spiritueux", label: "Spiritueux" },
   vodka: { rubric: "vin-spiritueux", label: "Spiritueux" },
   degustation: { rubric: "vin-spiritueux", label: "Dégustations de vin" },
-  boire: { rubric: "vin-spiritueux", label: "Vin & Spiritueux" },
 
   // Sorties & Événements
   sortie: { rubric: "sorties", label: "Sorties & Loisirs" },
@@ -297,8 +262,8 @@ export function extractCity(text: string): string | undefined {
 // 5. Extraction du type de Cacherout
 export function extractKosherType(text: string): "Bassari" | "Halavi" | "Parvé" | undefined {
   const norm = normalizeText(text);
-  if (/\b(bassari|viande|viandes|meat|entrecote|entrecotes|steak|steaks|grill|grillades|burger|burgers|poulet|chawarma|shawarma)\b/.test(norm)) return "Bassari";
-  if (/\b(halavi|lait|fromage|dairy|pizza|pizzas|pates)\b/.test(norm)) return "Halavi";
+  if (/\b(bassari|viande|viandes|meat)\b/.test(norm)) return "Bassari";
+  if (/\b(halavi|lait|fromage|dairy)\b/.test(norm)) return "Halavi";
   if (/\b(parve|parve|neutre)\b/.test(norm)) return "Parvé";
   return undefined;
 }
@@ -395,13 +360,11 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
     }
   }
 
-  // Si une nouvelle catégorie ou nouveau sujet est explicitement mentionné, ne pas hériter des anciens arrondissements / cacherout
-  const isNewIntent = Boolean(matchedCategory);
-  const arrondissement = extractArrondissement(rawInput) ?? (isNewIntent ? undefined : sessionContext?.arrondissement);
-  const city = extractCity(rawInput) ?? (isNewIntent ? (arrondissement ? "Paris" : undefined) : sessionContext?.city ?? (arrondissement ? "Paris" : undefined));
-  const kosherType = extractKosherType(rawInput) ?? (isNewIntent ? undefined : sessionContext?.kosherType);
-  const certification = extractCertification(rawInput) ?? (isNewIntent ? undefined : sessionContext?.certification);
-  const serviceMode = extractServiceMode(rawInput) ?? (isNewIntent ? undefined : sessionContext?.serviceMode);
+  const arrondissement = extractArrondissement(rawInput) ?? sessionContext?.arrondissement;
+  const city = extractCity(rawInput) ?? sessionContext?.city ?? (arrondissement ? "Paris" : undefined);
+  const kosherType = extractKosherType(rawInput) ?? sessionContext?.kosherType;
+  const certification = extractCertification(rawInput) ?? sessionContext?.certification;
+  const serviceMode = extractServiceMode(rawInput) ?? sessionContext?.serviceMode;
   const { maxPrice, priceLevel } = extractPriceCriteria(rawInput);
   const services = extractServices(rawInput);
   const nearMe = isNearMeQuery(rawInput);
@@ -409,10 +372,8 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
   // Termes de recherche résiduels (mots porteurs de sens)
   const stopWords = new Set([
     "trouve", "trouver", "cherche", "chercher", "un", "une", "des", "le", "la", "les", "du", "de", "dans",
-    "a", "au", "aux", "pour", "avec", "qui", "fait", "fais", "est", "sont", "moi", "je", "j", "nous", "vous",
-    "veux", "voudrais", "vais", "va", "aller", "manger", "mange", "boire", "prendre", "faire", "svp", "merci",
-    "paris", "liberty", "cacher", "casher", "kosher", "bon", "bonne", "bons", "bonnes", "meilleur", "meilleure",
-    "meilleurs", "meilleures", "table", "place", "chez", "sur", "en", "vers", "adresse", "adresses", "endroit", "endroits"
+    "a", "au", "aux", "pour", "avec", "qui", "fait", "fais", "est", "sont", "moi", "je", "nous", "vous",
+    "veux", "voudrais", "svp", "merci", "paris", "liberty", "cacher", "casher", "kosher"
   ]);
 
   const searchTerms = words.filter((w) => !stopWords.has(w) && w.length > 2);
@@ -420,33 +381,29 @@ export function parseConciergeIntent(rawInput: string, sessionContext?: Partial<
   return {
     rawQuery: rawInput.trim(),
     category: matchedCategory ?? sessionContext?.category,
-    subrubric: matchedSubrubric ?? (isNewIntent ? undefined : sessionContext?.subrubric),
+    subrubric: matchedSubrubric ?? sessionContext?.subrubric,
     arrondissement,
     city,
     kosherType,
     certification,
     serviceMode,
     services: {
-      terrace: services.terrace ?? (isNewIntent ? undefined : sessionContext?.services?.terrace),
-      delivery: services.delivery ?? (isNewIntent ? undefined : sessionContext?.services?.delivery),
-      takeaway: services.takeaway ?? (isNewIntent ? undefined : sessionContext?.services?.takeaway),
-      reservation: services.reservation ?? (isNewIntent ? undefined : sessionContext?.services?.reservation),
-      openNow: services.openNow ?? (isNewIntent ? undefined : sessionContext?.services?.openNow),
-      openSunday: services.openSunday ?? (isNewIntent ? undefined : sessionContext?.services?.openSunday),
+      terrace: services.terrace ?? sessionContext?.services?.terrace,
+      delivery: services.delivery ?? sessionContext?.services?.delivery,
+      takeaway: services.takeaway ?? sessionContext?.services?.takeaway,
+      reservation: services.reservation ?? sessionContext?.services?.reservation,
+      openNow: services.openNow ?? sessionContext?.services?.openNow,
+      openSunday: services.openSunday ?? sessionContext?.services?.openSunday,
     },
-    maxPrice: maxPrice ?? (isNewIntent ? undefined : sessionContext?.maxPrice),
-    priceLevel: priceLevel ?? (isNewIntent ? undefined : sessionContext?.priceLevel),
+    maxPrice: maxPrice ?? sessionContext?.maxPrice,
+    priceLevel: priceLevel ?? sessionContext?.priceLevel,
     searchTerms,
     nearMe,
   };
 }
 
 // 12. Génération de réponse naturelle & chaleureuse en français courant
-export function generateConciergeResponse(criteria: ConciergeCriteria, resultCount: number, isDormantCategory?: boolean): string {
-  if (isDormantCategory) {
-    return "Cette rubrique sera bientôt disponible sur Liberty K.";
-  }
-
+export function generateConciergeResponse(criteria: ConciergeCriteria, resultCount: number): string {
   if (resultCount === 0) {
     const loc = criteria.arrondissement ? ` dans le ${criteria.arrondissement}e` : criteria.city ? ` à ${criteria.city}` : "";
     return `Je n’ai trouvé aucun établissement correspondant exactement à votre demande${loc}. Souhaitez-vous élargir la recherche ?`;
@@ -492,40 +449,15 @@ export function computeDistanceKm(lat1: number, lon1: number, lat2: number, lon2
   return Math.round(R * c * 10) / 10;
 }
 
-// 14. Exécution déterministe de la recherche Supabase sans hallucination
+// 14. Exécution déterministe de la recherche Concierge
 export async function executeConciergeSearch(
   criteria: ConciergeCriteria,
   userCoords?: { latitude: number; longitude: number }
 ): Promise<EstablishmentSearchResult[]> {
-  const [rawResults, publishedRubrics] = await Promise.all([
-    searchEstablishments(criteria.rawQuery, { limit: 50 }),
-    listPublishedRubrics().catch(() => []),
-  ]);
-
-  const dormantRubricSet = new Set(
-    (publishedRubrics ?? [])
-      .filter((r) => r.isDormant)
-      .flatMap((r) => [r.slug, r.id, r.name?.toLowerCase()].filter(Boolean) as string[])
-  );
-
-  // Si la catégorie demandée est explicitement en sommeil, zéro résultat
-  if (
-    criteria.category &&
-    (dormantRubricSet.has(criteria.category) || dormantRubricSet.has(`rubric-${criteria.category}`))
-  ) {
-    return [];
-  }
+  const rawQuery = criteria.rawQuery.trim();
+  const rawResults = await searchEstablishments(rawQuery, { limit: 50 });
 
   const filtered = rawResults.filter((item) => {
-    const rubricSlug = item.establishment?.rubricId || item.category || "";
-    if (
-      dormantRubricSet.has(rubricSlug) ||
-      dormantRubricSet.has(rubricSlug.toLowerCase()) ||
-      dormantRubricSet.has(`rubric-${rubricSlug}`)
-    ) {
-      return false;
-    }
-
     const categoryNorm = (item.establishment?.rubricId || item.category || "").toLowerCase();
 
     // 1. Filtrage Catégorie
@@ -616,13 +548,7 @@ export async function executeConciergeSearch(
     // 3. Filtrage Cacherout
     if (criteria.kosherType) {
       const itemKosher = (item.filters?.kosherType || item.establishment?.kosherType || "").toLowerCase();
-      // Si Bassari : exclure uniquement les établissements explicitement Halavi
-      if (criteria.kosherType === "Bassari" && itemKosher.includes("halavi")) return false;
-      // Si Halavi : exclure uniquement les établissements explicitement Bassari
-      if (criteria.kosherType === "Halavi" && itemKosher.includes("bassari")) return false;
-      if (itemKosher && !itemKosher.includes("à compléter") && !itemKosher.includes("a completer") && !itemKosher.includes(criteria.kosherType.toLowerCase())) {
-        return false;
-      }
+      if (!itemKosher.includes(criteria.kosherType.toLowerCase())) return false;
     }
 
     // 4. Filtrage Mode de service (domicile vs sur place)
@@ -644,7 +570,7 @@ export async function executeConciergeSearch(
       if (!hasDelivery) return false;
     }
 
-    // 7. Boost de pertinence sur les termes spécifiques du plat / service
+    // 7. Filtrage des termes de recherche résiduels spécifiques (zéro hallucination sur termes inconnus)
     const nonCategoryTerms = criteria.searchTerms.filter(
       (term) =>
         term !== "restaurant" &&
@@ -686,22 +612,17 @@ export async function executeConciergeSearch(
         .join(" ")
         .toLowerCase();
 
-      const hasSpecificMatch = nonCategoryTerms.some((term) => {
+      const matchesAllSpecific = nonCategoryTerms.every((term) => {
         const t = term.toLowerCase();
         const root = t.endsWith("e") || t.endsWith("s") || t.endsWith("x") ? t.slice(0, -1) : t;
         const stem = t.length > 5 ? t.slice(0, 5) : root;
         return itemCorpus.includes(t) || itemCorpus.includes(root) || itemCorpus.includes(stem);
       });
-      if (hasSpecificMatch) {
-        item.score = (item.score || 100) + 50;
-      }
+      if (!matchesAllSpecific) return false;
     }
 
     return true;
   });
-
-  // Tri par pertinence décroissante
-  filtered.sort((a, b) => (b.score || 0) - (a.score || 0));
 
   // Géolocalisation & distance
   if (userCoords && userCoords.latitude && userCoords.longitude) {

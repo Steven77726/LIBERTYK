@@ -16,7 +16,6 @@ import type { EstablishmentSearchResult } from "@/lib/search/search-service";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { trackEvent } from "@/lib/client-store";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
-import { listPublishedRubrics } from "@/lib/supabase/rubrics-repository";
 
 const rotatingExamples = [
   "Parlez à Liberty ou écrivez ici…",
@@ -131,28 +130,14 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
         }
 
         // 3. Exécution déterministe Supabase
-        const [nextResults, publishedRubrics] = await Promise.all([
-          executeConciergeSearch(parsedCriteria, coordsToUse),
-          listPublishedRubrics().catch(() => []),
-        ]);
-
-        const dormantRubricSet = new Set(
-          (publishedRubrics ?? [])
-            .filter((r) => r.isDormant)
-            .flatMap((r) => [r.slug, r.id, r.name?.toLowerCase()].filter(Boolean) as string[])
-        );
-
-        const isDormantCategory = Boolean(
-          parsedCriteria.category &&
-          (dormantRubricSet.has(parsedCriteria.category) || dormantRubricSet.has(`rubric-${parsedCriteria.category}`))
-        );
+        const nextResults = await executeConciergeSearch(parsedCriteria, coordsToUse);
 
         if (requestRef.current === requestId) {
           setResults(nextResults);
           setActiveIndex(0);
 
           // 4. Formulation de la réponse naturelle
-          const responseText = generateConciergeResponse(parsedCriteria, nextResults.length, isDormantCategory);
+          const responseText = generateConciergeResponse(parsedCriteria, nextResults.length);
           setConciergeMessage(responseText);
           speakResponse(responseText);
 
@@ -367,10 +352,10 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
               }}
               aria-label="Demandez à Liberty"
               placeholder={rotatingExamples[exampleIndex]}
-              type="text"
+              type="search"
               inputMode="search"
               autoComplete="off"
-              className="w-full bg-transparent px-1 text-[15px] font-semibold text-ink outline-hidden placeholder:font-medium placeholder:text-ink/35 sm:px-2 sm:text-base [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+              className="w-full bg-transparent px-1 text-[15px] font-semibold text-ink outline-hidden placeholder:font-medium placeholder:text-ink/35 sm:px-2 sm:text-base"
             />
           )}
         </div>

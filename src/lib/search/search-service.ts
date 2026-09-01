@@ -53,8 +53,6 @@ type EstablishmentSearchRow = {
   sponsorship: "standard" | "sponsored" | "partner" | "liberty_favorite";
   sponsor_priority: number | null;
   display_order: number | null;
-  rubric_id?: string | null;
-  subrubric_id?: string | null;
   rubrics?: { name: string; slug: string } | null;
   subrubrics?: { name: string; slug: string } | null;
   professional_services?: Array<{
@@ -91,7 +89,6 @@ type TaxonomyRow = {
   id: string;
   name: string;
   slug: string;
-  is_dormant?: boolean | null;
 };
 
 type TaxonomyMatch = {
@@ -156,28 +153,18 @@ const synonymMap: Record<string, string[]> = {
   casher: ["kosher", "cacher", "kasher"],
   cacher: ["casher", "kosher", "kasher"],
   kasher: ["casher", "cacher", "kosher"],
-  bassari: ["viande", "bassari", "steak", "grill", "grillades", "meat", "carné", "carne", "burger", "burgers", "boucher", "entrecote"],
-  viande: ["bassari", "viande", "steak", "grill", "grillades", "meat", "carné", "carne", "burger", "burgers", "boucher", "entrecote"],
-  entrecote: ["viande", "steak", "bassari", "grill", "grillades", "restaurant"],
-  entrecotes: ["viande", "steak", "bassari", "grill", "grillades", "restaurant"],
+  bassari: ["viande", "bassari", "steak", "grill", "grillades", "meat", "carné", "carne", "burger", "burgers", "boucher"],
+  viande: ["bassari", "viande", "steak", "grill", "grillades", "meat", "carné", "carne", "burger", "burgers", "boucher"],
   halavi: ["lait", "halavi", "fromage", "pizza", "pizzas", "dairy", "pates", "pâtes"],
   lait: ["halavi", "lait", "fromage", "pizza", "pizzas", "dairy"],
   parve: ["parve", "parvé"],
   parvé: ["parve", "parvé"],
-  steak: ["grill", "viande", "bassari", "grillades", "entrecote"],
-  grill: ["grillades", "viande", "bassari", "steak", "entrecote"],
-  grillades: ["grill", "viande", "bassari", "steak", "entrecote"],
+  steak: ["grill", "viande", "bassari", "grillades"],
+  grill: ["grillades", "viande", "bassari", "steak"],
+  grillades: ["grill", "viande", "bassari", "steak"],
   burger: ["burgers", "viande", "bassari"],
   burgers: ["burger", "viande", "bassari"],
-  manger: ["restaurant", "resto", "food", "brunch"],
-  dejeuner: ["restaurant", "resto", "food", "brunch"],
-  diner: ["restaurant", "resto", "food"],
-  repas: ["restaurant", "resto", "food"],
   brunch: ["avocado", "pancakes", "petit dejeuner"],
-  pizza: ["pizzas", "halavi", "italien", "restaurant"],
-  pizzas: ["pizza", "halavi", "italien", "restaurant"],
-  sushi: ["sushis", "japonais", "asiatique", "restaurant"],
-  sushis: ["sushi", "japonais", "asiatique", "restaurant"],
   coiffure: ["brushing", "coupe", "coiffure mariage"],
   brushing: ["coiffure", "cheveux"],
   maquillage: ["makeup", "make-up", "mariee", "soiree"],
@@ -194,61 +181,31 @@ const synonymMap: Record<string, string[]> = {
 
 const queryStopWords = new Set([
   "a",
-  "ai",
   "au",
   "aux",
   "avec",
-  "aller",
-  "bon",
-  "bonne",
-  "bons",
-  "bonnes",
-  "chez",
   "dans",
   "de",
   "des",
   "du",
   "en",
-  "est",
   "et",
-  "faire",
-  "fais",
-  "fait",
   "je",
-  "j",
   "la",
   "le",
   "les",
   "me",
-  "meilleur",
-  "meilleure",
-  "meilleurs",
-  "meilleures",
-  "moi",
   "mon",
-  "nous",
   "ou",
-  "par",
   "pour",
-  "prendre",
   "pres",
   "proche",
   "qui",
-  "quoi",
-  "sont",
   "sur",
-  "svp",
-  "table",
   "trouve",
   "trouver",
   "un",
   "une",
-  "va",
-  "vais",
-  "vers",
-  "veux",
-  "voudrais",
-  "vous",
 ]);
 
 let visibleTagsCache: { expiresAt: number; rows: TagRow[] } | null = null;
@@ -655,10 +612,10 @@ async function getTaxonomyRows() {
   if (taxonomyCache && taxonomyCache.expiresAt > Date.now()) {
     return { rubrics: taxonomyCache.rubrics, subrubrics: taxonomyCache.subrubrics };
   }
-  const [{ data: rubrics, error: rError }, { data: subrubrics }] = await Promise.all([
+  const [{ data: rubrics }, { data: subrubrics }] = await Promise.all([
     supabase
       .from("rubrics")
-      .select("id,name,slug,is_dormant")
+      .select("id,name,slug")
       .eq("status", "published")
       .is("deleted_at", null)
       .returns<TaxonomyRow[]>(),
@@ -669,21 +626,9 @@ async function getTaxonomyRows() {
       .is("deleted_at", null)
       .returns<TaxonomyRow[]>(),
   ]);
-
-  let finalRubrics = rubrics ?? [];
-  if (rError && (rError as { code?: string }).code === "42703") {
-    const { data: fbRubrics } = await supabase
-      .from("rubrics")
-      .select("id,name,slug")
-      .eq("status", "published")
-      .is("deleted_at", null)
-      .returns<TaxonomyRow[]>();
-    finalRubrics = fbRubrics ?? [];
-  }
-
   const next = {
     expiresAt: Date.now() + DICTIONARY_CACHE_TTL_MS,
-    rubrics: finalRubrics,
+    rubrics: rubrics ?? [],
     subrubrics: subrubrics ?? [],
   };
   taxonomyCache = next;
@@ -796,34 +741,8 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
   if (options.signal) request = request.abortSignal(options.signal);
 
   const { data, error } = await request.returns<EstablishmentSearchRow[]>();
-  const rawRows = error ? [] : data ?? [];
+  const rows = error ? [] : data ?? [];
   if (error) return fallbackSearch(query);
-
-  const { rubrics, subrubrics } = await getTaxonomyRows();
-  const dormantRubricIds = new Set(
-    rubrics
-      .filter((r) => r.is_dormant === true)
-      .flatMap((r) => [r.id, r.slug, `rubric-${r.slug}`].filter(Boolean))
-  );
-  const dormantSubrubricIds = new Set(
-    subrubrics
-      .filter((s) => (s as { is_dormant?: boolean; search_keywords?: string[] }).is_dormant === true || ((s as { search_keywords?: string[] }).search_keywords || []).includes("__dormant__"))
-      .flatMap((s) => [s.id, s.slug, `subrubric-${s.slug}`].filter(Boolean))
-  );
-
-  const rows = (dormantRubricIds.size > 0 || dormantSubrubricIds.size > 0)
-    ? rawRows.filter((row) => {
-        const rId = row.rubric_id ?? "";
-        const rSlug = row.rubrics?.slug ?? "";
-        const sId = row.subrubric_id ?? "";
-        const sSlug = row.subrubrics?.slug ?? "";
-        if (rId && dormantRubricIds.has(rId)) return false;
-        if (rSlug && dormantRubricIds.has(rSlug)) return false;
-        if (sId && dormantSubrubricIds.has(sId)) return false;
-        if (sSlug && dormantSubrubricIds.has(sSlug)) return false;
-        return true;
-      })
-    : rawRows;
 
   if (!normalizedQuery) {
     const tagMap = tagRowsToMap(await getTagRows());

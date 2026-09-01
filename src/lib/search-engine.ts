@@ -116,6 +116,7 @@ export type SearchFilters = {
 export type SearchOptions = {
   filters?: SearchFilters;
   userLocation?: { latitude: number; longitude: number };
+  limit?: number;
 };
 
 const categoryIntents: Record<string, string[]> = {
@@ -256,7 +257,7 @@ export function searchItems(items: SearchItem[], query: string, options: SearchO
     const reviews = Math.min(10, (item.ranking?.reviewCount ?? 0) / 4);
     const score = relevance + sponsorBoost + popularity + favorites + reviews;
     return { item, score };
-  }).filter(({ score }) => score > 18).sort((a, b) => b.score - a.score).slice(0, 10).map(({ item }) => item);
+  }).filter(({ score }) => score > 18).sort((a, b) => b.score - a.score).slice(0, options.limit ?? 50).map(({ item }) => item);
 }
 
 const suggestionPool = [

@@ -452,10 +452,11 @@ export function computeDistanceKm(lat1: number, lon1: number, lat2: number, lon2
 // 14. Exécution déterministe de la recherche Concierge
 export async function executeConciergeSearch(
   criteria: ConciergeCriteria,
-  userCoords?: { latitude: number; longitude: number }
+  userCoords?: { latitude: number; longitude: number },
+  options?: { signal?: AbortSignal; limit?: number }
 ): Promise<EstablishmentSearchResult[]> {
   const rawQuery = criteria.rawQuery.trim();
-  const rawResults = await searchEstablishments(rawQuery, { limit: 50 });
+  const rawResults = await searchEstablishments(rawQuery, { limit: options?.limit ?? 50, signal: options?.signal });
 
   const filtered = rawResults.filter((item) => {
     const categoryNorm = (item.establishment?.rubricId || item.category || "").toLowerCase();

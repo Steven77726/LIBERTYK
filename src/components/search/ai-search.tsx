@@ -4,37 +4,39 @@ import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "reac
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Search, Volume2, VolumeX, X, Sparkles } from "lucide-react";
+import { Search, X, Sparkles, ArrowRight } from "lucide-react";
 import {
   parseConciergeIntent,
   generateConciergeResponse,
   executeConciergeSearch,
   type ConciergeCriteria,
 } from "@/lib/concierge/intent-parser";
-import { VoiceMicrophoneButton, type MicState } from "@/components/concierge/voice-microphone-button";
 import type { EstablishmentSearchResult } from "@/lib/search/search-service";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { trackEvent } from "@/lib/client-store";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 const rotatingExamples = [
-  "Parlez à Liberty ou écrivez ici…",
+  "Rechercher un restaurant, traiteur, boutique, service…",
   "Trouve-moi un resto bassari dans le 17e",
+  "David Abitbol trompe l'œil",
   "Une coiffeuse à domicile dans le 16e",
   "Un brunch ouvert dimanche",
-  "Qu’est-ce qu’on peut faire avec les enfants ?",
+  "Pâtisserie Korcarz ou Boaz",
+  "Barbanegra terrasse festive",
   "Un caviste cacher pour shabbat",
-  "Un restaurant japonais cacher ouvert ce soir",
+  "Chichi Paris salle de réception",
 ];
 
 export const quickSuggestions = [
   { label: "📍 Près de moi", query: "Près de moi" },
   { label: "🕒 Ouvert maintenant", query: "Ouvert maintenant" },
   { label: "🥩 Bassari 17e", query: "Restaurant bassari 17e" },
-  { label: "💇‍♀️ Coiffure à domicile", query: "Coiffeuse à domicile" },
+  { label: "🍰 Pâtisseries fines", query: "Pâtisserie" },
+  { label: "💇‍♀️ Coiffure & Beauté", query: "Coiffeuse à domicile" },
   { label: "🥐 Brunch dimanche", query: "Brunch ouvert dimanche" },
+  { label: "🎉 Sorties & Fêtes", query: "Sorties terrasse festive" },
   { label: "🍷 Cavistes & Vins", query: "Caviste vin casher" },
-  { label: "👶 Enfants & Famille", query: "Activités enfants famille" },
 ];
 
 export function AiSearch({ showChips = true }: { showChips?: boolean }) {
@@ -43,14 +45,11 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [exampleIndex, setExampleIndex] = useState(0);
-  const [micState, setMicState] = useState<MicState>("idle");
   const [conciergeMessage, setConciergeMessage] = useState<string>("");
-  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | undefined>(undefined);
   const [sessionCriteria, setSessionCriteria] = useState<Partial<ConciergeCriteria>>({});
 
   const [results, setResults] = useState<EstablishmentSearchResult[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dropdownRect, setDropdownRect] = useState<{ left: number; top: number; width: number } | null>(null);
@@ -59,25 +58,10 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const requestRef = useRef(0);
-  const lastQueryRef = useRef<string | null>(null);
-  const lastVoiceSearchedQueryRef = useRef<string>("");
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const open = focused && (query.trim().length >= 2 || results.length > 0 || loading || micState === "listening");
-
-  // Synthèse vocale française sécurisée (optionnelle)
-  const speakResponse = useCallback((text: string) => {
-    if (!voiceOutputEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "fr-FR";
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      // ignore
-    }
-  }, [voiceOutputEnabled]);
+  // Le menu reste ancré tant que le champ est focus ou qu'il y a du texte saisi ou des résultats
+  const open = (focused || query.trim().length >= 1) && (query.trim().length >= 1 || results.length > 0 || loading);
 
   const updateDropdownPosition = useCallback(() => {
     const rect = rootRef.current?.getBoundingClientRect();
@@ -91,11 +75,15 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     });
   }, []);
 
-  // Exécution centrale et unifiée de la recherche conversationnelle
+  // Exécution de la recherche avec annulation automatique des requêtes en vol (AbortController)
   const runConciergeQuery = useCallback(
     async (rawQuery: string, overrideCoords?: { latitude: number; longitude: number }) => {
       const trimmed = rawQuery.trim();
       if (!trimmed || trimmed.length < 2) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
         setResults([]);
         setLoading(false);
         setError("");
@@ -103,15 +91,20 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
         return;
       }
 
+      // Annuler la requête précédente si elle est encore en vol
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       const requestId = requestRef.current + 1;
       requestRef.current = requestId;
-      lastQueryRef.current = trimmed;
-      setFocused(true);
       setLoading(true);
       setError("");
 
       try {
-        // 1. Analyse de l'intention avec normalisation phonétique & vocale
+        // 1. Analyse d'intention sémantique
         const parsedCriteria = parseConciergeIntent(trimmed, sessionCriteria);
         setSessionCriteria((prev) => ({ ...prev, ...parsedCriteria }));
 
@@ -120,7 +113,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
         if (parsedCriteria.nearMe && !coordsToUse && typeof navigator !== "undefined" && navigator.geolocation) {
           try {
             const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 6000 });
+              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
             });
             coordsToUse = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
             setUserCoords(coordsToUse);
@@ -129,21 +122,27 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
           }
         }
 
-        // 3. Exécution déterministe Supabase
-        const nextResults = await executeConciergeSearch(parsedCriteria, coordsToUse);
+        if (controller.signal.aborted) return;
 
-        if (requestRef.current === requestId) {
+        // 3. Exécution de la recherche avec signal d'annulation
+        const nextResults = await executeConciergeSearch(parsedCriteria, coordsToUse, {
+          signal: controller.signal,
+          limit: 50,
+        });
+
+        if (requestRef.current === requestId && !controller.signal.aborted) {
           setResults(nextResults);
-          setActiveIndex(0);
 
-          // 4. Formulation de la réponse naturelle
+          // 4. Formulation de la réponse
           const responseText = generateConciergeResponse(parsedCriteria, nextResults.length);
           setConciergeMessage(responseText);
-          speakResponse(responseText);
 
-          trackEvent("liberty_concierge_query", trimmed, `${nextResults.length}_results`);
+          trackEvent("liberty_search_query", trimmed, `${nextResults.length}_results`);
         }
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return; // Requête annulée normalement par une frappe plus récente
+        }
         if (requestRef.current === requestId) {
           setResults([]);
           setError("Recherche momentanément indisponible.");
@@ -152,36 +151,14 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
       } finally {
         if (requestRef.current === requestId) {
           setLoading(false);
-          setMicState("idle");
         }
       }
     },
-    [sessionCriteria, speakResponse, userCoords]
+    [sessionCriteria, userCoords]
   );
 
-  // 1. Affichage en temps réel du texte dicté (sans déclencher de recherche)
-  const handleInterimTranscript = useCallback((interim: string) => {
-    setQuery(interim);
-    setFocused(true);
-  }, []);
-
-  // 2. Déclencheur vocal final : Exécute exactement UNE recherche à la fin de phrase
-  const handleVoiceTranscript = useCallback((finalTranscript: string) => {
-    const cleanTranscript = finalTranscript.trim();
-    if (!cleanTranscript) return;
-
-    lastVoiceSearchedQueryRef.current = cleanTranscript;
-    setQuery(cleanTranscript);
-    setFocused(true);
-    setMicState("searching");
-
-    // Lancement unique garanti
-    void runConciergeQuery(cleanTranscript);
-  }, [runConciergeQuery]);
-
-  // 3. Déclencheur chips / raccourcis
+  // Déclencheur chips / suggestions
   const handleChipClick = (chipQuery: string) => {
-    lastVoiceSearchedQueryRef.current = chipQuery;
     setQuery(chipQuery);
     setFocused(true);
     inputRef.current?.focus();
@@ -203,66 +180,46 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     void runConciergeQuery(chipQuery);
   };
 
-  // 4. Déclencheur saisie manuelle au clavier
+  // Déclencheur saisie clavier
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.currentTarget.value;
     setQuery(value);
     setFocused(true);
     if (value.trim().length < 2) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       setResults([]);
       setLoading(false);
       setError("");
       setConciergeMessage("");
-      lastQueryRef.current = null;
     }
   };
 
   const clearSearch = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setQuery("");
     setResults([]);
     setLoading(false);
     setError("");
     setConciergeMessage("");
     setSessionCriteria({});
-    lastQueryRef.current = null;
-    lastVoiceSearchedQueryRef.current = "";
     inputRef.current?.focus();
   };
 
-  // 5. Déclencheur validation clavier / bouton de recherche
+  // Validation manuelle (Entrée ou clic sur la loupe)
   const submit = () => {
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
-    lastVoiceSearchedQueryRef.current = trimmed;
     void runConciergeQuery(trimmed);
   };
 
-  const openResult = (result: EstablishmentSearchResult | undefined) => {
-    if (!result) return;
-    if (query.trim().length >= 2) trackEvent("concierge_result_click", query.trim(), result.id);
-    setFocused(false);
-
-    if (result.href) {
-      router.push(result.href);
-    } else if (result.establishment) {
-      const est = result.establishment;
-      const rubric = est.rubricId || "food";
-      const sub = est.subrubricId || "";
-      const cleanSub = sub.startsWith(`${rubric}-`) ? sub.slice(rubric.length + 1) : sub;
-      const targetPath =
-        rubric === "food" && (cleanSub === "restaurants" || !cleanSub)
-          ? `/food/restaurants#${est.slug || est.id}`
-          : rubric === "food" && cleanSub === "brunch"
-          ? `/food/brunch/${est.slug || est.id}`
-          : rubric === "shopping" && est.slug === "azamra"
-          ? `/shopping/vetements/azamra`
-          : `/${rubric}/${cleanSub || "decouverte"}#${est.slug || est.id}`;
-      router.push(targetPath);
-    }
-  };
-
   useEffect(() => {
-    const timer = window.setInterval(() => setExampleIndex((idx) => (idx + 1) % rotatingExamples.length), 3800);
+    const timer = window.setInterval(() => setExampleIndex((idx) => (idx + 1) % rotatingExamples.length), 4000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -270,33 +227,31 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     setMounted(true);
   }, []);
 
-  // Débounce sur frappe manuelle au clavier uniquement (jamais pendant la dictée vocale)
+  // DEBOUNCE 300ms sur la frappe textuelle pour éliminer les sauts et les requêtes multiples
   useEffect(() => {
-    if (
-      !focused ||
-      query.trim().length < 2 ||
-      micState === "listening" ||
-      micState === "searching" ||
-      query.trim() === lastVoiceSearchedQueryRef.current.trim()
-    ) {
+    if (query.trim().length < 2) {
       return;
     }
     const timer = window.setTimeout(() => {
       void runConciergeQuery(query);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [focused, query, micState, runConciergeQuery]);
+  }, [query, runConciergeQuery]);
 
+  // Ancrage d'état : Détection de clic à l'extérieur sans fermer inopportunément
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node;
-      if (rootRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      if (rootRef.current?.contains(target) || dropdownRef.current?.contains(target)) {
+        return;
+      }
       setFocused(false);
     }
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
+  // Repositionnement dynamique fluide
   useEffect(() => {
     if (!open) return;
     updateDropdownPosition();
@@ -310,63 +265,54 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
 
   return (
     <div ref={rootRef} className="relative z-30 mx-auto mt-4 w-full max-w-3xl">
-      {/* Barre conversationnelle unifiée : MICROPHONE + CHAMP TEXTE */}
+      {/* Barre de recherche optimisée & fluide (zéro vocal) */}
       <div
-        className={`group relative flex items-center gap-2 rounded-[2rem] border bg-white/[0.97] p-2 sm:p-2.5 shadow-[0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-2xl transition-all duration-300 ${
-          focused || micState === "listening"
-            ? "border-[#d5bb7d] shadow-[0_32px_110px_rgba(0,0,0,.55),0_0_0_6px_rgba(213,187,125,.14)]"
+        className={`group relative flex items-center gap-2 rounded-[2rem] border bg-white/[0.98] p-2 sm:p-2.5 shadow-[0_24px_80px_rgba(0,0,0,.40)] backdrop-blur-2xl transition-all duration-300 ${
+          focused
+            ? "border-[#d5bb7d] shadow-[0_32px_110px_rgba(0,0,0,.50),0_0_0_6px_rgba(213,187,125,.14)]"
             : "border-white/30 hover:border-white/60"
         }`}
       >
-        {/* Bouton Microphone CTA principal avec Halo Liberty K */}
-        <VoiceMicrophoneButton
-          state={micState}
-          onStateChange={setMicState}
-          onTranscript={handleVoiceTranscript}
-          onInterimTranscript={handleInterimTranscript}
-          onError={(msg) => setError(msg)}
-          size="md"
-        />
-
-        {/* Zone de texte ou état vocal */}
-        <div className="relative flex-1 min-w-0">
-          {micState === "listening" ? (
-            <div className="flex items-center gap-2 px-2 text-sm font-semibold text-moss animate-pulse">
-              <span className="inline-block size-2 rounded-full bg-rose-500 animate-ping" />
-              <span>Je vous écoute… Parlez librement à Liberty</span>
-            </div>
-          ) : (
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={handleInput}
-              onFocus={() => setFocused(true)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  submit();
-                }
-                if (e.key === "Escape") {
-                  setFocused(false);
-                }
-              }}
-              aria-label="Demandez à Liberty"
-              placeholder={rotatingExamples[exampleIndex]}
-              type="search"
-              inputMode="search"
-              autoComplete="off"
-              className="w-full bg-transparent px-1 text-[15px] font-semibold text-ink outline-hidden placeholder:font-medium placeholder:text-ink/35 sm:px-2 sm:text-base"
-            />
-          )}
+        {/* Icône de recherche décorative intégrée */}
+        <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-cream/80 text-ink/70 sm:size-11">
+          <Search size={18} strokeWidth={2.3} />
         </div>
 
-        {/* Boutons d'action auxiliaires : Effacer / Soumettre */}
+        {/* Champ de saisie fluide */}
+        <div className="relative flex-1 min-w-0">
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={handleInput}
+            onFocus={() => {
+              setFocused(true);
+              updateDropdownPosition();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submit();
+              }
+              if (e.key === "Escape") {
+                setFocused(false);
+              }
+            }}
+            aria-label="Rechercher sur Liberty K"
+            placeholder={rotatingExamples[exampleIndex]}
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            className="w-full bg-transparent px-1 text-[15px] font-semibold text-ink outline-hidden placeholder:font-normal placeholder:text-ink/40 sm:px-2 sm:text-base"
+          />
+        </div>
+
+        {/* Boutons d'action : Effacer / Lancer */}
         <div className="flex items-center gap-1.5 shrink-0 pr-1">
           {query && (
             <button
               type="button"
               onClick={clearSearch}
-              className="grid size-8 place-items-center rounded-full text-ink/40 hover:bg-black/5 transition cursor-pointer"
+              className="grid size-8 place-items-center rounded-full text-ink/40 hover:bg-black/5 hover:text-ink transition cursor-pointer"
               aria-label="Effacer la recherche"
             >
               <X size={15} />
@@ -379,12 +325,12 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             aria-label="Lancer la recherche"
             className="grid size-10 place-items-center rounded-2xl bg-ink text-white transition hover:bg-moss hover:scale-105 shadow-sm cursor-pointer sm:size-11"
           >
-            <Search size={16} />
+            <ArrowRight size={16} />
           </button>
         </div>
       </div>
 
-      {/* Raccourcis utiles sous la barre */}
+      {/* Raccourcis rapides sous la barre */}
       {showChips && (
         <div className="no-scrollbar mt-3.5 flex items-center justify-center gap-1.5 overflow-x-auto px-1 py-1 sm:gap-2">
           {quickSuggestions.map((item) => (
@@ -404,7 +350,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
         </div>
       )}
 
-      {/* Dropdown / Modal des résultats du Concierge */}
+      {/* Dropdown ancré & persistant des résultats de recherche */}
       {mounted &&
         createPortal(
           <AnimatePresence>
@@ -415,61 +361,35 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                 initial={{ opacity: 0, y: 12, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.99 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                className="fixed z-[130] max-h-[80vh] overflow-y-auto rounded-3xl border border-black/10 bg-white/98 p-3 text-left text-ink shadow-[0_28px_90px_rgba(0,0,0,.35)] backdrop-blur-2xl"
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="fixed z-[130] max-h-[80vh] overflow-y-auto rounded-3xl border border-black/10 bg-white/98 p-3.5 text-left text-ink shadow-[0_28px_90px_rgba(0,0,0,.35)] backdrop-blur-2xl"
               >
-                {/* Réponse conversationnelle de Liberty */}
-                <div className="flex items-start justify-between gap-3 rounded-2xl bg-cream/70 p-3.5 border border-black/[.04] mb-3">
-                  <div className="flex items-start gap-2.5 min-w-0">
-                    <div className="grid size-7 shrink-0 place-items-center rounded-full bg-moss text-white shadow-2xs">
-                      <Sparkles size={14} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-ink/50 uppercase tracking-wider">Liberty Concierge</p>
-                      <p className="mt-0.5 text-xs font-semibold text-ink/90 leading-snug">
-                        {loading
-                          ? "Recherche des meilleures adresses en cours…"
-                          : conciergeMessage || "Voici les adresses sélectionnées pour vous :"}
-                      </p>
-                    </div>
+                {/* En-tête de réponse / Synthèse de recherche */}
+                <div className="flex items-center gap-2.5 rounded-2xl bg-cream/80 p-3 border border-black/[.04] mb-3">
+                  <div className="grid size-7 shrink-0 place-items-center rounded-full bg-moss text-white shadow-2xs">
+                    <Sparkles size={14} />
                   </div>
-
-                  {/* Contrôle Voix Haut-Parleur ON / OFF */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVoiceOutputEnabled((prev) => {
-                        const next = !prev;
-                        if (next && conciergeMessage) speakResponse(conciergeMessage);
-                        else if (typeof window !== "undefined" && "speechSynthesis" in window) {
-                          window.speechSynthesis.cancel();
-                        }
-                        return next;
-                      });
-                    }}
-                    className={`grid size-8 shrink-0 place-items-center rounded-xl transition cursor-pointer ${
-                      voiceOutputEnabled
-                        ? "bg-moss text-white"
-                        : "bg-black/5 text-ink/45 hover:bg-black/10 hover:text-ink"
-                    }`}
-                    title={voiceOutputEnabled ? "Désactiver la voix" : "Activer la réponse vocale"}
-                    aria-label="Bascule voix haut-parleur"
-                  >
-                    {voiceOutputEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                  </button>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider">Recherche Liberty</p>
+                    <p className="mt-0.5 text-xs font-semibold text-ink/90 truncate leading-snug">
+                      {loading
+                        ? "Recherche en cours…"
+                        : conciergeMessage || `${results.length} résultat${results.length > 1 ? "s" : ""} trouvé${results.length > 1 ? "s" : ""}`}
+                    </p>
+                  </div>
                 </div>
 
-                {/* État de chargement */}
-                {loading ? (
+                {/* État de chargement discret */}
+                {loading && results.length === 0 ? (
                   <div className="flex items-center justify-center gap-3 py-10" role="status" aria-live="polite">
                     <div className="size-5 rounded-full border-2 border-moss border-t-transparent animate-spin" />
-                    <p className="text-xs font-semibold text-ink/60">Sélection des établissements certifiés…</p>
+                    <p className="text-xs font-semibold text-ink/60">Recherche des établissements…</p>
                   </div>
                 ) : results.length > 0 ? (
                   <div className="space-y-3">
-                    {/* Liste des résultats avec cartes autonomes universelles */}
+                    {/* Grille exhaustive et fluide des cartes d'établissements */}
                     <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2">
-                      {results.slice(0, 4).map((result) => {
+                      {results.slice(0, 6).map((result) => {
                         const establishmentData: EstablishmentRecord = result.establishment || {
                           id: result.id,
                           name: result.title,
@@ -522,29 +442,31 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                       })}
                     </div>
 
-                    {/* Bouton pour voir tous les résultats si > 4 */}
-                    {results.length > 4 && (
+                    {/* Si plus de 6 résultats, bouton d'accès rapide vers la page recherche */}
+                    {results.length > 6 && (
                       <div className="pt-2 border-t border-black/5">
                         <button
                           type="button"
                           onMouseDown={(e) => {
                             e.preventDefault();
-                            submit();
+                            router.push(`/recherche?q=${encodeURIComponent(query.trim())}`);
                           }}
-                          onClick={submit}
+                          onClick={() => {
+                            router.push(`/recherche?q=${encodeURIComponent(query.trim())}`);
+                          }}
                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3 text-xs font-bold text-white transition hover:bg-moss cursor-pointer"
                         >
-                          <Search size={14} /> Voir tous les {results.length} résultats sur la page complète →
+                          <Search size={14} /> Voir tous les {results.length} résultats complets →
                         </button>
                       </div>
                     )}
                   </div>
                 ) : (
-                  /* 0 résultat : Réponse honnête et suggestions intelligentes */
+                  /* 0 résultat */
                   <div className="p-5 text-center" role="status" aria-live="polite">
-                    <p className="text-sm font-bold text-ink">Aucun résultat trouvé pour cette recherche précise</p>
+                    <p className="text-sm font-bold text-ink">Aucun résultat trouvé pour « {query} »</p>
                     <p className="mt-1 text-xs text-ink/50">
-                      Vous pouvez reformuler votre demande ou explorer une de nos suggestions populaires :
+                      Essayez un autre mot-clé ou découvrez l&apos;une de nos suggestions :
                     </p>
                     <div className="mt-4 flex flex-wrap justify-center gap-1.5">
                       {quickSuggestions.map((item) => (

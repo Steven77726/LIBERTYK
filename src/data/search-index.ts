@@ -261,4 +261,94 @@ const weddingItems: SearchItem[] = [{
   ranking: { sponsored: true, popularity: 98, favorites: 68, reviewCount: 68 },
 }];
 
-export const searchIndex: SearchItem[] = [...restaurantItems, ...brunchItems, ...wineItems, ...shopItems, ...patisserieItems, ...weddingItems, ...categoryItems];
+const sortiesItems: SearchItem[] = [
+  {
+    id: "sorties-barbanegra",
+    title: "Barbanegra - Terrasse Festive (Saisonnier)",
+    subtitle: "La terrasse des Clubs · Paris 12e",
+    category: "Sorties",
+    subcategory: "Événements",
+    href: "/sorties/evenements",
+    image: "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWkeBfDPFTq6C4fD7y92hgp3R9c3qQ7riyTXjA5T4CHNI3WTyNmSNts36c3jwaEU0Cc7lNqGFyL_26GHGMolotOhLOzBFem-DS_kfjpZhNpBnLsllLCGJvMwEAPJidyiEagTDFiQqQ=s1360-w1360-h1020-rw",
+    customerSearches: ["Barbanegra", "terrasse festive", "soirée", "club", "port de la rapée", "sorties", "fête"],
+    keywords: buildInvisibleKeywords(["Barbanegra", "terrasse festive", "soirée", "club", "sorties"], { category: "sorties evenements", location: "Paris 12" }),
+    location: { city: "Paris", arrondissement: "12" },
+    filters: { terrace: true, kosherType: "No Teouda / Friendly" },
+    ranking: { sponsored: false, popularity: 90, favorites: 30, reviewCount: 15 },
+  },
+  {
+    id: "sorties-lehayiim",
+    title: "lehayiim - Peniche festive (Saisonnier)",
+    subtitle: "Péniche festive & soirées célibataires · Paris",
+    category: "Sorties",
+    subcategory: "Soirées célibataires",
+    href: "/sorties/soirees-celibataires",
+    image: "https://res.cloudinary.com/shotgun/image/upload/v1784901165/production/artworks/16EE6FD6-1223-4A68-ADB5-D9563CDCC54D_bafm57.png",
+    customerSearches: ["lehayiim", "peniche festive", "soirée célibataire", "rencontre", "sorties"],
+    keywords: buildInvisibleKeywords(["lehayiim", "peniche", "célibataire", "sorties", "rencontres"], { category: "sorties soirees-celibataires", location: "Paris" }),
+    location: { city: "Paris" },
+    filters: { terrace: true, kosherType: "No Teouda / Friendly" },
+    ranking: { sponsored: false, popularity: 88, favorites: 25, reviewCount: 12 },
+  },
+  {
+    id: "sorties-lagainsbar",
+    title: "La Gainsbar - Restaurant festif (Saisonnier)",
+    subtitle: "Restaurant festif & dîners musicaux · Paris 17e",
+    category: "Sorties",
+    subcategory: "Événements",
+    href: "/sorties/evenements",
+    image: "https://www.1001salles.com/images/provider/61181/1760443839_68ee3dbf0597f.webp",
+    customerSearches: ["la gainsbar", "gainsbar", "festif", "rue de tilsitt", "paris 17", "sorties", "dîner musical"],
+    keywords: buildInvisibleKeywords(["La Gainsbar", "gainsbar", "festif", "musique", "sorties"], { category: "sorties evenements", location: "Paris 17" }),
+    location: { city: "Paris", arrondissement: "17" },
+    filters: { kosherType: "Bassari" },
+    ranking: { sponsored: false, popularity: 89, favorites: 28, reviewCount: 14 },
+  },
+];
+
+const beautyItems: SearchItem[] = [
+  {
+    id: "beauty-abigael-hassan",
+    title: "Abigael Hassan",
+    subtitle: "Coiffure de mariée, lissage et maquillage · Paris",
+    category: "Soins féminin",
+    subcategory: "Coiffure & Maquillage",
+    href: "/soins-feminin/coiffure-maquillage",
+    image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=85",
+    customerSearches: ["abigael hassan", "coiffeuse", "lissage", "maquillage", "coiffure mariage", "domicile"],
+    keywords: buildInvisibleKeywords(["Abigael Hassan", "coiffeuse", "lissage", "maquillage", "soins féminin"], { category: "soins-feminin coiffure", location: "Paris domicile" }),
+    location: { city: "Paris" },
+    filters: { kosherType: "Parvé" },
+    ranking: { sponsored: false, popularity: 85, favorites: 20, reviewCount: 10 },
+  }
+];
+
+const salleItems: SearchItem[] = [
+  {
+    id: "salle-chichi-paris",
+    title: "Chichi Paris (max 180 pers)",
+    subtitle: "Salle de réception haut de gamme toute équipée · Paris",
+    category: "Location de Salle",
+    subcategory: "Salle Luxe",
+    href: "/location-de-salle/salle-luxe",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTu3pj7u-tzY_rzVHN_vFPMyNBGvE9AcXtjRbTWx24eEcoqE5VniisKOls&s=10",
+    customerSearches: ["chichi paris", "location de salle", "salle réception", "salle mariage", "salle fêtes"],
+    keywords: buildInvisibleKeywords(["Chichi Paris", "location de salle", "salle de fête", "mariage"], { category: "location-de-salle salle-luxe", location: "Paris" }),
+    location: { city: "Paris" },
+    filters: { kosherType: "Parvé" },
+    ranking: { sponsored: false, popularity: 92, favorites: 35, reviewCount: 18 },
+  }
+];
+
+export const searchIndex: SearchItem[] = [
+  ...restaurantItems,
+  ...brunchItems,
+  ...wineItems,
+  ...shopItems,
+  ...patisserieItems,
+  ...weddingItems,
+  ...sortiesItems,
+  ...beautyItems,
+  ...salleItems,
+  ...categoryItems,
+];

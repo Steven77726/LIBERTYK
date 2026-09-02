@@ -40,7 +40,7 @@ import { restaurants } from "@/data/restaurants";
 import { brunches } from "@/data/brunches";
 import { wineActivities } from "@/data/wine-activities";
 import { azamra } from "@/data/shops";
-import { localEstablishments } from "@/data/establishments";
+import { localEstablishments, type LocalEstablishment } from "@/data/establishments";
 import { assetPath } from "@/lib/assets";
 import { getAnalyticsEvents, getReviews } from "@/lib/client-store";
 import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
@@ -600,8 +600,136 @@ function deduplicateAdminTags(tags: AdminTag[]): AdminTag[] {
   return result;
 }
 
+function convertLocalToAdminEstablishment(est: LocalEstablishment, index: number): AdminEstablishment {
+  return {
+    id: est.id,
+    databaseId: est.databaseId,
+    rubricId: est.rubricId,
+    subrubricId: est.subrubricId,
+    mainPhoto: safeImageUrl(est.mainPhoto),
+    photos: normalizePhotoSlots(est.mainPhoto, est.photos ?? [], 4),
+    photoAlts: est.photoAlts ? [...est.photoAlts, "", "", ""].slice(0, 4) : ["", "", "", ""],
+    name: est.name,
+    slug: est.slug ?? slugify(est.name),
+    shortDescription: est.shortDescription ?? est.description.slice(0, 120),
+    description: est.description,
+    address: est.address,
+    city: est.city || "Paris",
+    arrondissement: est.arrondissement || "",
+    postalCode: est.postalCode ?? "",
+    country: est.country ?? "France",
+    nearestMetroName: est.nearestMetroName ?? "",
+    nearestMetroLine: est.nearestMetroLine ?? "",
+    email: est.email ?? "",
+    phone: est.phone,
+    whatsapp: est.whatsapp || "",
+    instagram: est.instagram || "",
+    website: est.website || "",
+    deliverooUrl: est.deliverooUrl ?? "",
+    uberEatsUrl: est.uberEatsUrl ?? "",
+    hours: est.hours,
+    terrace: est.terrace ?? false,
+    delivery: est.delivery ?? false,
+    takeaway: est.takeaway ?? false,
+    reservation: est.reservation ?? false,
+    privateHire: est.privateHire ?? false,
+    certification: est.certification || "Beth Din de Paris",
+    kosherType: (est.kosherType as KosherType) || "À compléter",
+    averagePrice: est.averagePrice || "€€",
+    latitude: est.latitude || "",
+    longitude: est.longitude || "",
+    status: (est.status as AdminStatus) || "Publié",
+    visible: est.visible ?? true,
+    sponsorshipLevel: (est.sponsorshipLevel as SponsorshipLevel) || (est.sponsored ? "Sponsorisé" : "Standard"),
+    sponsored: est.sponsored || false,
+    sponsorPriority: est.sponsorPriority || index + 1,
+    sponsorDuration: est.sponsorDuration || "",
+    sponsorStartsAt: est.sponsorStartsAt ?? "",
+    sponsorEndsAt: est.sponsorEndsAt ?? "",
+    sponsorPlacement: est.sponsorPlacement ?? "",
+    sponsorNotes: est.sponsorNotes ?? "",
+    reservationTarget: est.reservationTarget ?? "",
+    ownerId: est.ownerId,
+    cuisineTypes: est.cuisineTypes ?? [],
+    order: est.order || index + 1,
+    customerSearches: est.customerSearches ?? [est.name, est.address, est.city].filter(Boolean),
+    visibleTagIds: est.visibleTagIds ?? [],
+    beautyServices: est.beautyServices,
+    fieldVisibility: { ...defaultFieldVisibility, ...(est.fieldVisibility ?? {}) },
+    createdAt: today,
+    updatedAt: today,
+  };
+}
+
 function normalizeAdminState(state: Partial<AdminState>): AdminState {
   const seed = createSeedState();
+  const savedEsts = state.establishments ?? [];
+  const savedMap = new Map(savedEsts.map((e) => [e.id, e]));
+  const savedSlugMap = new Map(savedEsts.map((e) => [e.slug ?? slugify(e.name), e]));
+
+  // Ensure ALL establishments from localEstablishments (including Korcarz, Shana, Boaz, Azamra, Kinor Decor, Chichi Paris, etc.) are present
+  const mergedEstablishments = seed.establishments.map((seedEst) => {
+    const saved = savedMap.get(seedEst.id) || savedSlugMap.get(seedEst.slug ?? slugify(seedEst.name));
+    if (saved) {
+      return {
+        ...seedEst,
+        ...saved,
+        slug: saved.slug ?? seedEst.slug ?? slugify(saved.name),
+        mainPhoto: safeImageUrl(saved.mainPhoto || seedEst.mainPhoto),
+        shortDescription: saved.shortDescription || seedEst.shortDescription || saved.description?.slice(0, 120) || "",
+        photos: normalizePhotoSlots(saved.mainPhoto || seedEst.mainPhoto, saved.photos?.length ? saved.photos : seedEst.photos, 4),
+        photoAlts: [...(saved.photoAlts ?? seedEst.photoAlts ?? []), "", ""].slice(0, 4),
+        address: saved.address || seedEst.address,
+        phone: saved.phone || seedEst.phone,
+        hours: saved.hours || seedEst.hours,
+        certification: saved.certification || seedEst.certification,
+        subrubricId: saved.subrubricId || seedEst.subrubricId,
+        rubricId: saved.rubricId || seedEst.rubricId,
+        postalCode: saved.postalCode ?? seedEst.postalCode ?? "",
+        country: saved.country ?? seedEst.country ?? "France",
+        email: saved.email ?? seedEst.email ?? "",
+        sponsorStartsAt: saved.sponsorStartsAt ?? seedEst.sponsorStartsAt ?? "",
+        sponsorEndsAt: saved.sponsorEndsAt ?? seedEst.sponsorEndsAt ?? "",
+        sponsorPlacement: saved.sponsorPlacement ?? seedEst.sponsorPlacement ?? "",
+        sponsorNotes: saved.sponsorNotes ?? seedEst.sponsorNotes ?? "",
+        reservationTarget: saved.reservationTarget ?? seedEst.reservationTarget ?? "",
+        cuisineTypes: saved.cuisineTypes ?? seedEst.cuisineTypes ?? [],
+        sponsorshipLevel: saved.sponsorshipLevel ?? seedEst.sponsorshipLevel ?? (saved.sponsored ? "Sponsorisé" : "Standard"),
+        visible: saved.visible ?? seedEst.visible ?? true,
+        fieldVisibility: { ...defaultFieldVisibility, ...(seedEst.fieldVisibility ?? {}), ...(saved.fieldVisibility ?? {}) },
+      };
+    }
+    return seedEst;
+  });
+
+  // Also include user-created custom establishments not present in seed
+  const seedIds = new Set(seed.establishments.map((s) => s.id));
+  const seedSlugs = new Set(seed.establishments.map((s) => s.slug ?? slugify(s.name)));
+  for (const customEst of savedEsts) {
+    if (!seedIds.has(customEst.id) && !seedSlugs.has(customEst.slug ?? slugify(customEst.name))) {
+      mergedEstablishments.push({
+        ...customEst,
+        slug: customEst.slug ?? slugify(customEst.name),
+        mainPhoto: safeImageUrl(customEst.mainPhoto),
+        shortDescription: customEst.shortDescription ?? customEst.description?.slice(0, 120) ?? "",
+        photos: normalizePhotoSlots(customEst.mainPhoto, customEst.photos, 4),
+        photoAlts: [...(customEst.photoAlts ?? []), "", ""].slice(0, 4),
+        postalCode: customEst.postalCode ?? "",
+        country: customEst.country ?? "France",
+        email: customEst.email ?? "",
+        sponsorStartsAt: customEst.sponsorStartsAt ?? "",
+        sponsorEndsAt: customEst.sponsorEndsAt ?? "",
+        sponsorPlacement: customEst.sponsorPlacement ?? "",
+        sponsorNotes: customEst.sponsorNotes ?? "",
+        reservationTarget: customEst.reservationTarget ?? "",
+        cuisineTypes: customEst.cuisineTypes ?? [],
+        sponsorshipLevel: customEst.sponsorshipLevel ?? (customEst.sponsored ? "Sponsorisé" : "Standard"),
+        visible: customEst.visible ?? true,
+        fieldVisibility: { ...defaultFieldVisibility, ...(customEst.fieldVisibility ?? {}) },
+      });
+    }
+  }
+
   return {
     ...seed,
     ...state,
@@ -624,26 +752,7 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
     })),
     tags: deduplicateAdminTags((state.tags ?? seed.tags).map((item) => ({ ...item, kind: item.kind ?? "visible", color: item.color ?? "#1f4d3b", rubricIds: item.rubricIds ?? [], status: item.status ?? "Publié" }))),
     certifications: state.certifications ?? seed.certifications,
-    establishments: (state.establishments ?? seed.establishments).map((item) => ({
-      ...item,
-      slug: item.slug ?? slugify(item.name),
-      mainPhoto: safeImageUrl(item.mainPhoto),
-      shortDescription: item.shortDescription ?? item.description.slice(0, 120),
-      photos: normalizePhotoSlots(item.mainPhoto, item.photos, 4),
-      photoAlts: [...(item.photoAlts ?? []), "", ""].slice(0, 4),
-      postalCode: item.postalCode ?? "",
-      country: item.country ?? "France",
-      email: item.email ?? "",
-      sponsorStartsAt: item.sponsorStartsAt ?? "",
-      sponsorEndsAt: item.sponsorEndsAt ?? "",
-      sponsorPlacement: item.sponsorPlacement ?? "",
-      sponsorNotes: item.sponsorNotes ?? "",
-      reservationTarget: item.reservationTarget ?? "",
-      cuisineTypes: item.cuisineTypes ?? [],
-      sponsorshipLevel: item.sponsorshipLevel ?? (item.sponsored ? "Sponsorisé" : "Standard"),
-      visible: item.visible ?? true,
-      fieldVisibility: { ...defaultFieldVisibility, ...(item.fieldVisibility ?? {}) },
-    })),
+    establishments: mergedEstablishments,
     banners: (state.banners ?? seed.banners).map((item) => ({ ...item, image: safeImageUrl(item.image), internalName: item.internalName ?? item.title, imageAlt: item.imageAlt ?? item.title, sponsored: item.sponsored ?? false })),
     notifications: (state.notifications ?? seed.notifications).map((item) => ({ ...item, image: safeImageUrl(item.image), status: ["Brouillon", "Programmée", "Envoyée", "Annulée"].includes(item.status) ? item.status : "Brouillon" })),
     pageSections: state.pageSections ?? [
@@ -698,181 +807,12 @@ function createSeedState(): AdminState {
     status: "Publié" as AdminStatus,
   }));
 
-  const restaurantSubrubric = "food-restaurants";
-  const brunchSubrubric = "food-brunch";
-  const wineRubric = getRubricId("Vin & Spiritueux");
-  const shoppingRubric = getRubricId("Shopping");
-
-  const restaurantEstablishments: AdminEstablishment[] = restaurants.map((restaurant, index) => ({
-    id: restaurant.id,
-    rubricId: "food",
-    subrubricId: restaurantSubrubric,
-    mainPhoto: restaurant.image,
-        photos: ["", "", "", ""],
-    name: restaurant.name,
-    description: `${restaurant.specialty || "Restaurant casher"} — ${restaurant.cuisine || "Cuisine à compléter"}.`,
-    address: restaurant.fullAddress,
-    city: "Paris",
-    arrondissement: restaurant.arrondissement ? `${restaurant.arrondissement}e` : "",
-    phone: restaurant.phone,
-    whatsapp: "",
-    instagram: "",
-    website: "",
-    hours: Object.entries(restaurant.hours).map(([day, hours]) => `${day}: ${hours}`).join("\n"),
-    terrace: restaurant.amenities.terrace === true,
-    delivery: restaurant.services.delivery === true,
-    takeaway: restaurant.services.takeaway === true,
-    reservation: restaurant.services.reservation === true,
-    privateHire: restaurant.amenities.privateHire === true,
-    certification: restaurant.certification,
-    kosherType: restaurant.type === "Viande" ? "Bassari" : restaurant.type === "Lait" ? "Halavi" : restaurant.type === "Parvé" ? "Parvé" : "À compléter",
-    averagePrice: restaurant.price,
-    latitude: String(restaurant.latitude),
-    longitude: String(restaurant.longitude),
-    status: "Publié",
-    sponsorshipLevel: restaurant.name === "Khan" ? "Sponsorisé" : "Standard",
-    sponsored: restaurant.name === "Khan",
-    sponsorPriority: restaurant.name === "Khan" ? 1 : index + 10,
-    sponsorDuration: restaurant.name === "Khan" ? "30 jours" : "",
-    order: index + 1,
-    customerSearches: [
-      restaurant.name,
-      restaurant.cuisine,
-      restaurant.specialty,
-      restaurant.fullAddress,
-      restaurant.postalCode,
-      `restaurant casher ${restaurant.arrondissement}`,
-      `restaurant viande ${restaurant.postalCode}`,
-      "cacher",
-      "kasher",
-      "déjeuner",
-      "dîner",
-    ].filter(Boolean),
-    visibleTagIds: ["reservation", "livraison", "a-emporter", restaurant.type === "Viande" ? "bassari" : "halavi"].filter(Boolean),
-    fieldVisibility: defaultFieldVisibility,
-  }));
-
-  const brunchEstablishments: AdminEstablishment[] = brunches.map((brunch, index) => ({
-    id: brunch.slug,
-    rubricId: "food",
-    subrubricId: brunchSubrubric,
-    mainPhoto: brunch.images[0] ?? "",
-        photos: normalizePhotoSlots(brunch.images[0] ?? "", [brunch.images[1], brunch.images[2], brunch.images[3], brunch.images[4]], 4),
-    name: brunch.name,
-    description: brunch.description ?? "",
-    address: brunch.address ?? "",
-    city: "Paris",
-    arrondissement: brunch.arrondissement ? `${brunch.arrondissement}e` : "",
-    phone: brunch.phone ?? "",
-    whatsapp: "",
-    instagram: "",
-    website: brunch.source ?? "",
-    hours: Object.entries(brunch.hours ?? {}).map(([day, hours]) => `${day}: ${hours}`).join("\n"),
-    terrace: brunch.amenities.terrace === true,
-    delivery: brunch.services.delivery === true,
-    takeaway: brunch.services.takeaway === true,
-    reservation: brunch.services.reservation === true,
-    privateHire: brunch.amenities.privateHire === true,
-    certification: brunch.certification ?? "",
-    kosherType: brunch.kosherType === "Lait" ? "Halavi" : brunch.kosherType === "Viande" ? "Bassari" : brunch.kosherType === "Parvé" ? "Parvé" : "À compléter",
-    averagePrice: brunch.price ?? "",
-    latitude: String(brunch.latitude ?? ""),
-    longitude: String(brunch.longitude ?? ""),
-    status: "Publié",
-    sponsorshipLevel: "Standard",
-    sponsored: false,
-    sponsorPriority: index + 20,
-    sponsorDuration: "",
-    order: restaurantEstablishments.length + index + 1,
-    customerSearches: [brunch.name, brunch.specialty, brunch.cuisine, "brunch", "pancakes", "avocado toast", "café", "halavi", "lait"].filter(Boolean),
-    visibleTagIds: ["reservation", "livraison", "halavi", "terrasse"].filter(Boolean),
-    fieldVisibility: defaultFieldVisibility,
-  }));
-
-  const wineEstablishments: AdminEstablishment[] = wineActivities.map((activity, index) => ({
-    id: activity.slug,
-    rubricId: wineRubric,
-    subrubricId: `${wineRubric}-selections`,
-    mainPhoto: activity.image,
-        photos: ["", "", "", ""],
-    name: activity.title,
-    description: activity.description,
-    address: activity.address ?? "",
-    city: "Paris",
-    arrondissement: activity.address?.includes("75017") ? "17e" : "",
-    phone: "",
-    whatsapp: "",
-    instagram: "",
-    website: activity.website ?? "",
-    hours: "",
-    terrace: false,
-    delivery: false,
-    takeaway: true,
-    reservation: activity.slug !== "winess",
-    privateHire: activity.slug.includes("signature"),
-    certification: "À compléter",
-    kosherType: "Parvé",
-    averagePrice: "€€€",
-    latitude: "",
-    longitude: "",
-    status: "Publié",
-    sponsorshipLevel: "Partenaire officiel",
-    sponsored: true,
-    sponsorPriority: index + 1,
-    sponsorDuration: "En cours",
-    order: index + 1,
-    customerSearches: [activity.title, activity.type, ...activity.tags, "vin casher", "spiritueux casher", "dégustation", "winess"],
-    visibleTagIds: ["sponsorise", "reservation", "parve"],
-    fieldVisibility: defaultFieldVisibility,
-  }));
-
-  const shoppingEstablishments: AdminEstablishment[] = [{
-    id: azamra.slug,
-    rubricId: shoppingRubric,
-    subrubricId: `${shoppingRubric}-mode`,
-    mainPhoto: azamra.image,
-    photos: azamra.photos,
-    photoAlts: ["Azamra Boutique", "Azamra Collection 1", "Azamra Collection 2", "Azamra Collection 3"],
-    name: azamra.name,
-    shortDescription: `${azamra.type} · Shopping`,
-    description: azamra.description,
-    address: azamra.address,
-    city: azamra.city,
-    arrondissement: azamra.arrondissement,
-    postalCode: azamra.postalCode,
-    country: azamra.country,
-    nearestMetroName: azamra.nearestMetroName,
-    nearestMetroLine: azamra.nearestMetroLine,
-    phone: azamra.phone,
-    whatsapp: azamra.whatsapp,
-    instagram: azamra.instagram,
-    website: azamra.website,
-    hours: azamra.hours,
-    terrace: false,
-    delivery: false,
-    takeaway: false,
-    reservation: false,
-    privateHire: false,
-    certification: "Non concerné",
-    kosherType: "À compléter",
-    averagePrice: "€€",
-    latitude: "48.8862",
-    longitude: "2.3025",
-    status: "Publié",
-    sponsorshipLevel: "Standard",
-    sponsored: false,
-    sponsorPriority: 0,
-    sponsorDuration: "",
-    order: 1,
-    customerSearches: ["azamra", "vêtements", "mode", "homme", "femme", "enfant", "shopping", "boutique"],
-    visibleTagIds: azamra.tags,
-    fieldVisibility: defaultFieldVisibility,
-  }];
+  const establishments: AdminEstablishment[] = localEstablishments.map(convertLocalToAdminEstablishment);
 
   return {
     rubrics,
     subrubrics,
-    establishments: [...restaurantEstablishments, ...brunchEstablishments, ...wineEstablishments, ...shoppingEstablishments],
+    establishments,
     tags: visibleTagsSeed,
     certifications: certificationSeed,
     banners: [
@@ -1959,6 +1899,9 @@ export function AdminDashboard() {
   const [subrubricParentFilter, setSubrubricParentFilter] = useState("all");
   const [quickSubName, setQuickSubName] = useState("");
   const [quickSubParentId, setQuickSubParentId] = useState("food");
+  const [estSearchQuery, setEstSearchQuery] = useState("");
+  const [estRubricFilter, setEstRubricFilter] = useState("all");
+  const [estStatusFilter, setEstStatusFilter] = useState("all");
 
   const goToSection = (section: AdminSection) => {
     if (section === active) return;
@@ -2293,7 +2236,41 @@ export function AdminDashboard() {
     }
   }, [selectedEstablishmentId, state.establishments]);
 
-  const selectedEstablishment = state.establishments.find((item) => item.id === selectedEstablishmentId) ?? state.establishments[0];
+  const filteredEstablishments = useMemo(() => {
+    return state.establishments.filter((item) => {
+      if (estRubricFilter !== "all" && estRubricFilter !== "Tout") {
+        const matchedRubric = state.rubrics.find((r) => r.id === estRubricFilter || r.slug === estRubricFilter || slugify(r.name) === estRubricFilter);
+        const targetId = matchedRubric?.id || estRubricFilter;
+        const targetSlug = matchedRubric?.slug || slugify(estRubricFilter);
+        const matchRubric = item.rubricId === targetId || item.rubricId === targetSlug || item.rubricId?.startsWith(targetSlug);
+        if (!matchRubric) return false;
+      }
+      if (estStatusFilter !== "all") {
+        if (item.status !== estStatusFilter) return false;
+      }
+      const q = (estSearchQuery || search).trim().toLowerCase();
+      if (!q) return true;
+      const corpus = [
+        item.name,
+        item.slug,
+        item.address,
+        item.city,
+        item.arrondissement,
+        item.postalCode,
+        item.description,
+        item.shortDescription,
+        item.certification,
+        item.kosherType,
+        ...(item.cuisineTypes ?? []),
+        ...(item.customerSearches ?? []),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return corpus.includes(q);
+    });
+  }, [state.establishments, state.rubrics, estRubricFilter, estStatusFilter, estSearchQuery, search]);
+
+  const selectedEstablishment = state.establishments.find((item) => item.id === selectedEstablishmentId) ?? filteredEstablishments[0] ?? state.establishments[0];
   const selectedRubric = selectedEstablishment ? state.rubrics.find((rubric) => rubric.id === selectedEstablishment.rubricId || rubric.slug === selectedEstablishment.rubricId) : undefined;
   const selectedIsBeauty = selectedRubric?.slug === "soins-feminin" || selectedRubric?.name.toLowerCase().includes("soins") || selectedEstablishment?.rubricId === "soins-feminin";
   const selectedBeautyServices = selectedEstablishment?.beautyServices ?? beautyServicesByProfessional[selectedEstablishment?.databaseId ?? selectedEstablishment?.id ?? ""] ?? [];
@@ -2315,17 +2292,6 @@ export function AdminDashboard() {
   useEffect(() => {
     if (!selectedSeoReportId && displayedSeoReports[0]) setSelectedSeoReportId(displayedSeoReports[0].id);
   }, [displayedSeoReports, selectedSeoReportId]);
-
-  const filteredEstablishments = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return state.establishments;
-    return state.establishments.filter((item) =>
-      [item.name, item.address, item.city, item.arrondissement, item.description, ...item.customerSearches]
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [search, state.establishments]);
 
   const filteredSeoReports = useMemo(() => {
     const query = seoSearch.trim().toLowerCase();
@@ -4815,35 +4781,92 @@ export function AdminDashboard() {
             )}
 
             {active === "establishments" && selectedEstablishment && (
-              <div className="mt-8 grid gap-5 xl:grid-cols-[330px_1fr]">
-                <Panel title="Établissements" subtitle={`${filteredEstablishments.length} fiches disponibles`} actionLabel="Ajouter" onAction={addEstablishment} actionDisabled={establishmentsBusy}>
+              <div className="mt-8 grid gap-5 xl:grid-cols-[360px_1fr]">
+                <Panel title="Établissements" subtitle={`${filteredEstablishments.length} sur ${state.establishments.length} fiches`} actionLabel="Ajouter" onAction={addEstablishment} actionDisabled={establishmentsBusy}>
                   {(rubricsOperation || (!establishmentsSupabaseLoaded && auth.configured)) && (
                     <p className="mt-4 rounded-2xl bg-sage px-4 py-3 text-xs font-semibold text-moss">
                       {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des établissements Supabase…"}
                     </p>
                   )}
-                  <div className="mt-5 max-h-[720px] space-y-2 overflow-y-auto pr-1">
-                    {filteredEstablishments.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setSelectedEstablishmentId(item.id)}
-                        className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${
-                          selectedEstablishment.id === item.id ? "bg-ink text-white" : "bg-cream hover:bg-sage"
-                        }`}
+
+                  {/* BARRE DE RECHERCHE ET FILTRES DÉDIÉS AUX FICHES */}
+                  <div className="mt-4 space-y-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Rechercher une fiche (Korcarz, Shana, Khan...)..."
+                        value={estSearchQuery}
+                        onChange={(e) => setEstSearchQuery(e.target.value)}
+                        className="w-full rounded-2xl border border-black/10 bg-white px-3.5 py-2.5 text-xs text-ink outline-none transition focus:border-moss"
+                      />
+                      {estSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setEstSearchQuery("")}
+                          className="absolute right-3 top-2.5 text-xs font-semibold text-ink/40 hover:text-ink"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={estRubricFilter}
+                        onChange={(e) => setEstRubricFilter(e.target.value)}
+                        className="rounded-2xl border border-black/10 bg-white px-2.5 py-2 text-xs font-semibold text-ink outline-none"
                       >
-                        <img src={assetPath(item.mainPhoto || categories[0]?.image || "")} alt="" className="size-12 rounded-xl object-cover" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">{item.name}</span>
-                          <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] ${selectedEstablishment.id === item.id ? "bg-white/10 text-white/60" : "bg-white text-ink/40"}`}>
-                            {item.status} · {item.sponsorshipLevel ?? (item.sponsored ? "Sponsorisé" : "Standard")}
+                        <option value="all">Tout ({state.establishments.length})</option>
+                        {state.rubrics.map((r) => {
+                          const count = state.establishments.filter((e) => e.rubricId === r.id || e.rubricId === r.slug).length;
+                          return (
+                            <option key={r.id} value={r.id}>
+                              {r.name} ({count})
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <select
+                        value={estStatusFilter}
+                        onChange={(e) => setEstStatusFilter(e.target.value)}
+                        className="rounded-2xl border border-black/10 bg-white px-2.5 py-2 text-xs font-semibold text-ink outline-none"
+                      >
+                        <option value="all">Tous statuts</option>
+                        <option value="Publié">Publié</option>
+                        <option value="En sommeil">En sommeil</option>
+                        <option value="Brouillon">Brouillon</option>
+                        <option value="Masqué">Masqué</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 max-h-[720px] space-y-2 overflow-y-auto pr-1">
+                    {filteredEstablishments.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-black/15 bg-white p-6 text-center text-xs text-ink/45">
+                        Aucune fiche ne correspond à votre recherche.
+                      </div>
+                    ) : (
+                      filteredEstablishments.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setSelectedEstablishmentId(item.id)}
+                          className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${
+                            selectedEstablishment.id === item.id ? "bg-ink text-white" : "bg-cream hover:bg-sage"
+                          }`}
+                        >
+                          <img src={assetPath(item.mainPhoto || categories[0]?.image || "")} alt="" className="size-12 rounded-xl object-cover" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold">{item.name}</span>
+                            <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] ${selectedEstablishment.id === item.id ? "bg-white/10 text-white/60" : "bg-white text-ink/40"}`}>
+                              {item.status} · {item.sponsorshipLevel ?? (item.sponsored ? "Sponsorisé" : "Standard")}
+                            </span>
                           </span>
-                        </span>
-                        <span className="flex shrink-0 flex-col gap-1">
-                          <span onClick={(event) => { event.stopPropagation(); void reorderEstablishment(item.id, -1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↑</span>
-                          <span onClick={(event) => { event.stopPropagation(); void reorderEstablishment(item.id, 1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↓</span>
-                        </span>
-                      </button>
-                    ))}
+                          <span className="flex shrink-0 flex-col gap-1">
+                            <span onClick={(event) => { event.stopPropagation(); void reorderEstablishment(item.id, -1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↑</span>
+                            <span onClick={(event) => { event.stopPropagation(); void reorderEstablishment(item.id, 1); }} className="grid size-6 place-items-center rounded-full bg-white/70 text-[10px] text-ink">↓</span>
+                          </span>
+                        </button>
+                      ))
+                    )}
                   </div>
                 </Panel>
 

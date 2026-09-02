@@ -376,6 +376,8 @@ function FilterSection({ title, options, active, toggle }: { title: string; opti
 
 
 
+import { localEstablishments } from "@/data/establishments";
+
 export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants: Restaurant[] }) {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<string[]>([]);
@@ -384,14 +386,49 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   const [view, setView] = useState<"list" | "map">("list");
   const [selected, setSelected] = useState<Restaurant | null>(null);
   const [reservationRestaurant, setReservationRestaurant] = useState<Restaurant | null>(null);
-  const [restaurantData, setRestaurantData] = useState(initialRestaurants);
+
+  const initialMerged = useMemo(() => {
+    const mergedMap = new Map<string, Restaurant>();
+    initialRestaurants.forEach((r) => mergedMap.set(r.id, r));
+    const localFood = (localEstablishments as EstablishmentRecord[]).filter((est) => {
+      const rubric = (est.rubricId || "").toLowerCase();
+      return (
+        rubric === "food" ||
+        rubric === "restaurant" ||
+        rubric === "restaurants" ||
+        (est.subrubricId || "").toLowerCase().includes("restaurant") ||
+        (est.subrubricId || "").toLowerCase().includes("patisserie") ||
+        (est.subrubricId || "").toLowerCase().includes("traiteur")
+      );
+    });
+    if (localFood.length > 0) {
+      const converted = establishmentRecordsToRestaurants(localFood);
+      converted.forEach((c) => {
+        const candidateNorm = normalize(c.name);
+        let matchKey: string | null = null;
+        for (const [key, existing] of mergedMap.entries()) {
+          if (key === c.id || normalize(existing.name) === candidateNorm) {
+            matchKey = key;
+            break;
+          }
+        }
+        if (matchKey) {
+          mergedMap.set(matchKey, { ...mergedMap.get(matchKey)!, ...c });
+        } else {
+          mergedMap.set(c.id, c);
+        }
+      });
+    }
+    return Array.from(mergedMap.values());
+  }, [initialRestaurants]);
+
+  const [restaurantData, setRestaurantData] = useState(initialMerged);
 
   useEffect(() => {
     let mounted = true;
     const loadAdminRestaurants = async () => {
-      // 1. Base initiale avec map
       const mergedMap = new Map<string, Restaurant>();
-      initialRestaurants.forEach((r) => mergedMap.set(r.id, r));
+      initialMerged.forEach((r) => mergedMap.set(r.id, r));
 
       const findMatchingKey = (candidate: Restaurant) => {
         const candidateNorm = normalize(candidate.name);

@@ -20,18 +20,20 @@ const categoryIntentions: Record<string, string[]> = {
   "vin-spiritueux": ["vin", "spiritueux", "caviste", "dégustation", "cocktail", "wine tour"],
 };
 
-const categoryItems: SearchItem[] = categories.map((category) => ({
-  id: `category-${category.slug}`,
-  title: category.label,
-  subtitle: category.description,
-  category: "Catégorie",
-  href: `/${category.slug}`,
-  image: category.image,
-  keywords: buildInvisibleKeywords(
-    [category.label, category.description, category.eyebrow, ...category.featured, ...(categoryIntentions[category.slug] ?? [])],
-    { category: category.label, location: "France Paris communauté juive" },
-  ),
-}));
+const categoryItems: SearchItem[] = categories
+  .filter((category) => !category.isDormant)
+  .map((category) => ({
+    id: `category-${category.slug}`,
+    title: category.label,
+    subtitle: category.description,
+    category: "Catégorie",
+    href: `/${category.slug}`,
+    image: category.image,
+    keywords: buildInvisibleKeywords(
+      [category.label, category.description, category.eyebrow, ...category.featured, ...(categoryIntentions[category.slug] ?? [])],
+      { category: category.label, location: "France Paris communauté juive" },
+    ),
+  }));
 
 const restaurantItems: SearchItem[] = restaurants.map((restaurant) => {
   const services = [

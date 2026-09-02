@@ -137,7 +137,42 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
       try {
         const remote = await listPublishedSubrubrics(rubricSlug);
         if (mounted && remote?.length) {
-          setItems(dedupe(remote.map(normalizeSubrubric)));
+          const fallbackMap = new Map<string, SubrubricPreview>();
+          fallback.forEach((f) => {
+            const key = f.slug ?? slugify(f.name);
+            fallbackMap.set(key, f);
+            fallbackMap.set(`${rubricSlug}-${key}`, f);
+          });
+
+          const merged: SubrubricPreview[] = remote
+            .filter((item) => !item.isDormant && !item.searchKeywords?.includes("__dormant__"))
+            .map((item) => {
+              const norm = normalizeSubrubric(item);
+              const key = norm.slug ?? slugify(norm.name);
+              const fb = fallbackMap.get(key) || fallbackMap.get(`${rubricSlug}-${key}`);
+              const isLocalCurated = fb?.photo && fb.photo.startsWith("/images/");
+              const isRemoteThirdParty = norm.photo && !norm.photo.startsWith("/") && !norm.photo.includes("supabase.co");
+              const finalPhoto = (isLocalCurated && isRemoteThirdParty ? fb.photo : norm.photo) || fb?.photo || norm.photo;
+              return {
+                ...fb,
+                ...norm,
+                photo: finalPhoto,
+              };
+            });
+
+          // Ensure any missing subrubric from fallback is retained
+          fallback.forEach((f) => {
+            const key = f.slug ?? slugify(f.name);
+            const exists = merged.some((m) => {
+              const mKey = m.slug ?? slugify(m.name);
+              return mKey === key || mKey.includes(key) || key.includes(mKey);
+            });
+            if (!exists) {
+              merged.push(f);
+            }
+          });
+
+          setItems(dedupe(merged));
           return;
         }
         // Lecture depuis le cache de l'administrateur
@@ -155,13 +190,15 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
                 photo?: string;
                 image?: string;
                 imageAlt?: string;
+                isDormant?: boolean;
+                searchKeywords?: string[];
                 status?: string;
                 showPublicly?: boolean;
                 order?: number;
               };
               const rawSubs = (parsed?.subrubrics as StoredSubrubric[]) ?? [];
               const matched = rawSubs.filter(
-                (s) => (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}`) && s.status === "Publié" && s.showPublicly !== false
+                (s) => (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}`) && s.status === "Publié" && s.showPublicly !== false && !s.isDormant && !s.searchKeywords?.includes("__dormant__")
               );
               if (matched.length > 0) {
                 const combined = dedupe([
@@ -246,7 +283,10 @@ function countLabel(count: number) {
 
 function imageForSubrubric(rubricSlug: string, item: SubrubricPreview, fallbackCards?: StaticSubrubricCard[]) {
   const slug = item.slug ?? slugify(item.name);
-  const fallbackCard = fallbackCards?.find((card) => slugify(card.label) === slug);
+  const fallbackCard = fallbackCards?.find((card) => {
+    const cardSlug = slugify(card.label);
+    return cardSlug === slug || (slug.startsWith("patisserie") && cardSlug.startsWith("patisserie")) || (slug.startsWith("traiteur") && cardSlug.startsWith("traiteur")) || (slug.startsWith("fast") && cardSlug.startsWith("fast")) || (slug.startsWith("restauration-rapide") && cardSlug.startsWith("fast")) || (slug.startsWith("boulangerie") && cardSlug.startsWith("boulangerie")) || (slug.startsWith("glacier") && cardSlug.startsWith("glacier"));
+  });
   return item.photo || fallbackCard?.image || categories.find((category) => category.slug === rubricSlug)?.image || "/images/food/restaurants-khan.jpg";
 }
 

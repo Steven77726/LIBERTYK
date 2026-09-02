@@ -16,6 +16,8 @@ type AdminRubricPreview = {
   image: string;
   imageAlt?: string;
   showOnHome?: boolean;
+  isDormant?: boolean;
+  searchKeywords?: string[];
   format?: "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
   order: number;
   status: "Publié" | "Brouillon" | "Masqué";
@@ -43,19 +45,23 @@ export function CategoryGrid() {
         ]);
         if (mounted && publishedRubrics?.length) {
           setAdminRubrics(
-            publishedRubrics.map((rubric: RubricRecord) => ({
-              id: rubric.id,
-              slug: rubric.slug,
-              name: rubric.name,
-              description: rubric.description,
-              image: rubric.image,
-              imageAlt: rubric.imageAlt,
-              showOnHome: rubric.showOnHome,
-              format: rubric.format,
-              order: rubric.order,
-              status: rubric.status,
-              subrubricCount: subrubricCounts?.[rubric.slug ?? rubric.id] ?? subrubricCounts?.[rubric.id] ?? 0,
-            }))
+            publishedRubrics
+              .filter((rubric: RubricRecord) => !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"))
+              .map((rubric: RubricRecord) => ({
+                id: rubric.id,
+                slug: rubric.slug,
+                name: rubric.name,
+                description: rubric.description,
+                image: rubric.image,
+                imageAlt: rubric.imageAlt,
+                showOnHome: rubric.showOnHome,
+                isDormant: rubric.isDormant,
+                searchKeywords: rubric.searchKeywords,
+                format: rubric.format,
+                order: rubric.order,
+                status: rubric.status,
+                subrubricCount: subrubricCounts?.[rubric.slug ?? rubric.id] ?? subrubricCounts?.[rubric.id] ?? 0,
+              }))
           );
           return;
         }
@@ -75,21 +81,27 @@ export function CategoryGrid() {
                   image?: string;
                   imageAlt?: string;
                   showOnHome?: boolean;
+                  isDormant?: boolean;
+                  searchKeywords?: string[];
                   format?: AdminRubricPreview["format"];
                   order?: number;
                   status?: AdminRubricPreview["status"];
-                }>).map((rubric) => ({
-                  id: rubric.id,
-                  slug: rubric.slug || rubric.id,
-                  name: rubric.name,
-                  description: rubric.description || "",
-                  image: rubric.image || "",
-                  imageAlt: rubric.imageAlt || rubric.name,
-                  showOnHome: rubric.showOnHome ?? true,
-                  format: rubric.format ?? "Carré standard",
-                  order: rubric.order ?? 1,
-                  status: rubric.status ?? "Publié",
-                }))
+                }>)
+                  .filter((rubric) => !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"))
+                  .map((rubric) => ({
+                    id: rubric.id,
+                    slug: rubric.slug || rubric.id,
+                    name: rubric.name,
+                    description: rubric.description || "",
+                    image: rubric.image || "",
+                    imageAlt: rubric.imageAlt || rubric.name,
+                    showOnHome: rubric.showOnHome ?? true,
+                    isDormant: rubric.isDormant,
+                    searchKeywords: rubric.searchKeywords,
+                    format: rubric.format ?? "Carré standard",
+                    order: rubric.order ?? 1,
+                    status: rubric.status ?? "Publié",
+                  }))
               );
               return;
             }
@@ -122,29 +134,31 @@ export function CategoryGrid() {
 
   const cards = useMemo(() => {
     if (!adminRubrics?.length) {
-      return categories.map((category) => ({
-        slug: category.slug,
-        label: category.label,
-        description: category.description,
-        image: category.image,
-        imageAlt: category.label,
-        format: "Carré standard" as const,
-        icon: category.icon,
-        softColor: category.softColor,
-        subrubricCount: 0,
-      }));
+      return categories
+        .filter((category) => !category.isDormant)
+        .map((category) => ({
+          slug: category.slug,
+          label: category.label,
+          description: category.description,
+          image: category.image,
+          imageAlt: category.label,
+          format: "Carré standard" as const,
+          icon: category.icon,
+          softColor: category.softColor,
+          subrubricCount: 0,
+        }));
     }
     return adminRubrics
-      .filter((rubric) => rubric.status === "Publié" && rubric.showOnHome !== false)
+      .filter((rubric) => rubric.status === "Publié" && rubric.showOnHome !== false && !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"))
       .sort((a, b) => a.order - b.order)
       .map((rubric) => {
         const fallback = categories.find((category) => category.slug === (rubric.slug ?? rubric.id));
         return {
           slug: rubric.slug ?? rubric.id,
-          label: rubric.name,
-          description: rubric.description,
+          label: rubric.name || fallback?.label || "Rubrique",
+          description: rubric.description || fallback?.description || "",
           image: rubric.image || fallback?.image || "/images/food/restaurants-khan.jpg",
-          imageAlt: rubric.imageAlt ?? rubric.name,
+          imageAlt: rubric.imageAlt ?? rubric.name ?? fallback?.label,
           format: rubric.format ?? "Carré standard",
           icon: fallback?.icon ?? Store,
           softColor: fallback?.softColor ?? "#e2eae4",

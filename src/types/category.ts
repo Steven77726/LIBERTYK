@@ -11,4 +11,6 @@ export type Category = {
   softColor: string;
   image: string;
   featured: string[];
+  isDormant?: boolean;
 };
+

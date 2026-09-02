@@ -14,6 +14,7 @@ export type RubricRecord = {
   image: string;
   imageAlt?: string;
   showOnHome?: boolean;
+  isDormant?: boolean;
   format?: RubricFormat;
   columnsDesktop?: 2 | 3 | 4;
   columnsTablet?: 1 | 2 | 3;
@@ -35,6 +36,7 @@ type RubricRow = {
   image_url: string | null;
   image_alt: string | null;
   show_on_home: boolean | null;
+  is_dormant?: boolean | null;
   search_keywords: string[] | null;
   display_order: number | null;
   status: "published" | "draft" | "hidden" | "trashed";
@@ -64,8 +66,10 @@ const stablePublicRubricSlugs = new Set([
   "sorties",
   "voyages",
   "shopping",
+  "soins-feminin",
   "vin-spiritueux",
   "mariage",
+  "location-de-salle",
   "sport",
   "religion",
   "enfants",
@@ -94,6 +98,7 @@ function asColumns<T extends number>(value: number | null | undefined, fallback:
 }
 
 export function rowToRubric(row: RubricRow): RubricRecord {
+  const isDormant = row.is_dormant === true || (row.search_keywords || []).includes("__dormant__");
   return {
     id: row.external_id || row.id,
     slug: publicSlugForRubric(row),
@@ -103,11 +108,12 @@ export function rowToRubric(row: RubricRow): RubricRecord {
     image: row.image_url ?? "",
     imageAlt: row.image_alt ?? "",
     showOnHome: row.show_on_home ?? true,
+    isDormant,
     format: (row.display_format as RubricFormat | null) ?? "Carré standard",
     columnsDesktop: asColumns(row.desktop_columns, 3),
     columnsTablet: asColumns(row.tablet_columns, 2),
     columnsMobile: asColumns(row.mobile_columns, 1),
-    searchKeywords: row.search_keywords ?? [],
+    searchKeywords: (row.search_keywords || []).filter((k) => k !== "__dormant__"),
     order: row.display_order ?? 0,
     status: statusFromDb[row.status] ?? "Brouillon",
     createdAt: row.created_at ?? undefined,
@@ -117,6 +123,12 @@ export function rowToRubric(row: RubricRow): RubricRecord {
 
 function rubricToPayload(rubric: RubricRecord, statusOverride?: RubricRow["status"]) {
   const slug = normalizeSlug(rubric.slug || rubric.name || rubric.id);
+  const keywords = Array.from(
+    new Set([
+      ...(rubric.searchKeywords ?? []).filter((k) => k !== "__dormant__"),
+      ...(rubric.isDormant ? ["__dormant__"] : []),
+    ])
+  );
   return {
     external_id: rubric.id,
     slug,
@@ -126,7 +138,8 @@ function rubricToPayload(rubric: RubricRecord, statusOverride?: RubricRow["statu
     image_url: rubric.image ?? "",
     image_alt: rubric.imageAlt ?? rubric.name,
     show_on_home: rubric.showOnHome ?? true,
-    search_keywords: rubric.searchKeywords ?? [],
+    is_dormant: rubric.isDormant === true,
+    search_keywords: keywords,
     display_order: Number(rubric.order) || 0,
     status: statusOverride ?? statusToDb[rubric.status] ?? "draft",
     display_format: rubric.format ?? "Carré standard",
@@ -165,7 +178,9 @@ export async function listPublishedRubrics() {
     .order("display_order", { ascending: true })
     .returns<RubricRow[]>();
   if (error) throw new Error(readableError(error));
-  return (data ?? []).map(rowToRubric);
+  return (data ?? [])
+    .map(rowToRubric)
+    .filter((rubric) => !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"));
 }
 
 export async function listAllRubricsForAdmin() {

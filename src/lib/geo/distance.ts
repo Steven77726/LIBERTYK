@@ -7,6 +7,57 @@ export type Coordinates = {
   longitude: number;
 };
 
+const postalCodeCoordinates: Record<string, Coordinates> = {
+  "75001": { latitude: 48.8625, longitude: 2.3364 },
+  "75002": { latitude: 48.8679, longitude: 2.3444 },
+  "75003": { latitude: 48.8637, longitude: 2.3615 },
+  "75004": { latitude: 48.8543, longitude: 2.3576 },
+  "75005": { latitude: 48.8449, longitude: 2.3498 },
+  "75006": { latitude: 48.8493, longitude: 2.3328 },
+  "75007": { latitude: 48.8565, longitude: 2.3126 },
+  "75008": { latitude: 48.8744, longitude: 2.3125 },
+  "75009": { latitude: 48.8760, longitude: 2.3399 },
+  "75010": { latitude: 48.8761, longitude: 2.3601 },
+  "75011": { latitude: 48.8594, longitude: 2.3789 },
+  "75012": { latitude: 48.8398, longitude: 2.3946 },
+  "75013": { latitude: 48.8283, longitude: 2.3623 },
+  "75014": { latitude: 48.8295, longitude: 2.3271 },
+  "75015": { latitude: 48.8412, longitude: 2.2987 },
+  "75016": { latitude: 48.8604, longitude: 2.2743 },
+  "75017": { latitude: 48.8835, longitude: 2.3083 },
+  "75018": { latitude: 48.8913, longitude: 2.3444 },
+  "75019": { latitude: 48.8827, longitude: 2.3824 },
+  "75020": { latitude: 48.8632, longitude: 2.3985 },
+  "92200": { latitude: 48.8847, longitude: 2.2694 }, // Neuilly
+  "92300": { latitude: 48.8932, longitude: 2.2878 }, // Levallois
+  "94160": { latitude: 48.8478, longitude: 2.4394 }, // Saint-Mandé
+  "94300": { latitude: 48.8475, longitude: 2.4414 }, // Vincennes
+  "93100": { latitude: 48.8604, longitude: 2.4431 }, // Montreuil
+  "93260": { latitude: 48.8887, longitude: 2.4161 }, // Les Lilas
+  "93500": { latitude: 48.8933, longitude: 2.4042 }, // Pantin
+  "92100": { latitude: 48.8397, longitude: 2.2400 }, // Boulogne
+  "92130": { latitude: 48.8242, longitude: 2.2731 }, // Issy
+  "94220": { latitude: 48.8211, longitude: 2.4132 }, // Charenton
+  "94700": { latitude: 48.8055, longitude: 2.4300 }, // Maisons-Alfort
+  "94000": { latitude: 48.7904, longitude: 2.4556 }, // Créteil
+  "95200": { latitude: 48.9744, longitude: 2.3056 }, // Sarcelles
+  "95400": { latitude: 48.9917, longitude: 2.3683 }, // Villiers-le-Bel
+  "95160": { latitude: 48.9833, longitude: 2.2833 }, // Montmorency
+  "95880": { latitude: 48.9667, longitude: 2.3000 }, // Enghien-les-Bains
+};
+
+/**
+ * Formate un affichage élégant de la distance : "à 350 m" ou "à 1.4 km"
+ */
+export function formatDistanceLabel(distanceKm?: number): string {
+  if (distanceKm === undefined || isNaN(distanceKm) || distanceKm <= 0) return "";
+  if (distanceKm < 1) {
+    const meters = Math.round(distanceKm * 1000);
+    return `à ${meters} m`;
+  }
+  return `à ${distanceKm.toFixed(1)} km`;
+}
+
 /**
  * Calcule la distance en kilomètres entre deux coordonnées géographiques (Haversine)
  */
@@ -62,6 +113,27 @@ export function extractFicheCoordinates(fiche: unknown): Coordinates | null {
   // 3. Objet establishment imbriqué
   if (f.establishment && typeof f.establishment === "object") {
     return extractFicheCoordinates(f.establishment);
+  }
+
+  // 4. Fallback intelligent par code postal ou arrondissement
+  const zip = String(f.postalCode ?? f.zipCode ?? f.zip_code ?? f.code_postal ?? "").trim();
+  if (zip && postalCodeCoordinates[zip]) {
+    return postalCodeCoordinates[zip];
+  }
+
+  const arr = String(f.arrondissement ?? "").replace(/\D/g, "");
+  if (arr) {
+    const num = Number(arr);
+    if (num >= 1 && num <= 20) {
+      const parisZip = `750${num < 10 ? "0" : ""}${num}`;
+      if (postalCodeCoordinates[parisZip]) return postalCodeCoordinates[parisZip];
+    }
+  }
+
+  const address = String(f.address ?? f.adresse ?? "");
+  const matchZip = address.match(/\b(750\d\d|9[1-5]\d\d\d)\b/);
+  if (matchZip && postalCodeCoordinates[matchZip[1]]) {
+    return postalCodeCoordinates[matchZip[1]];
   }
 
   return null;

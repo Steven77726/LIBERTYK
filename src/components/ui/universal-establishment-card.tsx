@@ -32,6 +32,7 @@ import type { Restaurant } from "@/types/restaurant";
 import type { Brunch } from "@/types/brunch";
 import type { WineActivity } from "@/data/wine-activities";
 import { categoryBySlug } from "@/data/categories";
+import { formatDistanceLabel } from "@/lib/geo/distance";
 
 export type UniversalCardEstablishment =
   | EstablishmentRecord
@@ -678,7 +679,7 @@ export function UniversalEstablishmentCard({
                   {data.address}
                   {data.city && data.city !== "Paris" ? ` · ${data.city}` : ""}
                   {data.arrondissement ? ` · ${data.arrondissement}${data.arrondissement.includes("e") ? "" : "e"}` : ""}
-                  {data.distanceKm > 0 ? ` · ${data.distanceKm} km` : ""}
+                  {data.distanceKm > 0 ? ` · ${formatDistanceLabel(data.distanceKm)}` : ""}
                 </span>
               </div>
             )}

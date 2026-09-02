@@ -20,7 +20,7 @@ type AdminRubricPreview = {
   searchKeywords?: string[];
   format?: "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
   order: number;
-  status: "Publié" | "Brouillon" | "Masqué";
+  status: "Publié" | "En sommeil" | "Brouillon" | "Masqué";
   subrubricCount?: number;
 };
 
@@ -45,23 +45,21 @@ export function CategoryGrid() {
         ]);
         if (mounted && publishedRubrics?.length) {
           setAdminRubrics(
-            publishedRubrics
-              .filter((rubric: RubricRecord) => !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"))
-              .map((rubric: RubricRecord) => ({
-                id: rubric.id,
-                slug: rubric.slug,
-                name: rubric.name,
-                description: rubric.description,
-                image: rubric.image,
-                imageAlt: rubric.imageAlt,
-                showOnHome: rubric.showOnHome,
-                isDormant: rubric.isDormant,
-                searchKeywords: rubric.searchKeywords,
-                format: rubric.format,
-                order: rubric.order,
-                status: rubric.status,
-                subrubricCount: subrubricCounts?.[rubric.slug ?? rubric.id] ?? subrubricCounts?.[rubric.id] ?? 0,
-              }))
+            publishedRubrics.map((rubric: RubricRecord) => ({
+              id: rubric.id,
+              slug: rubric.slug,
+              name: rubric.name,
+              description: rubric.description,
+              image: rubric.image,
+              imageAlt: rubric.imageAlt,
+              showOnHome: rubric.showOnHome,
+              isDormant: rubric.isDormant,
+              searchKeywords: rubric.searchKeywords,
+              format: rubric.format,
+              order: rubric.order,
+              status: rubric.status,
+              subrubricCount: subrubricCounts?.[rubric.slug ?? rubric.id] ?? subrubricCounts?.[rubric.id] ?? 0,
+            }))
           );
           return;
         }
@@ -86,22 +84,20 @@ export function CategoryGrid() {
                   format?: AdminRubricPreview["format"];
                   order?: number;
                   status?: AdminRubricPreview["status"];
-                }>)
-                  .filter((rubric) => !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"))
-                  .map((rubric) => ({
-                    id: rubric.id,
-                    slug: rubric.slug || rubric.id,
-                    name: rubric.name,
-                    description: rubric.description || "",
-                    image: rubric.image || "",
-                    imageAlt: rubric.imageAlt || rubric.name,
-                    showOnHome: rubric.showOnHome ?? true,
-                    isDormant: rubric.isDormant,
-                    searchKeywords: rubric.searchKeywords,
-                    format: rubric.format ?? "Carré standard",
-                    order: rubric.order ?? 1,
-                    status: rubric.status ?? "Publié",
-                  }))
+                }>).map((rubric) => ({
+                  id: rubric.id,
+                  slug: rubric.slug || rubric.id,
+                  name: rubric.name,
+                  description: rubric.description || "",
+                  image: rubric.image || "",
+                  imageAlt: rubric.imageAlt || rubric.name,
+                  showOnHome: rubric.showOnHome ?? true,
+                  isDormant: rubric.isDormant,
+                  searchKeywords: rubric.searchKeywords,
+                  format: rubric.format ?? "Carré standard",
+                  order: rubric.order ?? 1,
+                  status: rubric.status ?? "Publié",
+                }))
               );
               return;
             }
@@ -135,7 +131,7 @@ export function CategoryGrid() {
   const cards = useMemo(() => {
     if (!adminRubrics?.length) {
       return categories
-        .filter((category) => !category.isDormant)
+        .filter((category) => category.status !== "Masqué")
         .map((category) => ({
           slug: category.slug,
           label: category.label,
@@ -146,13 +142,15 @@ export function CategoryGrid() {
           icon: category.icon,
           softColor: category.softColor,
           subrubricCount: 0,
+          isDormant: category.isDormant === true || category.status === "En sommeil",
         }));
     }
     return adminRubrics
-      .filter((rubric) => rubric.status === "Publié" && rubric.showOnHome !== false && !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"))
+      .filter((rubric) => rubric.status !== "Masqué" && rubric.showOnHome !== false)
       .sort((a, b) => a.order - b.order)
       .map((rubric) => {
         const fallback = categories.find((category) => category.slug === (rubric.slug ?? rubric.id));
+        const isDormant = rubric.status === "En sommeil" || rubric.isDormant || rubric.searchKeywords?.includes("__dormant__") || fallback?.isDormant || fallback?.status === "En sommeil";
         return {
           slug: rubric.slug ?? rubric.id,
           label: rubric.name || fallback?.label || "Rubrique",
@@ -163,6 +161,7 @@ export function CategoryGrid() {
           icon: fallback?.icon ?? Store,
           softColor: fallback?.softColor ?? "#e2eae4",
           subrubricCount: rubric.subrubricCount ?? 0,
+          isDormant: Boolean(isDormant),
         };
       });
   }, [adminRubrics]);
@@ -179,24 +178,80 @@ export function CategoryGrid() {
     <section className="page-shell py-8 sm:py-10">
       <div className="mb-5 max-w-3xl"><p className="eyebrow">Tous vos univers</p><h2 className="text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Tout ce qui compte. <span className="text-ink/28">Au même endroit.</span></h2></div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format, subrubricCount }) => (
-          <Link key={slug} href={rubricHref(slug)} className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}>
-            <img src={assetPath(image)} alt={imageAlt ?? label} loading="lazy" decoding="async" className="liberty-image-grade absolute inset-0 size-full object-cover transition duration-700 ease-out group-hover:scale-[1.055]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.20),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.91),rgba(0,0,0,.38)_48%,rgba(0,0,0,.05))]" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70" />
-            <span className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-full border border-white/20 bg-white/15 text-xs font-semibold text-white/75 shadow-[0_10px_28px_rgba(0,0,0,.16)] backdrop-blur-xl" aria-label={`${subrubricCount} sous-rubriques disponibles`}>
-              {subrubricCount}
-            </span>
-            <div className="absolute inset-x-0 bottom-0 p-4">
-              <div className="mb-2.5 flex items-center justify-between">
-                <span className="grid size-8 place-items-center rounded-xl border border-white/20 bg-white/15 shadow-[0_10px_28px_rgba(0,0,0,.18)] backdrop-blur-xl transition duration-300 group-hover:scale-105" style={{ color: softColor }}><Icon size={15} strokeWidth={2.2} /></span>
-                <span className="grid size-8 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 shadow-[0_12px_28px_rgba(0,0,0,.22)] transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowUpRight size={14} /></span>
+        {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format, subrubricCount, isDormant }) => {
+          const cardContent = (
+            <>
+              <img
+                src={assetPath(image)}
+                alt={imageAlt ?? label}
+                loading="lazy"
+                decoding="async"
+                className={`liberty-image-grade absolute inset-0 size-full object-cover transition duration-700 ease-out ${
+                  isDormant ? "grayscale-[35%] opacity-75" : "group-hover:scale-[1.055]"
+                }`}
+              />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,.20),transparent_28%),linear-gradient(to_top,rgba(0,0,0,.91),rgba(0,0,0,.38)_48%,rgba(0,0,0,.05))]" />
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70" />
+
+              {/* Badge Disponible bientôt si en sommeil */}
+              {isDormant ? (
+                <span className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-black/60 px-3 py-1 text-[11px] font-semibold text-amber-200/90 shadow-md backdrop-blur-md">
+                  <span className="inline-block size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Disponible bientôt
+                </span>
+              ) : (
+                subrubricCount > 0 && (
+                  <span
+                    className="absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-full border border-white/20 bg-white/15 text-xs font-semibold text-white/75 shadow-[0_10px_28px_rgba(0,0,0,.16)] backdrop-blur-xl"
+                    aria-label={`${subrubricCount} sous-rubriques disponibles`}
+                  >
+                    {subrubricCount}
+                  </span>
+                )
+              )}
+
+              <div className="absolute inset-x-0 bottom-0 p-4">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <span
+                    className="grid size-8 place-items-center rounded-xl border border-white/20 bg-white/15 shadow-[0_10px_28px_rgba(0,0,0,.18)] backdrop-blur-xl transition duration-300 group-hover:scale-105"
+                    style={{ color: softColor }}
+                  >
+                    <Icon size={15} strokeWidth={2.2} />
+                  </span>
+                  {!isDormant && (
+                    <span className="grid size-8 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 shadow-[0_12px_28px_rgba(0,0,0,.22)] transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                      <ArrowUpRight size={14} />
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-xl font-semibold tracking-[-.045em] drop-shadow-[0_8px_24px_rgba(0,0,0,.28)]">{label}</h3>
+                <p className="mt-1 max-w-md text-[11px] leading-4 text-white/68 transition duration-300 group-hover:text-white/78">{description}</p>
               </div>
-              <h3 className="text-xl font-semibold tracking-[-.045em] drop-shadow-[0_8px_24px_rgba(0,0,0,.28)]">{label}</h3>
-              <p className="mt-1 max-w-md text-[11px] leading-4 text-white/68 transition duration-300 group-hover:text-white/78">{description}</p>
-            </div>
-          </Link>
-        ))}
+            </>
+          );
+
+          if (isDormant) {
+            return (
+              <div
+                key={slug}
+                aria-disabled="true"
+                className={`liberty-premium-card relative overflow-hidden rounded-[1.35rem] bg-ink text-white ring-1 ring-white/10 opacity-80 cursor-not-allowed select-none ${formatClass(format)}`}
+              >
+                {cardContent}
+              </div>
+            );
+          }
+
+          return (
+            <Link
+              key={slug}
+              href={rubricHref(slug)}
+              className={`liberty-premium-card group relative overflow-hidden rounded-[1.35rem] bg-ink text-white shadow-[0_14px_38px_rgba(27,35,30,.10)] ring-1 ring-white/10 transition duration-500 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(27,35,30,.22)] ${formatClass(format)}`}
+            >
+              {cardContent}
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

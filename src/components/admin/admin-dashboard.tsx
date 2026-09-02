@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   Megaphone,
   MessageSquareText,
+  Moon,
   Plus,
   Search,
   Settings,
@@ -55,6 +56,7 @@ import {
   listAllRubricsForAdmin,
   moveRubricToTrash as moveRubricToTrashInSupabase,
   publishRubric as publishRubricInSupabase,
+  sleepRubric as sleepRubricInSupabase,
   restoreRubric as restoreRubricInSupabase,
   updateRubric as updateRubricInSupabase,
   updateRubricOrder,
@@ -70,6 +72,7 @@ import {
   listAllSubrubricsForAdmin,
   moveSubrubricToTrash as moveSubrubricToTrashInSupabase,
   publishSubrubric as publishSubrubricInSupabase,
+  sleepSubrubric as sleepSubrubricInSupabase,
   restoreSubrubric as restoreSubrubricInSupabase,
   updateSubrubricOrder,
 } from "@/lib/supabase/subrubrics-repository";
@@ -113,7 +116,7 @@ import {
 import type { BeautyCategory, BeautyProfessionalService, BeautyService } from "@/lib/beauty/types";
 export type { BeautyCategory, BeautyProfessionalService, BeautyService };
 
-export type AdminStatus = "Publié" | "Brouillon" | "Masqué";
+export type AdminStatus = "Publié" | "En sommeil" | "Brouillon" | "Masqué";
 export type BannerType = "Grande bannière" | "Bannière horizontale" | "Bannière moyenne" | "Petit encart" | "Carte sponsorisée" | "Carrousel";
 export type BannerPosition = "Home" | "Rubrique" | "Sous-rubrique" | "Fiche";
 export type KosherType = "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "À compléter";
@@ -971,12 +974,13 @@ type AdminSection =
 const menuLabelById: Record<string, string> = Object.fromEntries(menu.map((item) => [item.id, item.label]));
 
 function statusBadge(status: AdminStatus) {
-  const styles = {
+  const styles: Record<AdminStatus, string> = {
     Publié: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    "En sommeil": "bg-indigo-50 text-indigo-700 border-indigo-200",
     Brouillon: "bg-amber-50 text-amber-700 border-amber-100",
     Masqué: "bg-zinc-100 text-zinc-500 border-zinc-200",
   };
-  return styles[status];
+  return styles[status] || styles.Brouillon;
 }
 
 const SEO_CACHE_KEY = "liberty-admin-seo-analysis-v1";
@@ -1565,6 +1569,7 @@ function FormActionBar({
   onDraft,
   onPreview,
   onPublish,
+  onSleep,
   onHide,
   onTrash,
 }: {
@@ -1573,6 +1578,7 @@ function FormActionBar({
   onDraft: () => void;
   onPreview: () => void;
   onPublish: () => void;
+  onSleep?: () => void;
   onHide: () => void;
   onTrash: () => void;
 }) {
@@ -1587,8 +1593,13 @@ function FormActionBar({
       <button disabled={disabled} onClick={onPublish} className="rounded-full bg-ink px-5 py-2.5 text-xs font-semibold uppercase tracking-[.08em] text-white shadow-[0_14px_32px_rgba(16,26,21,.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45">
         {publishing ? "Publication en cours…" : "Valider et publier"}
       </button>
+      {onSleep && (
+        <button disabled={disabled} onClick={onSleep} className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-4 py-2.5 text-xs font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-45">
+          <Moon size={13} /> En sommeil (Bientôt dispo)
+        </button>
+      )}
       <button disabled={disabled} onClick={onHide} className="rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink/55 shadow-sm disabled:cursor-not-allowed disabled:opacity-45">
-        Annuler
+        Masquer
       </button>
       <button disabled={disabled} onClick={onTrash} className="rounded-full bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-500 disabled:cursor-not-allowed disabled:opacity-45">
         Supprimer
@@ -3197,6 +3208,29 @@ export function AdminDashboard() {
     }
   };
 
+  const sleepRubric = async (rubric: AdminRubric) => {
+    if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
+    setRubricsOperation(`sleep-${rubric.id}`);
+    setSavingAction("Mise en sommeil rubrique");
+    const slug = rubric.slug || slugify(rubric.name);
+    const sleeping = { ...rubric, slug, status: "En sommeil" as AdminStatus, showOnHome: true, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await sleepRubricInSupabase(sleeping);
+        applyRubricLocally(saved, "Rubrique mise en sommeil (Disponible bientôt).");
+      } else {
+        commitState((current) => ({ ...current, rubrics: current.rubrics.map((item) => (item.id === rubric.id ? sleeping : item)) }), "Rubrique mise en sommeil avec succès.", "En sommeil");
+      }
+      audit("sommeil", "rubrique", rubric.id, rubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de mise en sommeil : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
   const hideRubric = async (rubric: AdminRubric) => {
     if (savingAction || rubricsOperation) return;
     if (!requireAdminWrite()) return;
@@ -3359,6 +3393,29 @@ export function AdminDashboard() {
       audit("duplication", "sous-rubrique", subrubric.id, subrubric.name);
     } catch (error) {
       setAdminMessage(`Échec de duplication sous-rubrique : ${(error as Error).message}`);
+    } finally {
+      setRubricsOperation("");
+      setSavingAction("");
+    }
+  };
+
+  const sleepSubrubric = async (subrubric: AdminSubrubric) => {
+    if (savingAction || rubricsOperation) return;
+    if (!requireAdminWrite()) return;
+    setRubricsOperation(`subsleep-${subrubric.id}`);
+    setSavingAction("Mise en sommeil sous-rubrique");
+    const slug = subrubric.slug || slugify(subrubric.name);
+    const sleeping = { ...subrubric, slug, status: "En sommeil" as AdminStatus, visible: true, showPublicly: true, updatedAt: new Date().toISOString() };
+    try {
+      if (auth.configured && hasAdminAccess) {
+        const saved = await sleepSubrubricInSupabase(sleeping);
+        applySubrubricLocally(saved, "Sous-rubrique mise en sommeil (Disponible bientôt).");
+      } else {
+        commitState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? sleeping : item)) }), "Sous-rubrique mise en sommeil avec succès.", "En sommeil");
+      }
+      audit("sommeil", "sous-rubrique", subrubric.id, subrubric.name);
+    } catch (error) {
+      setAdminMessage(`Échec de mise en sommeil sous-rubrique : ${(error as Error).message}`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");
@@ -4145,6 +4202,7 @@ export function AdminDashboard() {
                             <p className="text-sm font-semibold">{labels[collection]}</p>
                             <div className="mt-4 space-y-2 text-xs text-ink/55">
                               <p>Publié : {list.filter((item) => item.status === "Publié").length}</p>
+                              <p>En sommeil : {list.filter((item) => item.status === "En sommeil").length}</p>
                               <p>Brouillon : {list.filter((item) => item.status === "Brouillon").length}</p>
                               <p>Masqué : {list.filter((item) => item.status === "Masqué").length}</p>
                             </div>
@@ -4180,18 +4238,22 @@ export function AdminDashboard() {
                       <div className="flex items-center justify-between gap-3">
                         <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(rubric.status)}`}>{rubric.status}</span>
                         <div className="flex gap-2">
-                          <button disabled={Boolean(savingAction || rubricsOperation || isUnsavedRubric(rubric))} onClick={() => void duplicateRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45">
+                          <button title="Dupliquer" disabled={Boolean(savingAction || rubricsOperation || isUnsavedRubric(rubric))} onClick={() => void duplicateRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45">
                             <Plus size={15} />
                           </button>
-                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void publishRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-emerald-50 text-emerald-700 disabled:cursor-not-allowed disabled:opacity-45">
+                          <button title="Publier" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void publishRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-emerald-50 text-emerald-700 disabled:cursor-not-allowed disabled:opacity-45">
                             <CheckCircle2 size={15} />
                           </button>
-                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, -1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
-                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, 1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
-                          <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : rubric.status === "Masqué" ? publishRubric(rubric) : hideRubric(rubric))} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">
+                          <button title="Mettre en sommeil (Disponible bientôt)" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void sleepRubric(rubric)} className="grid size-9 place-items-center rounded-full bg-indigo-50 text-indigo-700 disabled:cursor-not-allowed disabled:opacity-45">
+                            <Moon size={15} />
+                          </button>
+                          <button title="Monter" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, -1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
+                          <button title="Descendre" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderRubric(rubric.id, 1)} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
+                          <button title={rubric.status === "Masqué" ? "Publier" : "Masquer"} disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : rubric.status === "Masqué" ? publishRubric(rubric) : hideRubric(rubric))} className="grid size-9 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">
                             {rubric.status === "Masqué" ? <Eye size={15} /> : <EyeOff size={15} />}
                           </button>
                           <button
+                            title="Supprimer"
                             disabled={Boolean(savingAction || rubricsOperation)}
                             onClick={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : trashRubric(rubric))}
                             className="grid size-9 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
@@ -4206,6 +4268,7 @@ export function AdminDashboard() {
                         onDraft={() => saveRubricDraft(rubric)}
                         onPreview={() => previewRubricDraft(rubric)}
                         onPublish={() => publishRubric(rubric)}
+                        onSleep={() => sleepRubric(rubric)}
                         onHide={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : hideRubric(rubric))}
                         onTrash={() => void (isUnsavedRubric(rubric) ? cancelRubricCreation(rubric.id) : trashRubric(rubric))}
                       />
@@ -4225,7 +4288,7 @@ export function AdminDashboard() {
                       </div>
                       <div className="mt-4 grid gap-3 sm:grid-cols-3">
                         <SelectField label="Statut" value={rubric.status} onChange={(value) => updateRubric(rubric.id, { status: value as AdminStatus })}>
-                          <option>Publié</option><option>Brouillon</option><option>Masqué</option>
+                          <option>Publié</option><option>En sommeil</option><option>Brouillon</option><option>Masqué</option>
                         </SelectField>
                       <SelectField label="Format de carte" value={rubric.format ?? "Carré"} onChange={(value) => updateRubric(rubric.id, { format: value as RubricFormat })}>
                         <option>Petit carré</option>
@@ -4308,13 +4371,22 @@ export function AdminDashboard() {
                         }}
                       />
                       <SelectField label="Statut" value={subrubric.status} onChange={(value) => updateSubrubric(subrubric.id, { status: value as AdminStatus })}>
-                        <option>Publié</option><option>Brouillon</option><option>Masqué</option>
+                        <option>Publié</option><option>En sommeil</option><option>Brouillon</option><option>Masqué</option>
                       </SelectField>
                       <div className="flex gap-2">
-                        <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
-                        <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
-                        <button disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateSubrubric(subrubric)} className="grid size-8 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45"><Plus size={13} /></button>
+                        <button title="Monter" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
+                        <button title="Descendre" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
+                        <button title="Dupliquer" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateSubrubric(subrubric)} className="grid size-8 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45"><Plus size={13} /></button>
                         <button
+                          title="Mettre en sommeil (Disponible bientôt)"
+                          disabled={Boolean(savingAction || rubricsOperation)}
+                          onClick={() => void sleepSubrubric(subrubric)}
+                          className="grid size-8 place-items-center rounded-full bg-indigo-50 text-indigo-700 disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          <Moon size={13} />
+                        </button>
+                        <button
+                          title="Supprimer"
                           disabled={Boolean(savingAction || rubricsOperation)}
                           onClick={() => void trashSubrubric(subrubric)}
                           className="grid size-8 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
@@ -4329,6 +4401,7 @@ export function AdminDashboard() {
                           onDraft={() => void saveSubrubricDraft(subrubric)}
                           onPreview={() => previewSubrubricDraft(subrubric)}
                           onPublish={() => void publishSubrubric(subrubric)}
+                          onSleep={() => void sleepSubrubric(subrubric)}
                           onHide={() => void hideSubrubric(subrubric)}
                           onTrash={() => void trashSubrubric(subrubric)}
                         />

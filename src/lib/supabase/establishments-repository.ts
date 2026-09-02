@@ -113,6 +113,7 @@ const selectColumns = `
 
 const statusToDb: Record<LocalEstablishmentStatus, StatusDb> = {
   Publié: "published",
+  "En sommeil": "published",
   Brouillon: "draft",
   Masqué: "hidden",
 };

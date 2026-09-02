@@ -12,5 +12,6 @@ export type Category = {
   image: string;
   featured: string[];
   isDormant?: boolean;
+  status?: "Publié" | "En sommeil" | "Brouillon" | "Masqué";
 };
 

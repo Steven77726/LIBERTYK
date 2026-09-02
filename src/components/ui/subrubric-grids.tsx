@@ -32,8 +32,9 @@ type SubrubricPreview = {
   imageAlt?: string;
   visible?: boolean;
   showPublicly?: boolean;
+  isDormant?: boolean;
   order: number;
-  status: "Publié" | "Brouillon" | "Masqué";
+  status: "Publié" | "En sommeil" | "Brouillon" | "Masqué";
 };
 
 type StaticSubrubricCard = {
@@ -84,6 +85,7 @@ function normalizeSubrubric(item: SubrubricRecord | SubrubricPreview): Subrubric
     imageAlt: item.imageAlt,
     visible: item.visible,
     showPublicly: item.showPublicly,
+    isDormant: item.isDormant,
     order: item.order,
     status: item.status,
   };
@@ -319,23 +321,67 @@ function SubrubricCard({
   const Icon = iconForSubrubric(rubricSlug, item);
   const image = imageForSubrubric(rubricSlug, item, fallbackCards);
   const description = descriptionForSubrubric(item, fallbackCards);
+  const isDormant = item.status === "En sommeil" || item.isDormant;
+
+  const content = (
+    <>
+      <img
+        src={assetPath(image)}
+        alt={item.imageAlt || item.name}
+        loading="lazy"
+        decoding="async"
+        className={`absolute inset-0 size-full object-cover transition duration-700 ${
+          isDormant ? "grayscale-[35%] opacity-75" : "group-hover:scale-105"
+        }`}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
+      {isDormant && (
+        <span className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-black/60 px-3 py-1 text-[11px] font-semibold text-amber-200/90 shadow-md backdrop-blur-md">
+          <span className="inline-block size-1.5 rounded-full bg-amber-400 animate-pulse" />
+          Disponible bientôt
+        </span>
+      )}
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
+        <div className="min-w-0">
+          <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur">
+            <Icon size={18} />
+          </span>
+          <h3 className="truncate text-xl font-semibold tracking-tight">{item.name}</h3>
+          {description && <p className="mt-1 line-clamp-2 text-xs text-white/60">{description}</p>}
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">
+            {isDormant ? "Bientôt disponible" : countLabel(establishmentCount)}
+          </p>
+        </div>
+        {!isDormant && (
+          <span className="grid size-10 shrink-0 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <ArrowRight size={17} />
+          </span>
+        )}
+      </div>
+    </>
+  );
+
+  if (isDormant) {
+    return (
+      <div
+        aria-disabled="true"
+        className={`relative overflow-hidden rounded-[1.75rem] bg-ink text-white ring-1 ring-white/10 opacity-85 cursor-not-allowed select-none ${
+          featured ? "min-h-[350px] sm:col-span-2" : "min-h-[255px]"
+        }`}
+      >
+        {content}
+      </div>
+    );
+  }
 
   return (
     <Link
       href={subrubricHref(rubricSlug, slug)}
-      className={`group relative overflow-hidden rounded-[1.75rem] bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${featured ? "min-h-[350px] sm:col-span-2" : "min-h-[255px]"}`}
+      className={`group relative overflow-hidden rounded-[1.75rem] bg-ink text-white shadow-sm transition duration-500 hover:-translate-y-1 hover:shadow-2xl ${
+        featured ? "min-h-[350px] sm:col-span-2" : "min-h-[255px]"
+      }`}
     >
-      <img src={assetPath(image)} alt={item.imageAlt || item.name} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-105" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
-        <div className="min-w-0">
-          <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur"><Icon size={18} /></span>
-          <h3 className="truncate text-xl font-semibold tracking-tight">{item.name}</h3>
-          {description && <p className="mt-1 line-clamp-2 text-xs text-white/60">{description}</p>}
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">{countLabel(establishmentCount)}</p>
-        </div>
-        <span className="grid size-10 shrink-0 translate-y-2 place-items-center rounded-full bg-white text-ink opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"><ArrowRight size={17} /></span>
-      </div>
+      {content}
     </Link>
   );
 }

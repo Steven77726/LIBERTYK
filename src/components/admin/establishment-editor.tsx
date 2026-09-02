@@ -288,6 +288,8 @@ export function EstablishmentEditor({
               className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${
                 establishment.status === "Publié"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : establishment.status === "En sommeil"
+                  ? "border-indigo-200 bg-indigo-50 text-indigo-700"
                   : establishment.status === "Brouillon"
                   ? "border-amber-200 bg-amber-50 text-amber-700"
                   : "border-zinc-200 bg-zinc-100 text-zinc-600"

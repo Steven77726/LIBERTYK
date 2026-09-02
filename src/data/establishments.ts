@@ -4,7 +4,7 @@ import { azamra } from "@/data/shops";
 import { wineActivities } from "@/data/wine-activities";
 import type { BeautyProfessionalService } from "@/lib/beauty/types";
 
-export type LocalEstablishmentStatus = "Publié" | "Brouillon" | "Masqué";
+export type LocalEstablishmentStatus = "Publié" | "En sommeil" | "Brouillon" | "Masqué";
 export type LocalKosherType = "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "À compléter";
 export type LocalSponsorshipLevel = "Standard" | "Featured" | "Premium" | "Sponsorisé" | "Partenaire officiel" | "Coup de cœur Liberty";
 

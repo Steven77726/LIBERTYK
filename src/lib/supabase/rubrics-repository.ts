@@ -2,7 +2,7 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export type AdminRubricStatus = "Publié" | "Brouillon" | "Masqué";
+export type AdminRubricStatus = "Publié" | "En sommeil" | "Brouillon" | "Masqué";
 export type RubricFormat = "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
 
 export type RubricRecord = {
@@ -50,6 +50,7 @@ type RubricRow = {
 
 const statusToDb: Record<AdminRubricStatus, RubricRow["status"]> = {
   Publié: "published",
+  "En sommeil": "published",
   Brouillon: "draft",
   Masqué: "hidden",
 };
@@ -99,6 +100,10 @@ function asColumns<T extends number>(value: number | null | undefined, fallback:
 
 export function rowToRubric(row: RubricRow): RubricRecord {
   const isDormant = row.is_dormant === true || (row.search_keywords || []).includes("__dormant__");
+  let status: AdminRubricStatus = statusFromDb[row.status] ?? "Brouillon";
+  if (isDormant && row.status === "published") {
+    status = "En sommeil";
+  }
   return {
     id: row.external_id || row.id,
     slug: publicSlugForRubric(row),
@@ -115,7 +120,7 @@ export function rowToRubric(row: RubricRow): RubricRecord {
     columnsMobile: asColumns(row.mobile_columns, 1),
     searchKeywords: (row.search_keywords || []).filter((k) => k !== "__dormant__"),
     order: row.display_order ?? 0,
-    status: statusFromDb[row.status] ?? "Brouillon",
+    status,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -123,10 +128,11 @@ export function rowToRubric(row: RubricRow): RubricRecord {
 
 function rubricToPayload(rubric: RubricRecord, statusOverride?: RubricRow["status"]) {
   const slug = normalizeSlug(rubric.slug || rubric.name || rubric.id);
+  const isDormant = rubric.status === "En sommeil" || rubric.isDormant === true;
   const keywords = Array.from(
     new Set([
       ...(rubric.searchKeywords ?? []).filter((k) => k !== "__dormant__"),
-      ...(rubric.isDormant ? ["__dormant__"] : []),
+      ...(isDormant ? ["__dormant__"] : []),
     ])
   );
   return {
@@ -138,10 +144,10 @@ function rubricToPayload(rubric: RubricRecord, statusOverride?: RubricRow["statu
     image_url: rubric.image ?? "",
     image_alt: rubric.imageAlt ?? rubric.name,
     show_on_home: rubric.showOnHome ?? true,
-    is_dormant: rubric.isDormant === true,
+    is_dormant: isDormant,
     search_keywords: keywords,
     display_order: Number(rubric.order) || 0,
-    status: statusOverride ?? statusToDb[rubric.status] ?? "draft",
+    status: statusOverride ?? (isDormant ? "published" : (statusToDb[rubric.status] ?? "draft")),
     display_format: rubric.format ?? "Carré standard",
     desktop_columns: rubric.columnsDesktop ?? 3,
     tablet_columns: rubric.columnsTablet ?? 2,
@@ -178,9 +184,7 @@ export async function listPublishedRubrics() {
     .order("display_order", { ascending: true })
     .returns<RubricRow[]>();
   if (error) throw new Error(readableError(error));
-  return (data ?? [])
-    .map(rowToRubric)
-    .filter((rubric) => !rubric.isDormant && !rubric.searchKeywords?.includes("__dormant__"));
+  return (data ?? []).map(rowToRubric);
 }
 
 export async function listAllRubricsForAdmin() {
@@ -197,7 +201,7 @@ export async function listAllRubricsForAdmin() {
 
 export async function createRubric(rubric: RubricRecord) {
   const supabase = getClientOrThrow();
-  const payload = rubricToPayload(rubric, "draft");
+  const payload = rubricToPayload(rubric, rubric.status === "En sommeil" ? "published" : "draft");
   if (isUuid(rubric.id)) {
     const { data: updated, error: updateError } = await supabase
       .from("rubrics")
@@ -240,11 +244,15 @@ export async function updateRubric(rubric: RubricRecord) {
 }
 
 export async function publishRubric(rubric: RubricRecord) {
-  return updateRubric({ ...rubric, status: "Publié" });
+  return updateRubric({ ...rubric, status: "Publié", isDormant: false, showOnHome: true });
+}
+
+export async function sleepRubric(rubric: RubricRecord) {
+  return updateRubric({ ...rubric, status: "En sommeil", isDormant: true, showOnHome: true });
 }
 
 export async function hideRubric(rubric: RubricRecord) {
-  return updateRubric({ ...rubric, status: "Masqué" });
+  return updateRubric({ ...rubric, status: "Masqué", isDormant: false, showOnHome: false });
 }
 
 export async function duplicateRubric(rubric: RubricRecord) {

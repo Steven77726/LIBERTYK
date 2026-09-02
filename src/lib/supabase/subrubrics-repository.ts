@@ -2,7 +2,7 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export type AdminSubrubricStatus = "Publié" | "Brouillon" | "Masqué";
+export type AdminSubrubricStatus = "Publié" | "En sommeil" | "Brouillon" | "Masqué";
 export type SubrubricFormat = "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
 
 export type SubrubricRecord = {
@@ -71,6 +71,7 @@ const selectColumns = "id,external_id,rubric_id,slug,name,description,icon,image
 
 const statusToDb: Record<AdminSubrubricStatus, StatusDb> = {
   Publié: "published",
+  "En sommeil": "published",
   Brouillon: "draft",
   Masqué: "hidden",
 };
@@ -115,6 +116,10 @@ function rowToSubrubric(row: SubrubricRow): SubrubricRecord {
   const parentId = row.rubrics?.external_id || row.rubrics?.slug || row.rubric_id;
   const desktop = asColumns(row.desktop_columns, 3);
   const isDormant = row.is_dormant === true || (row.search_keywords || []).includes("__dormant__");
+  let status: AdminSubrubricStatus = statusFromDb[row.status] ?? "Brouillon";
+  if (isDormant && row.status === "published") {
+    status = "En sommeil";
+  }
   return {
     id: row.external_id || row.id,
     rubricId: parentId,
@@ -134,7 +139,7 @@ function rowToSubrubric(row: SubrubricRow): SubrubricRecord {
     columnsMobile: asColumns(row.mobile_columns, 1),
     searchKeywords: (row.search_keywords || []).filter((k) => k !== "__dormant__"),
     order: row.display_order ?? 0,
-    status: statusFromDb[row.status] ?? "Brouillon",
+    status,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -163,10 +168,11 @@ async function subrubricToPayload(subrubric: SubrubricRecord, statusOverride?: S
   if (!rubricId) throw new Error(`Rubrique parente introuvable pour ${subrubric.name}.`);
   const slug = normalizeSlug(subrubric.slug || subrubric.name || subrubric.id);
   const showPublicly = subrubric.showPublicly ?? subrubric.visible ?? true;
+  const isDormant = subrubric.status === "En sommeil" || subrubric.isDormant === true;
   const keywords = Array.from(
     new Set([
       ...(subrubric.searchKeywords ?? []).filter((k) => k !== "__dormant__"),
-      ...(subrubric.isDormant ? ["__dormant__"] : []),
+      ...(isDormant ? ["__dormant__"] : []),
     ])
   );
   return {
@@ -179,10 +185,10 @@ async function subrubricToPayload(subrubric: SubrubricRecord, statusOverride?: S
     image_url: subrubric.photo ?? "",
     image_alt: subrubric.imageAlt ?? subrubric.name,
     show_publicly: showPublicly,
-    is_dormant: subrubric.isDormant === true,
+    is_dormant: isDormant,
     search_keywords: keywords,
     display_order: Number(subrubric.order) || 0,
-    status: statusOverride ?? statusToDb[subrubric.status] ?? "draft",
+    status: statusOverride ?? (isDormant ? "published" : (statusToDb[subrubric.status] ?? "draft")),
     display_format: subrubric.format ?? "Carré standard",
     desktop_columns: subrubric.columnsDesktop ?? subrubric.gridColumns ?? 3,
     tablet_columns: subrubric.columnsTablet ?? 2,
@@ -206,8 +212,7 @@ export async function listPublishedSubrubrics(parentRubricSlug?: string) {
   if (error) throw new Error(readableError(error));
   return (data ?? [])
     .filter((row) => !parentRubricSlug || row.rubrics?.slug === parentRubricSlug || row.rubrics?.external_id === parentRubricSlug || row.rubric_id === parentRubricSlug)
-    .map(rowToSubrubric)
-    .filter((item) => !item.isDormant && !item.searchKeywords?.includes("__dormant__"));
+    .map(rowToSubrubric);
 }
 
 export async function listPublishedSubrubricCountsByRubric() {
@@ -268,7 +273,7 @@ async function upsertSubrubric(subrubric: SubrubricRecord, statusOverride?: Stat
 }
 
 export async function createSubrubric(subrubric: SubrubricRecord) {
-  return upsertSubrubric(subrubric, "draft");
+  return upsertSubrubric(subrubric, subrubric.status === "En sommeil" ? "published" : "draft");
 }
 
 export async function updateSubrubric(subrubric: SubrubricRecord) {
@@ -276,11 +281,15 @@ export async function updateSubrubric(subrubric: SubrubricRecord) {
 }
 
 export async function publishSubrubric(subrubric: SubrubricRecord) {
-  return upsertSubrubric({ ...subrubric, status: "Publié", visible: true, showPublicly: true });
+  return upsertSubrubric({ ...subrubric, status: "Publié", isDormant: false, visible: true, showPublicly: true });
+}
+
+export async function sleepSubrubric(subrubric: SubrubricRecord) {
+  return upsertSubrubric({ ...subrubric, status: "En sommeil", isDormant: true, visible: true, showPublicly: true });
 }
 
 export async function hideSubrubric(subrubric: SubrubricRecord) {
-  return upsertSubrubric({ ...subrubric, status: "Masqué", visible: false, showPublicly: false });
+  return upsertSubrubric({ ...subrubric, status: "Masqué", isDormant: false, visible: false, showPublicly: false });
 }
 
 export async function duplicateSubrubric(subrubric: SubrubricRecord) {

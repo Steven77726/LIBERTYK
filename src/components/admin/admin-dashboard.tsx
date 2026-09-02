@@ -4455,8 +4455,8 @@ export function AdminDashboard() {
                   </select>
                 </div>
 
-                {/* LISTE DES SOUS-RUBRIQUES FILTRÉES */}
-                <div className="mt-4 overflow-hidden rounded-3xl border border-black/5 bg-white">
+                {/* LISTE DES SOUS-RUBRIQUES FILTRÉES AVEC NOUVEAU DESIGN EN CARTES SÉPARÉES */}
+                <div className="mt-6 space-y-6">
                   {(() => {
                     const filtered = state.subrubrics
                       .filter((sub) => {
@@ -4484,8 +4484,11 @@ export function AdminDashboard() {
                     if (filtered.length === 0) {
                       const selectedParentName = state.rubrics.find((r) => r.id === subrubricParentFilter || r.slug === subrubricParentFilter)?.name;
                       return (
-                        <div className="p-10 text-center text-xs text-ink/45">
-                          Aucune sous-rubrique ne correspond {selectedParentName ? `à la rubrique « ${selectedParentName} »` : ""} {subrubricSearchQuery ? `et à la recherche « ${subrubricSearchQuery} »` : ""}.
+                        <div className="rounded-3xl border border-dashed border-black/15 bg-white p-12 text-center">
+                          <p className="text-sm font-semibold text-ink/70">Aucune sous-rubrique trouvée</p>
+                          <p className="mt-1 text-xs text-ink/45">
+                            Aucune sous-rubrique ne correspond {selectedParentName ? `à la rubrique « ${selectedParentName} »` : ""} {subrubricSearchQuery ? `et à la recherche « ${subrubricSearchQuery} »` : ""}.
+                          </p>
                         </div>
                       );
                     }
@@ -4494,151 +4497,226 @@ export function AdminDashboard() {
                       const errors = subrubricValidationErrors[subrubric.id] ?? {};
                       const matchedRubric = state.rubrics.find((r) => r.id === subrubric.rubricId || r.slug === subrubric.rubricId || slugify(r.name) === subrubric.rubricId);
                       const currentRubricValue = matchedRubric?.id || subrubric.rubricId;
+
                       return (
-                      <div id={`subrubric-form-${subrubric.id}`} key={subrubric.id} className="scroll-mt-28 grid gap-3 border-b border-black/5 p-4 last:border-b-0 lg:grid-cols-[36px_1fr_1fr_90px_140px_148px] lg:items-center">
-                        <GripVertical size={16} className="text-ink/25" />
-                        <Field
-                          id={`subrubric-field-${subrubric.id}-name`}
-                          label="Nom"
-                          value={subrubric.name}
-                          required
-                          error={errors.name}
-                          inputRef={(node) => { subrubricNameRefs.current[subrubric.id] = node; }}
-                          onChange={(value) => {
-                            updateSubrubric(subrubric.id, { name: value, slug: subrubric.slug ? subrubric.slug : slugify(value), imageAlt: subrubric.imageAlt ? subrubric.imageAlt : value });
-                            clearSubrubricValidationError(subrubric.id, "name");
-                            if (!subrubric.slug) clearSubrubricValidationError(subrubric.id, "slug");
-                            if (!subrubric.imageAlt) clearSubrubricValidationError(subrubric.id, "imageAlt");
-                          }}
-                        />
-                        <SelectField
-                          id={`subrubric-field-${subrubric.id}-rubricId`}
-                          label="Rubrique"
-                          value={currentRubricValue}
-                          required
-                          error={errors.rubricId}
-                          onChange={(value) => {
-                            updateSubrubric(subrubric.id, { rubricId: value });
-                            clearSubrubricValidationError(subrubric.id, "rubricId");
-                          }}
+                        <article
+                          id={`subrubric-form-${subrubric.id}`}
+                          key={subrubric.id}
+                          className="scroll-mt-28 rounded-3xl border border-black/10 bg-white p-6 shadow-xs transition-all duration-200 hover:border-moss/30 hover:shadow-md"
                         >
-                          {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>{rubric.name}</option>)}
-                        </SelectField>
-                        <Field
-                          id={`subrubric-field-${subrubric.id}-order`}
-                          label="Ordre"
-                          value={subrubric.order}
-                          type="number"
-                          required
-                          error={errors.order}
-                          onChange={(value) => {
-                            updateSubrubric(subrubric.id, { order: Number(value) });
-                            clearSubrubricValidationError(subrubric.id, "order");
-                          }}
-                        />
-                        <SelectField label="Statut" value={subrubric.status} onChange={(value) => updateSubrubric(subrubric.id, { status: value as AdminStatus })}>
-                          <option>Publié</option><option>En sommeil</option><option>Brouillon</option><option>Masqué</option>
-                        </SelectField>
-                        <div className="flex gap-2">
-                          <button title="Monter" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
-                          <button title="Descendre" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
-                          <button title="Dupliquer" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateSubrubric(subrubric)} className="grid size-8 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45"><Plus size={13} /></button>
-                          <button
-                            title="Mettre en sommeil (Disponible bientôt)"
-                            disabled={Boolean(savingAction || rubricsOperation)}
-                            onClick={() => void sleepSubrubric(subrubric)}
-                            className="grid size-8 place-items-center rounded-full bg-indigo-50 text-indigo-700 disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            <Moon size={13} />
-                          </button>
-                          <button
-                            title="Supprimer"
-                            disabled={Boolean(savingAction || rubricsOperation)}
-                            onClick={() => void trashSubrubric(subrubric)}
-                            className="grid size-8 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                        <div className="lg:col-span-6">
-                          <FormActionBar
-                            disabled={Boolean(savingAction || rubricsOperation)}
-                            publishing={rubricsOperation === `subpublish-${subrubric.id}`}
-                            onDraft={() => void saveSubrubricDraft(subrubric)}
-                            onPreview={() => previewSubrubricDraft(subrubric)}
-                            onPublish={() => void publishSubrubric(subrubric)}
-                            onSleep={() => void sleepSubrubric(subrubric)}
-                            onHide={() => void hideSubrubric(subrubric)}
-                            onTrash={() => void trashSubrubric(subrubric)}
-                          />
-                          <div className="grid gap-3 lg:grid-cols-3">
-                            <Field
-                              id={`subrubric-field-${subrubric.id}-slug`}
-                              label="Slug"
-                              value={subrubric.slug ?? slugify(subrubric.name)}
-                              required
-                              error={errors.slug}
-                              onChange={(value) => {
-                                updateSubrubric(subrubric.id, { slug: value });
-                                clearSubrubricValidationError(subrubric.id, "slug");
-                              }}
-                            />
-                            <Field
-                              id={`subrubric-field-${subrubric.id}-description`}
-                              label="Description"
-                              value={subrubric.description}
-                              required
-                              error={errors.description}
-                              onChange={(value) => {
-                                updateSubrubric(subrubric.id, { description: value });
-                                clearSubrubricValidationError(subrubric.id, "description");
-                              }}
-                            />
-                            <ImageUploadField
-                              id={`subrubric-field-${subrubric.id}-photo`}
-                              label="Photo"
-                              value={subrubric.photo}
-                              folder="subrubrics"
-                              required
-                              error={errors.photo}
-                              onChange={(value) => {
-                                updateSubrubric(subrubric.id, { photo: value });
-                                clearSubrubricValidationError(subrubric.id, "photo");
-                              }}
-                            />
-                            <Field
-                              id={`subrubric-field-${subrubric.id}-imageAlt`}
-                              label="Texte alternatif"
-                              value={subrubric.imageAlt ?? ""}
-                              required
-                              error={errors.imageAlt}
-                              onChange={(value) => {
-                                updateSubrubric(subrubric.id, { imageAlt: value });
-                                clearSubrubricValidationError(subrubric.id, "imageAlt");
-                              }}
-                            />
-                            <Field label="Icône" value={subrubric.icon ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { icon: value })} />
-                            <SelectField label="Format de carte" value={subrubric.format ?? "Carré standard"} onChange={(value) => updateSubrubric(subrubric.id, { format: value as RubricFormat })}>
-                              <option>Petit carré</option>
-                              <option>Carré standard</option>
-                              <option>Grand carré</option>
-                              <option>Rectangle horizontal</option>
-                              <option>Bannière pleine largeur</option>
-                            </SelectField>
-                            <SelectField label="Colonnes desktop" value={String(subrubric.columnsDesktop ?? subrubric.gridColumns ?? 3)} onChange={(value) => updateSubrubric(subrubric.id, { columnsDesktop: Number(value) as 2 | 3 | 4, gridColumns: Number(value) as 1 | 2 | 3 | 4 })}>
-                              <option value="2">2 colonnes</option><option value="3">3 colonnes</option><option value="4">4 colonnes</option>
-                            </SelectField>
-                            <SelectField label="Colonnes tablette" value={String(subrubric.columnsTablet ?? 2)} onChange={(value) => updateSubrubric(subrubric.id, { columnsTablet: Number(value) as 1 | 2 | 3 })}>
-                              <option value="1">1 colonne</option><option value="2">2 colonnes</option><option value="3">3 colonnes</option>
-                            </SelectField>
-                            <SelectField label="Colonnes mobile" value={String(subrubric.columnsMobile ?? 1)} onChange={(value) => updateSubrubric(subrubric.id, { columnsMobile: Number(value) as 1 | 2 })}>
-                              <option value="1">1 colonne</option><option value="2">2 colonnes</option>
-                            </SelectField>
-                            <Toggle label="Affichage public" checked={subrubric.visible ?? subrubric.showPublicly ?? true} onChange={(value) => updateSubrubric(subrubric.id, { visible: value, showPublicly: value })} />
-                            <Field label="Mots-clés" value={(subrubric.searchKeywords ?? []).join(", ")} onChange={(value) => updateSubrubric(subrubric.id, { searchKeywords: cleanTextList(value) })} />
+                          {/* EN-TÊTE DE LA CARTE : BADGE PARENT + NOM + STATUT + ACTIONS RAPIDES */}
+                          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-black/5 pb-4">
+                            <div className="flex flex-wrap items-center gap-3">
+                              {/* Badge Univers Parent */}
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-cream/90 px-3.5 py-1.5 text-xs font-bold text-moss border border-black/5">
+                                {matchedRubric?.icon ? `${matchedRubric.icon} ` : "📁 "}
+                                {matchedRubric?.name || "Rubrique non assignée"}
+                              </span>
+
+                              {/* Nom de la Sous-Rubrique */}
+                              <h3 className="text-base font-extrabold text-ink tracking-tight">
+                                {subrubric.name || "Nouvelle sous-rubrique"}
+                              </h3>
+
+                              {/* Badge de Statut */}
+                              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadge(subrubric.status)}`}>
+                                {subrubric.status}
+                              </span>
+                            </div>
+
+                            {/* Boutons d'action rapides */}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                title="Monter dans l'ordre"
+                                disabled={Boolean(savingAction || rubricsOperation)}
+                                onClick={() => void reorderSubrubric(subrubric.id, -1)}
+                                className="grid size-8 place-items-center rounded-full bg-cream text-ink/65 hover:bg-black/10 transition disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                title="Descendre dans l'ordre"
+                                disabled={Boolean(savingAction || rubricsOperation)}
+                                onClick={() => void reorderSubrubric(subrubric.id, 1)}
+                                className="grid size-8 place-items-center rounded-full bg-cream text-ink/65 hover:bg-black/10 transition disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                ↓
+                              </button>
+                              <button
+                                type="button"
+                                title="Dupliquer la sous-rubrique"
+                                disabled={Boolean(savingAction || rubricsOperation)}
+                                onClick={() => void duplicateSubrubric(subrubric)}
+                                className="grid size-8 place-items-center rounded-full bg-sage text-moss hover:bg-moss/20 transition disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                <Plus size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Mettre en sommeil (Disponible bientôt)"
+                                disabled={Boolean(savingAction || rubricsOperation)}
+                                onClick={() => void sleepSubrubric(subrubric)}
+                                className="grid size-8 place-items-center rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                <Moon size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Supprimer la sous-rubrique"
+                                disabled={Boolean(savingAction || rubricsOperation)}
+                                onClick={() => void trashSubrubric(subrubric)}
+                                className="grid size-8 place-items-center rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 transition disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+
+                          {/* CORPS DU FORMULAIRE : ORGANISÉ EN BLOCS CLAIRS ET AÉRÉS */}
+                          <div className="mt-5 space-y-4">
+                            {/* BLOC 1 : INFORMATIONS CLÉS */}
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                              <Field
+                                id={`subrubric-field-${subrubric.id}-name`}
+                                label="Nom de la sous-rubrique"
+                                value={subrubric.name}
+                                required
+                                error={errors.name}
+                                inputRef={(node) => { subrubricNameRefs.current[subrubric.id] = node; }}
+                                onChange={(value) => {
+                                  updateSubrubric(subrubric.id, { name: value, slug: subrubric.slug ? subrubric.slug : slugify(value), imageAlt: subrubric.imageAlt ? subrubric.imageAlt : value });
+                                  clearSubrubricValidationError(subrubric.id, "name");
+                                  if (!subrubric.slug) clearSubrubricValidationError(subrubric.id, "slug");
+                                  if (!subrubric.imageAlt) clearSubrubricValidationError(subrubric.id, "imageAlt");
+                                }}
+                              />
+                              <SelectField
+                                id={`subrubric-field-${subrubric.id}-rubricId`}
+                                label="Rubrique parente"
+                                value={currentRubricValue}
+                                required
+                                error={errors.rubricId}
+                                onChange={(value) => {
+                                  updateSubrubric(subrubric.id, { rubricId: value });
+                                  clearSubrubricValidationError(subrubric.id, "rubricId");
+                                }}
+                              >
+                                {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>{rubric.name}</option>)}
+                              </SelectField>
+                              <Field
+                                id={`subrubric-field-${subrubric.id}-order`}
+                                label="Ordre d'affichage"
+                                value={subrubric.order}
+                                type="number"
+                                required
+                                error={errors.order}
+                                onChange={(value) => {
+                                  updateSubrubric(subrubric.id, { order: Number(value) });
+                                  clearSubrubricValidationError(subrubric.id, "order");
+                                }}
+                              />
+                              <SelectField label="Statut de publication" value={subrubric.status} onChange={(value) => updateSubrubric(subrubric.id, { status: value as AdminStatus })}>
+                                <option>Publié</option><option>En sommeil</option><option>Brouillon</option><option>Masqué</option>
+                              </SelectField>
+                            </div>
+
+                            {/* BLOC 2 : DESCRIPTION & SLUG */}
+                            <div className="grid gap-4 rounded-2xl bg-cream/30 p-4 border border-black/5 lg:grid-cols-3">
+                              <Field
+                                id={`subrubric-field-${subrubric.id}-slug`}
+                                label="Identifiant URL (Slug)"
+                                value={subrubric.slug ?? slugify(subrubric.name)}
+                                required
+                                error={errors.slug}
+                                onChange={(value) => {
+                                  updateSubrubric(subrubric.id, { slug: value });
+                                  clearSubrubricValidationError(subrubric.id, "slug");
+                                }}
+                              />
+                              <Field
+                                id={`subrubric-field-${subrubric.id}-description`}
+                                label="Description publique"
+                                value={subrubric.description}
+                                required
+                                error={errors.description}
+                                onChange={(value) => {
+                                  updateSubrubric(subrubric.id, { description: value });
+                                  clearSubrubricValidationError(subrubric.id, "description");
+                                }}
+                              />
+                              <Field
+                                id={`subrubric-field-${subrubric.id}-imageAlt`}
+                                label="Texte alternatif SEO Image"
+                                value={subrubric.imageAlt ?? ""}
+                                required
+                                error={errors.imageAlt}
+                                onChange={(value) => {
+                                  updateSubrubric(subrubric.id, { imageAlt: value });
+                                  clearSubrubricValidationError(subrubric.id, "imageAlt");
+                                }}
+                              />
+                            </div>
+
+                            {/* BLOC 3 : PHOTO & ICÔNE & DISPOSITION */}
+                            <div className="grid gap-4 rounded-2xl bg-cream/30 p-4 border border-black/5 lg:grid-cols-3">
+                              <ImageUploadField
+                                id={`subrubric-field-${subrubric.id}-photo`}
+                                label="Photo de couverture"
+                                value={subrubric.photo}
+                                folder="subrubrics"
+                                required
+                                error={errors.photo}
+                                onChange={(value) => {
+                                  updateSubrubric(subrubric.id, { photo: value });
+                                  clearSubrubricValidationError(subrubric.id, "photo");
+                                }}
+                              />
+                              <Field label="Icône (ex: 🥐, 👗, 🍷)" value={subrubric.icon ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { icon: value })} />
+                              <SelectField label="Format de carte" value={subrubric.format ?? "Carré standard"} onChange={(value) => updateSubrubric(subrubric.id, { format: value as RubricFormat })}>
+                                <option>Petit carré</option>
+                                <option>Carré standard</option>
+                                <option>Grand carré</option>
+                                <option>Rectangle horizontal</option>
+                                <option>Bannière pleine largeur</option>
+                              </SelectField>
+                            </div>
+
+                            {/* BLOC 4 : GRILLE & VISIBILITÉ */}
+                            <div className="grid gap-4 rounded-2xl bg-cream/30 p-4 border border-black/5 lg:grid-cols-4 lg:items-center">
+                              <SelectField label="Colonnes desktop" value={String(subrubric.columnsDesktop ?? subrubric.gridColumns ?? 3)} onChange={(value) => updateSubrubric(subrubric.id, { columnsDesktop: Number(value) as 2 | 3 | 4, gridColumns: Number(value) as 1 | 2 | 3 | 4 })}>
+                                <option value="2">2 colonnes</option><option value="3">3 colonnes</option><option value="4">4 colonnes</option>
+                              </SelectField>
+                              <SelectField label="Colonnes tablette" value={String(subrubric.columnsTablet ?? 2)} onChange={(value) => updateSubrubric(subrubric.id, { columnsTablet: Number(value) as 1 | 2 | 3 })}>
+                                <option value="1">1 colonne</option><option value="2">2 colonnes</option><option value="3">3 colonnes</option>
+                              </SelectField>
+                              <SelectField label="Colonnes mobile" value={String(subrubric.columnsMobile ?? 1)} onChange={(value) => updateSubrubric(subrubric.id, { columnsMobile: Number(value) as 1 | 2 })}>
+                                <option value="1">1 colonne</option><option value="2">2 colonnes</option>
+                              </SelectField>
+                              <div className="pt-2">
+                                <Toggle label="Affichage public" checked={subrubric.visible ?? subrubric.showPublicly ?? true} onChange={(value) => updateSubrubric(subrubric.id, { visible: value, showPublicly: value })} />
+                              </div>
+                              <div className="lg:col-span-4">
+                                <Field label="Mots-clés de recherche (séparés par des virgules)" value={(subrubric.searchKeywords ?? []).join(", ")} onChange={(value) => updateSubrubric(subrubric.id, { searchKeywords: cleanTextList(value) })} />
+                              </div>
+                            </div>
+
+                            {/* BARRE D'ACTIONS DU BAS */}
+                            <div className="pt-3 border-t border-black/5">
+                              <FormActionBar
+                                disabled={Boolean(savingAction || rubricsOperation)}
+                                publishing={rubricsOperation === `subpublish-${subrubric.id}`}
+                                onDraft={() => void saveSubrubricDraft(subrubric)}
+                                onPreview={() => previewSubrubricDraft(subrubric)}
+                                onPublish={() => void publishSubrubric(subrubric)}
+                                onSleep={() => void sleepSubrubric(subrubric)}
+                                onHide={() => void hideSubrubric(subrubric)}
+                                onTrash={() => void trashSubrubric(subrubric)}
+                              />
+                            </div>
+                          </div>
+                        </article>
                       );
                     });
                   })()}

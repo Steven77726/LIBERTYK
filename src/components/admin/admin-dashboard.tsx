@@ -1849,6 +1849,61 @@ function matchesSubrubricToRubric(sub: AdminSubrubric, rubricIdOrSlug: string, r
   return false;
 }
 
+function matchesEstablishmentToSubrubric(
+  item: AdminEstablishment,
+  targetSubrubricIdOrSlug: string,
+  subrubrics: AdminSubrubric[],
+): boolean {
+  if (targetSubrubricIdOrSlug === "all" || targetSubrubricIdOrSlug === "Tout") return true;
+
+  const target = subrubrics.find(
+    (s) =>
+      s.id === targetSubrubricIdOrSlug ||
+      s.slug === targetSubrubricIdOrSlug ||
+      slugify(s.name) === slugify(targetSubrubricIdOrSlug),
+  );
+
+  const targetId = (target?.id || targetSubrubricIdOrSlug).toLowerCase();
+  const targetSlug = (target?.slug || targetSubrubricIdOrSlug).toLowerCase();
+  const targetNameSlug = target ? slugify(target.name).toLowerCase() : "";
+
+  const itemSubId = String(item.subrubricId || "").toLowerCase();
+  const itemSubSlug = slugify(itemSubId);
+
+  // 1. Direct match on subrubricId
+  if (
+    itemSubId === targetId ||
+    itemSubId === targetSlug ||
+    itemSubSlug === targetSlug ||
+    (targetNameSlug && itemSubSlug === targetNameSlug)
+  ) {
+    return true;
+  }
+
+  // 2. Suffix or prefix match (e.g., "food-patisseries" matches "patisseries", "food-restaurants" matches "restaurants")
+  if (
+    targetSlug &&
+    (itemSubId.endsWith(`-${targetSlug}`) ||
+      itemSubId.startsWith(`${targetSlug}-`) ||
+      targetSlug.endsWith(`-${itemSubSlug}`) ||
+      targetSlug.startsWith(`${itemSubSlug}-`))
+  ) {
+    return true;
+  }
+
+  if (
+    targetNameSlug &&
+    (itemSubId.endsWith(`-${targetNameSlug}`) ||
+      itemSubId.startsWith(`${targetNameSlug}-`) ||
+      targetNameSlug.endsWith(`-${itemSubSlug}`) ||
+      targetNameSlug.startsWith(`${itemSubSlug}-`))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function AdminDashboard() {
   const auth = useSupabaseAuth();
   const [state, setState] = useAdminState();
@@ -1901,6 +1956,7 @@ export function AdminDashboard() {
   const [quickSubParentId, setQuickSubParentId] = useState("food");
   const [estSearchQuery, setEstSearchQuery] = useState("");
   const [estRubricFilter, setEstRubricFilter] = useState("all");
+  const [estSubrubricFilter, setEstSubrubricFilter] = useState("all");
   const [estStatusFilter, setEstStatusFilter] = useState("all");
 
   const goToSection = (section: AdminSection) => {
@@ -2245,6 +2301,9 @@ export function AdminDashboard() {
         const matchRubric = item.rubricId === targetId || item.rubricId === targetSlug || item.rubricId?.startsWith(targetSlug);
         if (!matchRubric) return false;
       }
+      if (estSubrubricFilter !== "all" && estSubrubricFilter !== "Tout") {
+        if (!matchesEstablishmentToSubrubric(item, estSubrubricFilter, state.subrubrics)) return false;
+      }
       if (estStatusFilter !== "all") {
         if (item.status !== estStatusFilter) return false;
       }
@@ -2268,7 +2327,7 @@ export function AdminDashboard() {
         .toLowerCase();
       return corpus.includes(q);
     });
-  }, [state.establishments, state.rubrics, estRubricFilter, estStatusFilter, estSearchQuery, search]);
+  }, [state.establishments, state.rubrics, state.subrubrics, estRubricFilter, estSubrubricFilter, estStatusFilter, estSearchQuery, search]);
 
   const selectedEstablishment = state.establishments.find((item) => item.id === selectedEstablishmentId) ?? filteredEstablishments[0] ?? state.establishments[0];
   const selectedRubric = selectedEstablishment ? state.rubrics.find((rubric) => rubric.id === selectedEstablishment.rubricId || rubric.slug === selectedEstablishment.rubricId) : undefined;
@@ -4812,10 +4871,13 @@ export function AdminDashboard() {
                     <div className="grid grid-cols-2 gap-2">
                       <select
                         value={estRubricFilter}
-                        onChange={(e) => setEstRubricFilter(e.target.value)}
+                        onChange={(e) => {
+                          setEstRubricFilter(e.target.value);
+                          setEstSubrubricFilter("all");
+                        }}
                         className="rounded-2xl border border-black/10 bg-white px-2.5 py-2 text-xs font-semibold text-ink outline-none"
                       >
-                        <option value="all">Tout ({state.establishments.length})</option>
+                        <option value="all">Toutes rubriques ({state.establishments.length})</option>
                         {state.rubrics.map((r) => {
                           const count = state.establishments.filter((e) => e.rubricId === r.id || e.rubricId === r.slug).length;
                           return (
@@ -4835,6 +4897,37 @@ export function AdminDashboard() {
                         <option value="En sommeil">En sommeil</option>
                         <option value="Brouillon">Brouillon</option>
                         <option value="Masqué">Masqué</option>
+                      </select>
+                    </div>
+
+                    {/* FILTRE PAR SOUS-CATÉGORIE */}
+                    <div>
+                      <select
+                        value={estSubrubricFilter}
+                        onChange={(e) => setEstSubrubricFilter(e.target.value)}
+                        className="w-full rounded-2xl border border-black/10 bg-white px-2.5 py-2 text-xs font-semibold text-ink outline-none"
+                      >
+                        <option value="all">
+                          Toutes sous-catégories ({
+                            (estRubricFilter === "all" || estRubricFilter === "Tout"
+                              ? state.establishments
+                              : state.establishments.filter((e) => e.rubricId === estRubricFilter || e.rubricId === state.rubrics.find((r) => r.id === estRubricFilter)?.slug)
+                            ).length
+                          })
+                        </option>
+                        {state.subrubrics
+                          .filter((sub) => {
+                            if (estRubricFilter === "all" || estRubricFilter === "Tout") return true;
+                            return matchesSubrubricToRubric(sub, estRubricFilter, state.rubrics);
+                          })
+                          .map((sub) => {
+                            const count = state.establishments.filter((e) => matchesEstablishmentToSubrubric(e, sub.id, state.subrubrics)).length;
+                            return (
+                              <option key={sub.id} value={sub.id}>
+                                {sub.name} ({count})
+                              </option>
+                            );
+                          })}
                       </select>
                     </div>
                   </div>

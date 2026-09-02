@@ -1928,6 +1928,10 @@ export function AdminDashboard() {
   const skipNextAdminStateSave = useRef(false);
   const subrubricNameRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
   const [subrubricValidationErrors, setSubrubricValidationErrors] = useState<Record<string, Record<string, string>>>({});
+  const [subrubricSearchQuery, setSubrubricSearchQuery] = useState("");
+  const [subrubricParentFilter, setSubrubricParentFilter] = useState("all");
+  const [quickSubName, setQuickSubName] = useState("");
+  const [quickSubParentId, setQuickSubParentId] = useState("food");
 
   const goToSection = (section: AdminSection) => {
     if (section === active) return;
@@ -2841,6 +2845,35 @@ export function AdminDashboard() {
       document.getElementById(`subrubric-form-${targetId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       subrubricNameRefs.current[targetId]?.focus();
     }, 80);
+  };
+
+  const handleQuickAddSubrubric = () => {
+    if (!quickSubName.trim()) return;
+    const parent = state.rubrics.find((r) => r.id === quickSubParentId || r.slug === quickSubParentId) || state.rubrics[0];
+    const parentId = parent ? parent.id : "food";
+    const slug = `${slugify(quickSubName.trim())}-${parent?.slug || parentId}`;
+    const newSub: AdminSubrubric = {
+      id: newId("sous-rubrique"),
+      rubricId: parentId,
+      slug,
+      name: quickSubName.trim(),
+      description: `Sélection ${quickSubName.trim()}`,
+      photo: parent?.image || "/images/food/restaurants-khan.jpg",
+      imageAlt: quickSubName.trim(),
+      status: "Publié" as AdminStatus,
+      order: state.subrubrics.filter((s) => s.rubricId === parentId).length + 1,
+      visible: true,
+      showPublicly: true,
+    };
+    setState((current) => normalizeAdminState({
+      ...current,
+      subrubrics: [newSub, ...current.subrubrics],
+    }));
+    setQuickSubName("");
+    setAdminMessage(`Sous-rubrique “${newSub.name}” créée et ajoutée à “${parent?.name || 'la rubrique'}”.`);
+    if (auth.configured && hasAdminAccess) {
+      void createSubrubricInSupabase(newSub).then((saved) => applySubrubricLocally(saved, `Sous-rubrique “${saved.name}” publiée.`));
+    }
   };
 
   const addEstablishment = () => {
@@ -4322,11 +4355,99 @@ export function AdminDashboard() {
                     {rubricsOperation ? `${savingAction || "Opération"} en cours…` : "Chargement des sous-rubriques Supabase…"}
                   </p>
                 )}
-                <div className="mt-6 overflow-hidden rounded-3xl border border-black/5 bg-white">
-                  {[...state.subrubrics].sort((a, b) => {
-                    const parent = a.rubricId.localeCompare(b.rubricId);
-                    return parent || a.order - b.order;
-                  }).map((subrubric) => {
+
+                {/* FORMULAIRE AJOUT RAPIDE */}
+                <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-black/5 bg-white p-4 shadow-xs">
+                  <div className="flex min-w-[200px] items-center gap-2">
+                    <span className="text-xs font-semibold text-ink/60">Rubrique :</span>
+                    <select
+                      value={quickSubParentId}
+                      onChange={(e) => setQuickSubParentId(e.target.value)}
+                      className="rounded-xl border border-black/10 bg-cream/40 px-3 py-2 text-xs font-semibold text-ink outline-none transition focus:border-moss"
+                    >
+                      {state.rubrics.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Nom de la sous-rubrique (ex: Vêtements, Horlogerie...)"
+                    value={quickSubName}
+                    onChange={(e) => setQuickSubName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleQuickAddSubrubric()}
+                    className="min-w-[240px] flex-1 rounded-xl border border-black/10 px-3.5 py-2 text-xs font-medium text-ink outline-none transition focus:border-moss"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleQuickAddSubrubric}
+                    disabled={!quickSubName.trim() || Boolean(savingAction || rubricsOperation)}
+                    className="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition hover:bg-moss disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus size={14} /> Ajouter
+                  </button>
+                </div>
+
+                {/* FILTRE ET RECHERCHE INSTANTANÉE */}
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <div className="relative min-w-[240px] flex-1">
+                    <input
+                      type="text"
+                      placeholder="🔍 Rechercher une sous-rubrique (ex: vêtements, traiteur)..."
+                      value={subrubricSearchQuery}
+                      onChange={(e) => setSubrubricSearchQuery(e.target.value)}
+                      className="w-full rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-xs text-ink shadow-xs outline-none transition focus:border-moss"
+                    />
+                    {subrubricSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSubrubricSearchQuery("")}
+                        className="absolute right-3 top-2.5 text-xs font-semibold text-ink/40 hover:text-ink"
+                      >
+                        ✕ Effacer
+                      </button>
+                    )}
+                  </div>
+
+                  <select
+                    value={subrubricParentFilter}
+                    onChange={(e) => setSubrubricParentFilter(e.target.value)}
+                    className="rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-xs font-semibold text-ink shadow-xs outline-none transition focus:border-moss"
+                  >
+                    <option value="all">Tous les univers ({state.rubrics.length})</option>
+                    {state.rubrics.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({state.subrubrics.filter((s) => s.rubricId === r.id || s.rubricId === r.slug).length})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* LISTE DES SOUS-RUBRIQUES FILTRÉES */}
+                <div className="mt-4 overflow-hidden rounded-3xl border border-black/5 bg-white">
+                  {[...state.subrubrics]
+                    .filter((sub) => {
+                      if (subrubricParentFilter !== "all") {
+                        const parent = state.rubrics.find((r) => r.id === subrubricParentFilter || r.slug === subrubricParentFilter);
+                        const matches = sub.rubricId === subrubricParentFilter || (parent && (sub.rubricId === parent.id || sub.rubricId === parent.slug));
+                        if (!matches) return false;
+                      }
+                      if (subrubricSearchQuery.trim()) {
+                        const query = subrubricSearchQuery.toLowerCase().trim();
+                        const nameMatch = sub.name.toLowerCase().includes(query);
+                        const slugMatch = (sub.slug || "").toLowerCase().includes(query);
+                        const descMatch = (sub.description || "").toLowerCase().includes(query);
+                        return nameMatch || slugMatch || descMatch;
+                      }
+                      return true;
+                    })
+                    .sort((a, b) => {
+                      const parent = a.rubricId.localeCompare(b.rubricId);
+                      return parent || a.order - b.order;
+                    })
+                    .map((subrubric) => {
                     const errors = subrubricValidationErrors[subrubric.id] ?? {};
                     return (
                     <div id={`subrubric-form-${subrubric.id}`} key={subrubric.id} className="scroll-mt-28 grid gap-3 border-b border-black/5 p-4 last:border-b-0 lg:grid-cols-[36px_1fr_1fr_90px_140px_148px] lg:items-center">
@@ -4475,6 +4596,25 @@ export function AdminDashboard() {
                     </div>
                     );
                   })}
+                  {[...state.subrubrics].filter((sub) => {
+                    if (subrubricParentFilter !== "all") {
+                      const parent = state.rubrics.find((r) => r.id === subrubricParentFilter || r.slug === subrubricParentFilter);
+                      const matches = sub.rubricId === subrubricParentFilter || (parent && (sub.rubricId === parent.id || sub.rubricId === parent.slug));
+                      if (!matches) return false;
+                    }
+                    if (subrubricSearchQuery.trim()) {
+                      const query = subrubricSearchQuery.toLowerCase().trim();
+                      const nameMatch = sub.name.toLowerCase().includes(query);
+                      const slugMatch = (sub.slug || "").toLowerCase().includes(query);
+                      const descMatch = (sub.description || "").toLowerCase().includes(query);
+                      return nameMatch || slugMatch || descMatch;
+                    }
+                    return true;
+                  }).length === 0 && (
+                    <div className="p-10 text-center text-xs text-ink/45">
+                      Aucune sous-rubrique ne correspond à « {subrubricSearchQuery || subrubricParentFilter} ».
+                    </div>
+                  )}
                 </div>
               </Panel>
             )}

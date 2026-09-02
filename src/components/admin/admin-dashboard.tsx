@@ -1882,6 +1882,33 @@ function topLabels(events: ReturnType<typeof getAnalyticsEvents>, type: string, 
   return ranked.length ? ranked.slice(0, 5) : fallback;
 }
 
+function matchesSubrubricToRubric(sub: AdminSubrubric, rubricIdOrSlug: string, rubrics: AdminRubric[]): boolean {
+  if (rubricIdOrSlug === "all" || rubricIdOrSlug === "Tout" || !rubricIdOrSlug) return true;
+  
+  const target = rubrics.find((r) => r.id === rubricIdOrSlug || r.slug === rubricIdOrSlug || slugify(r.name) === rubricIdOrSlug);
+  const targetId = (target?.id || rubricIdOrSlug).toLowerCase();
+  const targetSlug = (target?.slug || rubricIdOrSlug).toLowerCase();
+  const targetNameSlug = target ? slugify(target.name).toLowerCase() : "";
+
+  const subRubricId = String(sub.rubricId || "").toLowerCase();
+  const subSlug = String(sub.slug || "").toLowerCase();
+
+  // 1. Direct match on rubricId
+  if (subRubricId === targetId || subRubricId === targetSlug || (targetNameSlug && subRubricId === targetNameSlug)) {
+    return true;
+  }
+
+  // 2. Prefix or substring match on sub.slug (e.g. "shopping-vetements", "food-restaurants", "mariage-decor")
+  if (targetSlug && (subSlug === targetSlug || subSlug.startsWith(`${targetSlug}-`) || subSlug.endsWith(`-${targetSlug}`))) {
+    return true;
+  }
+  if (targetNameSlug && (subSlug === targetNameSlug || subSlug.startsWith(`${targetNameSlug}-`) || subSlug.endsWith(`-${targetNameSlug}`))) {
+    return true;
+  }
+
+  return false;
+}
+
 export function AdminDashboard() {
   const auth = useSupabaseAuth();
   const [state, setState] = useAdminState();
@@ -4416,205 +4443,205 @@ export function AdminDashboard() {
                     onChange={(e) => setSubrubricParentFilter(e.target.value)}
                     className="rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-xs font-semibold text-ink shadow-xs outline-none transition focus:border-moss"
                   >
-                    <option value="all">Tous les univers ({state.rubrics.length})</option>
-                    {state.rubrics.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} ({state.subrubrics.filter((s) => s.rubricId === r.id || s.rubricId === r.slug).length})
-                      </option>
-                    ))}
+                    <option value="all">Tout ({state.subrubrics.length} sous-rubriques)</option>
+                    {state.rubrics.map((r) => {
+                      const count = state.subrubrics.filter((s) => matchesSubrubricToRubric(s, r.id, state.rubrics)).length;
+                      return (
+                        <option key={r.id} value={r.id}>
+                          {r.name} ({count})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
                 {/* LISTE DES SOUS-RUBRIQUES FILTRÉES */}
                 <div className="mt-4 overflow-hidden rounded-3xl border border-black/5 bg-white">
-                  {[...state.subrubrics]
-                    .filter((sub) => {
-                      if (subrubricParentFilter !== "all") {
-                        const parent = state.rubrics.find((r) => r.id === subrubricParentFilter || r.slug === subrubricParentFilter);
-                        const matches = sub.rubricId === subrubricParentFilter || (parent && (sub.rubricId === parent.id || sub.rubricId === parent.slug));
-                        if (!matches) return false;
-                      }
-                      if (subrubricSearchQuery.trim()) {
-                        const query = subrubricSearchQuery.toLowerCase().trim();
-                        const nameMatch = sub.name.toLowerCase().includes(query);
-                        const slugMatch = (sub.slug || "").toLowerCase().includes(query);
-                        const descMatch = (sub.description || "").toLowerCase().includes(query);
-                        return nameMatch || slugMatch || descMatch;
-                      }
-                      return true;
-                    })
-                    .sort((a, b) => {
-                      const parent = a.rubricId.localeCompare(b.rubricId);
-                      return parent || a.order - b.order;
-                    })
-                    .map((subrubric) => {
-                    const errors = subrubricValidationErrors[subrubric.id] ?? {};
-                    return (
-                    <div id={`subrubric-form-${subrubric.id}`} key={subrubric.id} className="scroll-mt-28 grid gap-3 border-b border-black/5 p-4 last:border-b-0 lg:grid-cols-[36px_1fr_1fr_90px_140px_148px] lg:items-center">
-                      <GripVertical size={16} className="text-ink/25" />
-                      <Field
-                        id={`subrubric-field-${subrubric.id}-name`}
-                        label="Nom"
-                        value={subrubric.name}
-                        required
-                        error={errors.name}
-                        inputRef={(node) => { subrubricNameRefs.current[subrubric.id] = node; }}
-                        onChange={(value) => {
-                          updateSubrubric(subrubric.id, { name: value, slug: subrubric.slug ? subrubric.slug : slugify(value), imageAlt: subrubric.imageAlt ? subrubric.imageAlt : value });
-                          clearSubrubricValidationError(subrubric.id, "name");
-                          if (!subrubric.slug) clearSubrubricValidationError(subrubric.id, "slug");
-                          if (!subrubric.imageAlt) clearSubrubricValidationError(subrubric.id, "imageAlt");
-                        }}
-                      />
-                      <SelectField
-                        id={`subrubric-field-${subrubric.id}-rubricId`}
-                        label="Rubrique"
-                        value={subrubric.rubricId}
-                        required
-                        error={errors.rubricId}
-                        onChange={(value) => {
-                          updateSubrubric(subrubric.id, { rubricId: value });
-                          clearSubrubricValidationError(subrubric.id, "rubricId");
-                        }}
-                      >
-                        {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>{rubric.name}</option>)}
-                      </SelectField>
-                      <Field
-                        id={`subrubric-field-${subrubric.id}-order`}
-                        label="Ordre"
-                        value={subrubric.order}
-                        type="number"
-                        required
-                        error={errors.order}
-                        onChange={(value) => {
-                          updateSubrubric(subrubric.id, { order: Number(value) });
-                          clearSubrubricValidationError(subrubric.id, "order");
-                        }}
-                      />
-                      <SelectField label="Statut" value={subrubric.status} onChange={(value) => updateSubrubric(subrubric.id, { status: value as AdminStatus })}>
-                        <option>Publié</option><option>En sommeil</option><option>Brouillon</option><option>Masqué</option>
-                      </SelectField>
-                      <div className="flex gap-2">
-                        <button title="Monter" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
-                        <button title="Descendre" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
-                        <button title="Dupliquer" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateSubrubric(subrubric)} className="grid size-8 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45"><Plus size={13} /></button>
-                        <button
-                          title="Mettre en sommeil (Disponible bientôt)"
-                          disabled={Boolean(savingAction || rubricsOperation)}
-                          onClick={() => void sleepSubrubric(subrubric)}
-                          className="grid size-8 place-items-center rounded-full bg-indigo-50 text-indigo-700 disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          <Moon size={13} />
-                        </button>
-                        <button
-                          title="Supprimer"
-                          disabled={Boolean(savingAction || rubricsOperation)}
-                          onClick={() => void trashSubrubric(subrubric)}
-                          className="grid size-8 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                      <div className="lg:col-span-6">
-                        <FormActionBar
-                          disabled={Boolean(savingAction || rubricsOperation)}
-                          publishing={rubricsOperation === `subpublish-${subrubric.id}`}
-                          onDraft={() => void saveSubrubricDraft(subrubric)}
-                          onPreview={() => previewSubrubricDraft(subrubric)}
-                          onPublish={() => void publishSubrubric(subrubric)}
-                          onSleep={() => void sleepSubrubric(subrubric)}
-                          onHide={() => void hideSubrubric(subrubric)}
-                          onTrash={() => void trashSubrubric(subrubric)}
+                  {(() => {
+                    const filtered = state.subrubrics
+                      .filter((sub) => {
+                        if (subrubricParentFilter !== "all" && subrubricParentFilter !== "Tout") {
+                          if (!matchesSubrubricToRubric(sub, subrubricParentFilter, state.rubrics)) return false;
+                        }
+                        if (subrubricSearchQuery.trim()) {
+                          const query = subrubricSearchQuery.toLowerCase().trim();
+                          const nameMatch = sub.name.toLowerCase().includes(query);
+                          const slugMatch = (sub.slug || "").toLowerCase().includes(query);
+                          const descMatch = (sub.description || "").toLowerCase().includes(query);
+                          const parentName = state.rubrics.find((r) => r.id === sub.rubricId || r.slug === sub.rubricId)?.name || "";
+                          const parentMatch = parentName.toLowerCase().includes(query);
+                          return nameMatch || slugMatch || descMatch || parentMatch;
+                        }
+                        return true;
+                      })
+                      .sort((a, b) => {
+                        const parentA = state.rubrics.find((r) => r.id === a.rubricId || r.slug === a.rubricId)?.name || a.rubricId;
+                        const parentB = state.rubrics.find((r) => r.id === b.rubricId || r.slug === b.rubricId)?.name || b.rubricId;
+                        const parent = parentA.localeCompare(parentB);
+                        return parent || a.order - b.order;
+                      });
+
+                    if (filtered.length === 0) {
+                      const selectedParentName = state.rubrics.find((r) => r.id === subrubricParentFilter || r.slug === subrubricParentFilter)?.name;
+                      return (
+                        <div className="p-10 text-center text-xs text-ink/45">
+                          Aucune sous-rubrique ne correspond {selectedParentName ? `à la rubrique « ${selectedParentName} »` : ""} {subrubricSearchQuery ? `et à la recherche « ${subrubricSearchQuery} »` : ""}.
+                        </div>
+                      );
+                    }
+
+                    return filtered.map((subrubric) => {
+                      const errors = subrubricValidationErrors[subrubric.id] ?? {};
+                      const matchedRubric = state.rubrics.find((r) => r.id === subrubric.rubricId || r.slug === subrubric.rubricId || slugify(r.name) === subrubric.rubricId);
+                      const currentRubricValue = matchedRubric?.id || subrubric.rubricId;
+                      return (
+                      <div id={`subrubric-form-${subrubric.id}`} key={subrubric.id} className="scroll-mt-28 grid gap-3 border-b border-black/5 p-4 last:border-b-0 lg:grid-cols-[36px_1fr_1fr_90px_140px_148px] lg:items-center">
+                        <GripVertical size={16} className="text-ink/25" />
+                        <Field
+                          id={`subrubric-field-${subrubric.id}-name`}
+                          label="Nom"
+                          value={subrubric.name}
+                          required
+                          error={errors.name}
+                          inputRef={(node) => { subrubricNameRefs.current[subrubric.id] = node; }}
+                          onChange={(value) => {
+                            updateSubrubric(subrubric.id, { name: value, slug: subrubric.slug ? subrubric.slug : slugify(value), imageAlt: subrubric.imageAlt ? subrubric.imageAlt : value });
+                            clearSubrubricValidationError(subrubric.id, "name");
+                            if (!subrubric.slug) clearSubrubricValidationError(subrubric.id, "slug");
+                            if (!subrubric.imageAlt) clearSubrubricValidationError(subrubric.id, "imageAlt");
+                          }}
                         />
-                        <div className="grid gap-3 lg:grid-cols-3">
-                          <Field
-                            id={`subrubric-field-${subrubric.id}-slug`}
-                            label="Slug"
-                            value={subrubric.slug ?? slugify(subrubric.name)}
-                            required
-                            error={errors.slug}
-                            onChange={(value) => {
-                              updateSubrubric(subrubric.id, { slug: value });
-                              clearSubrubricValidationError(subrubric.id, "slug");
-                            }}
+                        <SelectField
+                          id={`subrubric-field-${subrubric.id}-rubricId`}
+                          label="Rubrique"
+                          value={currentRubricValue}
+                          required
+                          error={errors.rubricId}
+                          onChange={(value) => {
+                            updateSubrubric(subrubric.id, { rubricId: value });
+                            clearSubrubricValidationError(subrubric.id, "rubricId");
+                          }}
+                        >
+                          {state.rubrics.map((rubric) => <option key={rubric.id} value={rubric.id}>{rubric.name}</option>)}
+                        </SelectField>
+                        <Field
+                          id={`subrubric-field-${subrubric.id}-order`}
+                          label="Ordre"
+                          value={subrubric.order}
+                          type="number"
+                          required
+                          error={errors.order}
+                          onChange={(value) => {
+                            updateSubrubric(subrubric.id, { order: Number(value) });
+                            clearSubrubricValidationError(subrubric.id, "order");
+                          }}
+                        />
+                        <SelectField label="Statut" value={subrubric.status} onChange={(value) => updateSubrubric(subrubric.id, { status: value as AdminStatus })}>
+                          <option>Publié</option><option>En sommeil</option><option>Brouillon</option><option>Masqué</option>
+                        </SelectField>
+                        <div className="flex gap-2">
+                          <button title="Monter" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, -1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↑</button>
+                          <button title="Descendre" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void reorderSubrubric(subrubric.id, 1)} className="grid size-8 place-items-center rounded-full bg-cream text-ink/55 disabled:cursor-not-allowed disabled:opacity-45">↓</button>
+                          <button title="Dupliquer" disabled={Boolean(savingAction || rubricsOperation)} onClick={() => void duplicateSubrubric(subrubric)} className="grid size-8 place-items-center rounded-full bg-sage text-moss disabled:cursor-not-allowed disabled:opacity-45"><Plus size={13} /></button>
+                          <button
+                            title="Mettre en sommeil (Disponible bientôt)"
+                            disabled={Boolean(savingAction || rubricsOperation)}
+                            onClick={() => void sleepSubrubric(subrubric)}
+                            className="grid size-8 place-items-center rounded-full bg-indigo-50 text-indigo-700 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            <Moon size={13} />
+                          </button>
+                          <button
+                            title="Supprimer"
+                            disabled={Boolean(savingAction || rubricsOperation)}
+                            onClick={() => void trashSubrubric(subrubric)}
+                            className="grid size-8 place-items-center rounded-full bg-rose-50 text-rose-500 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                        <div className="lg:col-span-6">
+                          <FormActionBar
+                            disabled={Boolean(savingAction || rubricsOperation)}
+                            publishing={rubricsOperation === `subpublish-${subrubric.id}`}
+                            onDraft={() => void saveSubrubricDraft(subrubric)}
+                            onPreview={() => previewSubrubricDraft(subrubric)}
+                            onPublish={() => void publishSubrubric(subrubric)}
+                            onSleep={() => void sleepSubrubric(subrubric)}
+                            onHide={() => void hideSubrubric(subrubric)}
+                            onTrash={() => void trashSubrubric(subrubric)}
                           />
-                          <Field
-                            id={`subrubric-field-${subrubric.id}-description`}
-                            label="Description"
-                            value={subrubric.description}
-                            required
-                            error={errors.description}
-                            onChange={(value) => {
-                              updateSubrubric(subrubric.id, { description: value });
-                              clearSubrubricValidationError(subrubric.id, "description");
-                            }}
-                          />
-                          <ImageUploadField
-                            id={`subrubric-field-${subrubric.id}-photo`}
-                            label="Photo"
-                            value={subrubric.photo}
-                            folder="subrubrics"
-                            required
-                            error={errors.photo}
-                            onChange={(value) => {
-                              updateSubrubric(subrubric.id, { photo: value });
-                              clearSubrubricValidationError(subrubric.id, "photo");
-                            }}
-                          />
-                          <Field
-                            id={`subrubric-field-${subrubric.id}-imageAlt`}
-                            label="Texte alternatif"
-                            value={subrubric.imageAlt ?? ""}
-                            required
-                            error={errors.imageAlt}
-                            onChange={(value) => {
-                              updateSubrubric(subrubric.id, { imageAlt: value });
-                              clearSubrubricValidationError(subrubric.id, "imageAlt");
-                            }}
-                          />
-                          <Field label="Icône" value={subrubric.icon ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { icon: value })} />
-                          <SelectField label="Format de carte" value={subrubric.format ?? "Carré standard"} onChange={(value) => updateSubrubric(subrubric.id, { format: value as RubricFormat })}>
-                            <option>Petit carré</option>
-                            <option>Carré standard</option>
-                            <option>Grand carré</option>
-                            <option>Rectangle horizontal</option>
-                            <option>Bannière pleine largeur</option>
-                          </SelectField>
-                          <SelectField label="Colonnes desktop" value={String(subrubric.columnsDesktop ?? subrubric.gridColumns ?? 3)} onChange={(value) => updateSubrubric(subrubric.id, { columnsDesktop: Number(value) as 2 | 3 | 4, gridColumns: Number(value) as 1 | 2 | 3 | 4 })}>
-                            <option value="2">2 colonnes</option><option value="3">3 colonnes</option><option value="4">4 colonnes</option>
-                          </SelectField>
-                          <SelectField label="Colonnes tablette" value={String(subrubric.columnsTablet ?? 2)} onChange={(value) => updateSubrubric(subrubric.id, { columnsTablet: Number(value) as 1 | 2 | 3 })}>
-                            <option value="1">1 colonne</option><option value="2">2 colonnes</option><option value="3">3 colonnes</option>
-                          </SelectField>
-                          <SelectField label="Colonnes mobile" value={String(subrubric.columnsMobile ?? 1)} onChange={(value) => updateSubrubric(subrubric.id, { columnsMobile: Number(value) as 1 | 2 })}>
-                            <option value="1">1 colonne</option><option value="2">2 colonnes</option>
-                          </SelectField>
-                          <Toggle label="Affichage public" checked={subrubric.visible ?? subrubric.showPublicly ?? true} onChange={(value) => updateSubrubric(subrubric.id, { visible: value, showPublicly: value })} />
-                          <Field label="Mots-clés" value={(subrubric.searchKeywords ?? []).join(", ")} onChange={(value) => updateSubrubric(subrubric.id, { searchKeywords: cleanTextList(value) })} />
+                          <div className="grid gap-3 lg:grid-cols-3">
+                            <Field
+                              id={`subrubric-field-${subrubric.id}-slug`}
+                              label="Slug"
+                              value={subrubric.slug ?? slugify(subrubric.name)}
+                              required
+                              error={errors.slug}
+                              onChange={(value) => {
+                                updateSubrubric(subrubric.id, { slug: value });
+                                clearSubrubricValidationError(subrubric.id, "slug");
+                              }}
+                            />
+                            <Field
+                              id={`subrubric-field-${subrubric.id}-description`}
+                              label="Description"
+                              value={subrubric.description}
+                              required
+                              error={errors.description}
+                              onChange={(value) => {
+                                updateSubrubric(subrubric.id, { description: value });
+                                clearSubrubricValidationError(subrubric.id, "description");
+                              }}
+                            />
+                            <ImageUploadField
+                              id={`subrubric-field-${subrubric.id}-photo`}
+                              label="Photo"
+                              value={subrubric.photo}
+                              folder="subrubrics"
+                              required
+                              error={errors.photo}
+                              onChange={(value) => {
+                                updateSubrubric(subrubric.id, { photo: value });
+                                clearSubrubricValidationError(subrubric.id, "photo");
+                              }}
+                            />
+                            <Field
+                              id={`subrubric-field-${subrubric.id}-imageAlt`}
+                              label="Texte alternatif"
+                              value={subrubric.imageAlt ?? ""}
+                              required
+                              error={errors.imageAlt}
+                              onChange={(value) => {
+                                updateSubrubric(subrubric.id, { imageAlt: value });
+                                clearSubrubricValidationError(subrubric.id, "imageAlt");
+                              }}
+                            />
+                            <Field label="Icône" value={subrubric.icon ?? ""} onChange={(value) => updateSubrubric(subrubric.id, { icon: value })} />
+                            <SelectField label="Format de carte" value={subrubric.format ?? "Carré standard"} onChange={(value) => updateSubrubric(subrubric.id, { format: value as RubricFormat })}>
+                              <option>Petit carré</option>
+                              <option>Carré standard</option>
+                              <option>Grand carré</option>
+                              <option>Rectangle horizontal</option>
+                              <option>Bannière pleine largeur</option>
+                            </SelectField>
+                            <SelectField label="Colonnes desktop" value={String(subrubric.columnsDesktop ?? subrubric.gridColumns ?? 3)} onChange={(value) => updateSubrubric(subrubric.id, { columnsDesktop: Number(value) as 2 | 3 | 4, gridColumns: Number(value) as 1 | 2 | 3 | 4 })}>
+                              <option value="2">2 colonnes</option><option value="3">3 colonnes</option><option value="4">4 colonnes</option>
+                            </SelectField>
+                            <SelectField label="Colonnes tablette" value={String(subrubric.columnsTablet ?? 2)} onChange={(value) => updateSubrubric(subrubric.id, { columnsTablet: Number(value) as 1 | 2 | 3 })}>
+                              <option value="1">1 colonne</option><option value="2">2 colonnes</option><option value="3">3 colonnes</option>
+                            </SelectField>
+                            <SelectField label="Colonnes mobile" value={String(subrubric.columnsMobile ?? 1)} onChange={(value) => updateSubrubric(subrubric.id, { columnsMobile: Number(value) as 1 | 2 })}>
+                              <option value="1">1 colonne</option><option value="2">2 colonnes</option>
+                            </SelectField>
+                            <Toggle label="Affichage public" checked={subrubric.visible ?? subrubric.showPublicly ?? true} onChange={(value) => updateSubrubric(subrubric.id, { visible: value, showPublicly: value })} />
+                            <Field label="Mots-clés" value={(subrubric.searchKeywords ?? []).join(", ")} onChange={(value) => updateSubrubric(subrubric.id, { searchKeywords: cleanTextList(value) })} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    );
-                  })}
-                  {[...state.subrubrics].filter((sub) => {
-                    if (subrubricParentFilter !== "all") {
-                      const parent = state.rubrics.find((r) => r.id === subrubricParentFilter || r.slug === subrubricParentFilter);
-                      const matches = sub.rubricId === subrubricParentFilter || (parent && (sub.rubricId === parent.id || sub.rubricId === parent.slug));
-                      if (!matches) return false;
-                    }
-                    if (subrubricSearchQuery.trim()) {
-                      const query = subrubricSearchQuery.toLowerCase().trim();
-                      const nameMatch = sub.name.toLowerCase().includes(query);
-                      const slugMatch = (sub.slug || "").toLowerCase().includes(query);
-                      const descMatch = (sub.description || "").toLowerCase().includes(query);
-                      return nameMatch || slugMatch || descMatch;
-                    }
-                    return true;
-                  }).length === 0 && (
-                    <div className="p-10 text-center text-xs text-ink/45">
-                      Aucune sous-rubrique ne correspond à « {subrubricSearchQuery || subrubricParentFilter} ».
-                    </div>
-                  )}
+                      );
+                    });
+                  })()}
                 </div>
               </Panel>
             )}

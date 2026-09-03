@@ -686,8 +686,32 @@ async function getBeautyMatches(tokens: string[], normalizedQuery: string): Prom
   return { professionalIds: unique((data ?? []).map((item) => item.professional_id)) };
 }
 
+function normalizeSearchQuery(val: string): string {
+  return val
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’\-–—_]/g, " ")
+    .replace(/[^a-z0-9€\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function fallbackSearch(query: string): EstablishmentSearchResult[] {
-  return searchItems(searchIndex, query).map((item, index) => ({
+  const rawResults = searchItems(searchIndex, query);
+  const normalizedQuery = normalizeSearchQuery(query);
+  const normalizedResults = normalizedQuery && normalizedQuery !== query.trim().toLowerCase()
+    ? searchItems(searchIndex, normalizedQuery)
+    : [];
+
+  const combined = [...rawResults];
+  normalizedResults.forEach((item) => {
+    if (!combined.some((c) => c.id === item.id)) {
+      combined.push(item);
+    }
+  });
+
+  return combined.map((item, index) => ({
     ...item,
     score: 1_000 - index,
     matches: [],

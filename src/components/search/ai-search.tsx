@@ -157,11 +157,18 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     [sessionCriteria, userCoords]
   );
 
+  const dismissKeyboard = () => {
+    if (typeof document !== "undefined") {
+      (document.activeElement as HTMLElement)?.blur?.();
+      inputRef.current?.blur?.();
+    }
+  };
+
   // Déclencheur chips / suggestions
   const handleChipClick = (chipQuery: string) => {
+    dismissKeyboard();
     setQuery(chipQuery);
     setFocused(true);
-    inputRef.current?.focus();
 
     if (chipQuery === "Près de moi" && typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -211,8 +218,9 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     inputRef.current?.focus();
   };
 
-  // Validation manuelle (Entrée ou clic sur la loupe)
+  // Validation manuelle (Entrée ou clic sur la loupe / bouton d'envoi)
   const submit = () => {
+    dismissKeyboard();
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
     void runConciergeQuery(trimmed);
@@ -388,7 +396,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                 ) : results.length > 0 ? (
                   <div className="space-y-3">
                     {/* Grille exhaustive et fluide des cartes d'établissements */}
-                    <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2" onPointerDown={dismissKeyboard}>
                       {results.slice(0, 6).map((result) => {
                         const establishmentData: EstablishmentRecord = result.establishment || {
                           id: result.id,
@@ -433,7 +441,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                         };
 
                         return (
-                          <div key={result.id} className="relative">
+                          <div key={result.id} className="relative" onClick={dismissKeyboard} onPointerDown={dismissKeyboard}>
                             <UniversalEstablishmentCard
                               establishment={establishmentData}
                             />
@@ -449,9 +457,11 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                           type="button"
                           onMouseDown={(e) => {
                             e.preventDefault();
+                            dismissKeyboard();
                             router.push(`/recherche?q=${encodeURIComponent(query.trim())}`);
                           }}
                           onClick={() => {
+                            dismissKeyboard();
                             router.push(`/recherche?q=${encodeURIComponent(query.trim())}`);
                           }}
                           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink py-3 text-xs font-bold text-white transition hover:bg-moss cursor-pointer"

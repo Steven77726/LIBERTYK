@@ -232,12 +232,12 @@ const patisserieItems: SearchItem[] = [{
   href: "/food/patisseries",
   image: "/images/food/patisserie.webp",
   customerSearches: [
-    "David Abitbol", "Abitbol", "Abitol", "Trompe l'oeil", "Trompe oeil", "Trompe-l'œil", "Trompeloeil",
-    "Pâtisserie David Abitbol", "Pâtisserie casher", "Gâteau trompe l'oeil", "Dessert casher", "Paris", "Pâtisserie", "Gâteau",
+    "David Abitbol", "Abitbol", "Abitol", "trompe l'oeil", "trompe oeil", "trompe eoil", "fruits sculptés", "fruits sculptes", "pâtisserie", "patisserie", "Trompe-l'œil", "Trompeloeil",
+    "Pâtisserie David Abitbol", "Pâtisserie casher", "Gâteau trompe l'oeil", "Dessert casher", "Paris", "Gâteau",
   ],
   keywords: buildInvisibleKeywords([
-    "David Abitbol", "Abitbol", "Abitol", "Trompe l'oeil", "Trompe oeil", "Trompe-l'œil", "trompeloeil",
-    "Pâtisserie", "Pâtisserie casher", "Gâteaux", "Trompe l'œil", "Dessert", "Paris",
+    "David Abitbol", "Abitbol", "Abitol", "trompe l'oeil", "trompe oeil", "trompe eoil", "fruits sculptés", "fruits sculptes", "pâtisserie", "patisserie", "Trompe-l'œil", "trompeloeil",
+    "Pâtisserie casher", "Gâteaux", "Trompe l'œil", "Dessert", "Paris",
   ], { category: "food patisserie dessert", location: "Paris" }),
   location: { city: "Paris" },
   filters: { kosherType: "Halavi", openNow: null, price: "€€" },

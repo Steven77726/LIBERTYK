@@ -26,6 +26,7 @@ import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-ra
 import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
+import { PhotoLightboxModal } from "@/components/ui/photo-lightbox-modal";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import type { Restaurant } from "@/types/restaurant";
@@ -348,9 +349,11 @@ function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData 
 =================================================================================== */
 function EstablishmentCardGallery({
   data,
+  onPhotoClick,
   priorityImage = false,
 }: {
   data: NormalizedCardData;
+  onPhotoClick: (photoIndex: number) => void;
   priorityImage?: boolean;
 }) {
   const images = data.photos;
@@ -393,13 +396,18 @@ function EstablishmentCardGallery({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Photo principale sans zoom indépendant (le clic ouvre directement la fiche) */}
+      {/* Photo cliquable pour ZOOM LIGHTBOX */}
       <img
         src={assetPath(currentPhoto)}
         alt={data.name}
         loading={priorityImage ? "eager" : "lazy"}
         decoding="async"
-        className="pointer-events-none size-full object-cover transition-transform duration-700 group-hover:scale-105"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPhotoClick(photoIndex);
+        }}
+        title="Cliquer pour agrandir la photo"
+        className="size-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
       />
 
       {/* Dégradé supérieur pour lisibilité des badges */}
@@ -471,6 +479,19 @@ function EstablishmentCardGallery({
           </div>
         </>
       )}
+
+      {/* Icône discrète d'agrandissement photo */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPhotoClick(photoIndex);
+        }}
+        aria-label="Agrandir la photo"
+        className="pointer-events-auto absolute bottom-3 left-3 grid size-7 place-items-center rounded-full bg-black/50 text-white backdrop-blur transition hover:bg-black/75 cursor-pointer"
+      >
+        <Maximize2 size={13} />
+      </button>
     </div>
   );
 }
@@ -484,8 +505,15 @@ export function UniversalEstablishmentCard({
   priorityImage = false,
   className = "",
 }: UniversalEstablishmentCardProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [hoursOpen, setHoursOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleOpenLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
 
   const data = useMemo(() => normalizeCardData(establishment), [establishment]);
   const metroStyle = data.nearestMetroLine ? getMetroLineStyle(data.nearestMetroLine) : null;
@@ -581,6 +609,7 @@ export function UniversalEstablishmentCard({
         {/* 1. Galerie Photo */}
         <EstablishmentCardGallery
           data={data}
+          onPhotoClick={handleOpenLightbox}
           priorityImage={priorityImage}
         />
 
@@ -956,6 +985,15 @@ export function UniversalEstablishmentCard({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         distanceKm={data.distanceKm}
+      />
+
+      {/* Lightbox Photo Plein Écran (PHOTO ONLY) */}
+      <PhotoLightboxModal
+        photos={data.photos}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        title={data.name}
       />
     </>
   );

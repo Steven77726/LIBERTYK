@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function CGUCGVHubPage() {
   return (
-    <div className="min-h-screen bg-[#fcfbfa] text-ink pb-24 pt-12">
+    <div className="min-h-[100dvh] bg-[#fcfbfa] text-ink pb-24 pt-12">
       <div className="page-shell max-w-4xl mx-auto space-y-12">
         <Link
           href="/"

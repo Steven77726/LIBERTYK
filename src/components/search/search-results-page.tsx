@@ -105,7 +105,7 @@ export function SearchResultsPage() {
   }, [filteredResults]);
 
   return (
-    <div className="min-h-screen bg-[#f8f9f6] pb-24 pt-8">
+    <div className="min-h-[100dvh] bg-[#f8f9f6] pb-24 pt-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Barre de recherche supérieure */}
         <div className="rounded-[2.2rem] border border-black/5 bg-white p-6 shadow-sm sm:p-8">
@@ -117,12 +117,12 @@ export function SearchResultsPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Rechercher un restaurant, un brunch, un tag (ex: bassari, halavi, paris 17)..."
-                className="w-full rounded-2xl border border-black/10 bg-cream/70 py-4 pl-12 pr-4 text-base font-semibold text-ink outline-none transition focus:border-moss/50 focus:bg-white focus:ring-4 focus:ring-moss/10"
+                className="w-full rounded-2xl border border-black/10 bg-cream/70 py-4 pl-12 pr-4 text-[16px] sm:text-base font-semibold text-ink outline-none transition focus:border-moss/50 focus:bg-white focus:ring-4 focus:ring-moss/10"
               />
             </div>
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 rounded-2xl bg-ink px-8 py-4 text-sm font-semibold text-white shadow-md transition hover:bg-moss"
+              className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-ink px-8 py-4 text-sm font-semibold text-white shadow-md transition hover:bg-moss"
             >
               <Search size={17} />
               Rechercher

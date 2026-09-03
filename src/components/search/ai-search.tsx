@@ -310,7 +310,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             type="search"
             inputMode="search"
             autoComplete="off"
-            className="w-full bg-transparent px-1 text-[15px] font-semibold text-ink outline-hidden placeholder:font-normal placeholder:text-ink/40 sm:px-2 sm:text-base"
+            className="w-full bg-transparent px-1 text-[16px] font-semibold text-ink outline-hidden placeholder:font-normal placeholder:text-ink/40 sm:px-2 sm:text-base"
           />
         </div>
 
@@ -320,7 +320,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             <button
               type="button"
               onClick={clearSearch}
-              className="grid size-8 place-items-center rounded-full text-ink/40 hover:bg-black/5 hover:text-ink transition cursor-pointer"
+              className="grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-ink/40 hover:bg-black/5 hover:text-ink transition cursor-pointer"
               aria-label="Effacer la recherche"
             >
               <X size={15} />
@@ -331,7 +331,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             type="button"
             onClick={submit}
             aria-label="Lancer la recherche"
-            className="grid size-10 place-items-center rounded-2xl bg-ink text-white transition hover:bg-moss hover:scale-105 shadow-sm cursor-pointer sm:size-11"
+            className="grid min-h-[44px] min-w-[44px] place-items-center rounded-2xl bg-ink text-white transition hover:bg-moss hover:scale-105 shadow-sm cursor-pointer sm:size-11"
           >
             <ArrowRight size={16} />
           </button>
@@ -350,7 +350,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                 handleChipClick(item.query);
               }}
               onClick={() => handleChipClick(item.query)}
-              className="group shrink-0 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-[#d5bb7d]/60 hover:bg-white/20 hover:text-white cursor-pointer"
+              className="group shrink-0 inline-flex min-h-[44px] items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold text-white/90 backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-[#d5bb7d]/60 hover:bg-white/20 hover:text-white cursor-pointer"
             >
               {item.label}
             </button>

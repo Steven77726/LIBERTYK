@@ -696,8 +696,14 @@ function fallbackSearch(query: string): EstablishmentSearchResult[] {
 }
 
 export async function searchEstablishments(query: string, options: { signal?: AbortSignal; limit?: number } = {}): Promise<EstablishmentSearchResult[]> {
+  // 1. Exécution et retour immédiats (0 ms) via l'index local optimisé
+  const localResults = fallbackSearch(query);
+  if (localResults.length > 0 || !query.trim()) {
+    return localResults;
+  }
+
   const supabase = getSupabaseBrowserClient();
-  if (!supabase) return fallbackSearch(query);
+  if (!supabase) return localResults;
 
   const normalizedQuery = normalizeSearchText(query);
   const tokens = getQueryTokens(query);

@@ -227,14 +227,14 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     setMounted(true);
   }, []);
 
-  // DEBOUNCE 300ms sur la frappe textuelle pour éliminer les sauts et les requêtes multiples
+  // Exécution instantanée (0ms) sur la frappe textuelle sans aucun délai artificiel
   useEffect(() => {
     if (query.trim().length < 2) {
       return;
     }
     const timer = window.setTimeout(() => {
       void runConciergeQuery(query);
-    }, 300);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [query, runConciergeQuery]);
 

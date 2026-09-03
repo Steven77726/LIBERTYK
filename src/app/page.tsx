@@ -43,7 +43,7 @@ export default function HomePage() {
         <div className="flex flex-col items-center rounded-[2rem] bg-ink px-6 py-10 text-center text-white sm:py-12">
           <Sparkles size={20} className="mb-4 text-gold" />
           <h2 className="max-w-3xl text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Une seule application.<br /><span className="text-white/35">Tout un monde à découvrir.</span></h2>
-          <Link href="/mon-compte" className="mt-5 flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-semibold text-ink">Rejoindre Liberty K <ArrowRight size={14} /></Link>
+          <Link href="/inscription" className="mt-5 flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-xs font-semibold text-ink transition hover:bg-moss hover:text-white">Rejoins Liberty K <ArrowRight size={14} /></Link>
         </div>
       </section>
     </>

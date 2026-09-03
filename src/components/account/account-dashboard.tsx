@@ -38,12 +38,16 @@ import {
 import { assetPath } from "@/lib/assets";
 import { POPULAR_CITIES } from "@/lib/hebcal";
 
-export function AccountDashboard() {
+export function AccountDashboard({
+  initialAuthMode = "login",
+}: {
+  initialAuthMode?: "login" | "register";
+} = {}) {
   const [currentUser, setCurrentUser] = useState<LibertyUser | null>(null);
   const [activeTab, setActiveTab] = useState<"favorites" | "profile" | "preferences" | "security">("favorites");
 
   // Auth form states (Email + Password only)
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authMode, setAuthMode] = useState<"login" | "register">(initialAuthMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [regFirstName, setRegFirstName] = useState("");
@@ -79,6 +83,15 @@ export function AccountDashboard() {
     };
 
     syncUser();
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get("mode") || params.get("signup");
+      if (mode === "register" || mode === "signup" || mode === "true") {
+        setAuthMode("register");
+      }
+    }
+
     window.addEventListener(authStateChangedEvent, syncUser);
 
     return () => {

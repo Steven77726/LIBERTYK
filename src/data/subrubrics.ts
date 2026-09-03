@@ -87,25 +87,29 @@ const specificSubrubricImages: Record<string, { image: string; description: stri
     image: "/images/mariage/kinor-decor.jpg",
     description: "Créations florales, scénographie et décors de mariage d'exception.",
   },
-  "shopping-vetements": {
-    image: "/images/shopping/azamra.jpg",
-    description: "Mode pour homme, femme et enfant.",
-  },
-  "shopping-mode": {
-    image: "/images/shopping/azamra.jpg",
-    description: "Mode pour homme, femme et enfant.",
-  },
-  "shopping-vetements-feminin": {
-    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/f5898d18-04d9-4f92-b8a0-1dd8637a8d12.png?v=1787657099897",
-    description: "Prêt-à-porter féminin et élégance.",
+  "shopping-vetement-masculin": {
+    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/95561406-7161-49c0-b01f-a28e5995b212.png?v=1787657340916",
+    description: "Costumes, chemises et mode homme.",
   },
   "shopping-vetements-masculin": {
     image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/95561406-7161-49c0-b01f-a28e5995b212.png?v=1787657340916",
     description: "Costumes, chemises et mode homme.",
   },
+  "shopping-vetement-feminin": {
+    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/f5898d18-04d9-4f92-b8a0-1dd8637a8d12.png?v=1787657099897",
+    description: "Prêt-à-porter féminin, robes et élégance.",
+  },
+  "shopping-vetements-feminin": {
+    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/f5898d18-04d9-4f92-b8a0-1dd8637a8d12.png?v=1787657099897",
+    description: "Prêt-à-porter féminin, robes et élégance.",
+  },
+  "shopping-objet-utile": {
+    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/bead8356-d4a6-4b86-884b-e80bdc7b9821.png?v=1787658132120",
+    description: "Objets, accessoires, décoration et art de vivre.",
+  },
   "shopping-objets": {
     image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/bead8356-d4a6-4b86-884b-e80bdc7b9821.png?v=1787658132120",
-    description: "Objets, décoration et art de vivre.",
+    description: "Objets, accessoires, décoration et art de vivre.",
   },
   "soins-feminin-coiffure-maquillage": {
     image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/15c39af7-637b-47c8-9a0d-138d6efdb874.png?v=1787742992807",
@@ -163,14 +167,8 @@ const foodSubrubrics = foodExtra.map((name, index) => {
   return createSubrubric("food", name, index + 1, foodImages[slug] ?? "/images/food/restaurants-khan.jpg", foodDescriptions[slug]);
 });
 
-const shoppingExtra = [
-  { name: "Vêtements Féminin", slug: "vetements-feminin", img: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/f5898d18-04d9-4f92-b8a0-1dd8637a8d12.png?v=1787657099897", desc: "Prêt-à-porter féminin et élégance." },
-  { name: "Vêtements Masculin", slug: "vetements-masculin", img: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/95561406-7161-49c0-b01f-a28e5995b212.png?v=1787657340916", desc: "Costumes, chemises et mode homme." },
-  { name: "Objets utiles", slug: "objets", img: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/bead8356-d4a6-4b86-884b-e80bdc7b9821.png?v=1787658132120", desc: "Objets, décoration et art de vivre." },
-].map((item, idx) => createSubrubric("shopping", item.name, idx + 10, item.img, item.desc, item.slug));
-
 const map = new Map<string, LocalSubrubric>();
-[...categorySubrubrics, ...foodSubrubrics, ...shoppingExtra].forEach((item) => map.set(item.id, item));
+[...categorySubrubrics, ...foodSubrubrics].forEach((item) => map.set(item.id, item));
 
 // Ajouter des alias de compatibilité pour éviter tout conflit de mapping CMS
 if (map.has("mariage-deco-mariage")) {
@@ -178,9 +176,20 @@ if (map.has("mariage-deco-mariage")) {
   map.set("mariage-decor", { ...base, id: "mariage-decor", slug: "decor" });
   map.set("mariage-deco", { ...base, id: "mariage-deco", slug: "deco" });
 }
-if (map.has("shopping-vetements")) {
-  const base = map.get("shopping-vetements")!;
+if (map.has("shopping-vetement-feminin")) {
+  const base = map.get("shopping-vetement-feminin")!;
+  map.set("shopping-vetements-feminin", { ...base, id: "shopping-vetements-feminin", slug: "vetements-feminin" });
+  map.set("shopping-vetements", { ...base, id: "shopping-vetements", slug: "vetements" });
   map.set("shopping-mode", { ...base, id: "shopping-mode", slug: "mode" });
+}
+if (map.has("shopping-vetement-masculin")) {
+  const base = map.get("shopping-vetement-masculin")!;
+  map.set("shopping-vetements-masculin", { ...base, id: "shopping-vetements-masculin", slug: "vetements-masculin" });
+}
+if (map.has("shopping-objet-utile")) {
+  const base = map.get("shopping-objet-utile")!;
+  map.set("shopping-objets", { ...base, id: "shopping-objets", slug: "objets" });
+  map.set("shopping-objets-utiles", { ...base, id: "shopping-objets-utiles", slug: "objets-utiles" });
 }
 
 export const localSubrubrics = [...map.values()];

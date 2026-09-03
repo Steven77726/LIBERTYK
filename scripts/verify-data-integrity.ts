@@ -24,7 +24,7 @@ export async function runDataIntegrityCheck() {
     }
   });
 
-  // 2. Audit des sous-rubriques Food (les 10 complètes)
+  // 2. Audit des sous-rubriques Food (les 10 complètes) & Shopping (les 3 officielles)
   console.log("\n🍽️ 2. Audit des 10 sous-rubriques Food :");
   const expectedFoodSlugs = [
     "restaurants",
@@ -49,6 +49,22 @@ export async function runDataIntegrityCheck() {
       hasErrors = true;
     } else {
       console.log("✅ Food subrubric [" + found.name + "] (" + found.slug + ") : Image OK");
+    }
+  });
+
+  console.log("\n🛍️ 2b. Audit des 3 sous-rubriques Shopping :");
+  const expectedShoppingSlugs = ["vetement-masculin", "vetement-feminin", "objet-utile"];
+  const shoppingSubs = localSubrubrics.filter((s) => s.rubricId === "shopping");
+  expectedShoppingSlugs.forEach((slug) => {
+    const found = shoppingSubs.find((s) => s.slug === slug || s.slug.replace(/-/g, "") === slug.replace(/-/g, ""));
+    if (!found) {
+      console.error("❌ ERREUR: Sous-rubrique shopping manquante: " + slug);
+      hasErrors = true;
+    } else if (!found.image || found.image.trim() === "") {
+      console.error("❌ ERREUR: Sous-rubrique shopping " + slug + " n a pas d image !");
+      hasErrors = true;
+    } else {
+      console.log("✅ Shopping subrubric [" + found.name + "] (" + found.slug + ") : Image OK");
     }
   });
 

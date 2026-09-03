@@ -1,20 +1,38 @@
 import type { Metadata } from "next";
-import { Baby, House, Shirt, Sparkles } from "lucide-react";
+import { Shirt, Sparkles, Store } from "lucide-react";
 import { CardSubrubricGrid } from "@/components/ui/subrubric-grids";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Shopping — Boutiques et marques · Liberty K",
-  description: "Explorez les boutiques, vêtements, judaïca, maison et belles adresses shopping sélectionnées par Liberty K.",
+  description: "Explorez les boutiques, prêt-à-porter, mode et objets utiles sélectionnés par Liberty K.",
   path: "/shopping",
-  image: "/images/shopping/azamra.jpg",
-  imageAlt: "Boutique Azamra",
+  image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=85",
+  imageAlt: "Shopping Liberty K",
 });
 
 const sections = [
-  { title: "Vêtements", description: "Mode pour homme, femme et enfant.", href: "/shopping/vetements", icon: Shirt, image: "/images/shopping/azamra.jpg" },
-  { title: "Maison", description: "Objets, décoration et art de vivre.", href: "/shopping/maison", icon: House, image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=85" },
-  { title: "Enfants", description: "Les belles trouvailles pour les plus jeunes.", href: "/shopping/enfants", icon: Baby, image: "https://images.unsplash.com/photo-1472162072942-cd5147eb3902?auto=format&fit=crop&w=1200&q=85" },
+  {
+    title: "Vêtement masculin",
+    description: "Costumes, chemises et mode homme.",
+    href: "/shopping/vetement-masculin",
+    icon: Shirt,
+    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/95561406-7161-49c0-b01f-a28e5995b212.png?v=1787657340916",
+  },
+  {
+    title: "Vêtement féminin",
+    description: "Prêt-à-porter féminin, robes et élégance.",
+    href: "/shopping/vetement-feminin",
+    icon: Sparkles,
+    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/f5898d18-04d9-4f92-b8a0-1dd8637a8d12.png?v=1787657099897",
+  },
+  {
+    title: "Objet utile",
+    description: "Objets, accessoires, décoration et art de vivre.",
+    href: "/shopping/objet-utile",
+    icon: Store,
+    image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/bead8356-d4a6-4b86-884b-e80bdc7b9821.png?v=1787658132120",
+  },
 ];
 
 export default function ShoppingPage() {

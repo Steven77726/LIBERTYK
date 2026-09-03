@@ -62,7 +62,7 @@ export const categories: Category[] = [
     color: "#9a5a68",
     softColor: "#f3e2e7",
     image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=85",
-    featured: ["Vêtements", "Maison", "Enfants"],
+    featured: ["Vêtement masculin", "Vêtement féminin", "Objet utile"],
     format: "Carré standard",
     subrubricCount: 3,
     status: "Publié",

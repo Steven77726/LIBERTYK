@@ -97,12 +97,29 @@ const SHOPPING_WHITELIST_SLUGS = new Set([
   "objet-utile",
 ]);
 
-function applyShoppingWhitelist(items: SubrubricPreview[], rubricSlug: string): SubrubricPreview[] {
-  if (rubricSlug !== "shopping" && rubricSlug !== "rubric-shopping") return items;
-  return items.filter((item) => {
-    const slug = (item.slug || slugify(item.name)).toLowerCase();
-    return SHOPPING_WHITELIST_SLUGS.has(slug);
-  });
+const SORTIES_WHITELIST_SLUGS = new Set([
+  "evenements",
+  "concerts",
+  "concert",
+  "soirees-celibataires",
+  "soirees-celibataire",
+  "celibataire",
+]);
+
+function applyWhitelists(items: SubrubricPreview[], rubricSlug: string): SubrubricPreview[] {
+  if (rubricSlug === "shopping" || rubricSlug === "rubric-shopping") {
+    return items.filter((item) => {
+      const slug = (item.slug || slugify(item.name)).toLowerCase();
+      return SHOPPING_WHITELIST_SLUGS.has(slug);
+    });
+  }
+  if (rubricSlug === "sorties" || rubricSlug === "rubric-sorties") {
+    return items.filter((item) => {
+      const slug = (item.slug || slugify(item.name)).toLowerCase();
+      return SORTIES_WHITELIST_SLUGS.has(slug);
+    });
+  }
+  return items;
 }
 
 function localSubrubricsFor(rubricSlug: string): SubrubricPreview[] {
@@ -122,7 +139,7 @@ function localSubrubricsFor(rubricSlug: string): SubrubricPreview[] {
       order: item.order,
       status: "Publié" as const,
     }));
-  return applyShoppingWhitelist(list, rubricSlug);
+  return applyWhitelists(list, rubricSlug);
 }
 
 function dedupe(items: SubrubricPreview[]) {
@@ -146,7 +163,7 @@ function subrubricHref(rubricSlug: string, subrubricSlug: string) {
 }
 
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {
-  const [items, setItems] = useState<SubrubricPreview[]>(() => applyShoppingWhitelist(fallback, rubricSlug));
+  const [items, setItems] = useState<SubrubricPreview[]>(() => applyWhitelists(fallback, rubricSlug));
 
   useEffect(() => {
     let mounted = true;
@@ -189,7 +206,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
             }
           });
 
-          setItems(applyShoppingWhitelist(dedupe(merged), rubricSlug));
+          setItems(applyWhitelists(dedupe(merged), rubricSlug));
           return;
         }
         // Lecture depuis le cache de l'administrateur
@@ -235,7 +252,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
                     status: "Publié" as const,
                   })),
                 ]);
-                setItems(applyShoppingWhitelist(combined, rubricSlug));
+                setItems(applyWhitelists(combined, rubricSlug));
                 return;
               }
           }
@@ -243,7 +260,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
       } catch {
         // Fallback d'urgence lecture seule
       }
-      if (mounted) setItems(applyShoppingWhitelist(fallback, rubricSlug));
+      if (mounted) setItems(applyWhitelists(fallback, rubricSlug));
     }
     void load();
 
@@ -404,7 +421,7 @@ function SubrubricCard({
 export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
   const rawItems = usePublishedSubrubrics(rubricSlug, fallback);
-  const items = useMemo(() => applyShoppingWhitelist(rawItems, rubricSlug), [rawItems, rubricSlug]);
+  const items = useMemo(() => applyWhitelists(rawItems, rubricSlug), [rawItems, rubricSlug]);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
 
   return (
@@ -444,7 +461,7 @@ export function CardSubrubricGrid({
 }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
   const rawItems = usePublishedSubrubrics(rubricSlug, fallback);
-  const items = useMemo(() => applyShoppingWhitelist(rawItems, rubricSlug), [rawItems, rubricSlug]);
+  const items = useMemo(() => applyWhitelists(rawItems, rubricSlug), [rawItems, rubricSlug]);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
 
   return (

@@ -68,6 +68,22 @@ export async function runDataIntegrityCheck() {
     }
   });
 
+  console.log("\n🎉 2c. Audit des 3 sous-rubriques Sorties :");
+  const expectedSortiesSlugs = ["evenements", "concerts", "soirees-celibataires"];
+  const sortiesSubs = localSubrubrics.filter((s) => s.rubricId === "sorties");
+  expectedSortiesSlugs.forEach((slug) => {
+    const found = sortiesSubs.find((s) => s.slug === slug || s.slug.replace(/-/g, "") === slug.replace(/-/g, ""));
+    if (!found) {
+      console.error("❌ ERREUR: Sous-rubrique sorties manquante: " + slug);
+      hasErrors = true;
+    } else if (!found.image || found.image.trim() === "") {
+      console.error("❌ ERREUR: Sous-rubrique sorties " + slug + " n a pas d image !");
+      hasErrors = true;
+    } else {
+      console.log("✅ Sorties subrubric [" + found.name + "] (" + found.slug + ") : Image OK");
+    }
+  });
+
   // 3. Vérification de la présence des fiches clés dans les sous-rubriques
   console.log("\n🍰 3. Audit des sous-rubriques clés & fiches :");
   const keySubrubrics = [

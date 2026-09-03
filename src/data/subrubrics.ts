@@ -123,6 +123,14 @@ const specificSubrubricImages: Record<string, { image: string; description: stri
     image: "https://www.placeminute.com/uploads/2024/03/28/original/dscf5075.jpg?t=1711598252",
     description: "Événements festifs, soirées et rendez-vous musicaux.",
   },
+  "sorties-concerts": {
+    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
+    description: "Concerts live, spectacles et performances d'artistes.",
+  },
+  "sorties-soirees-celibataires": {
+    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=85",
+    description: "Rencontres, soirées thématiques et dîners célibataires.",
+  },
 };
 
 function createSubrubric(rubricId: string, name: string, order: number, image: string, description?: string, customSlug?: string): LocalSubrubric {
@@ -180,6 +188,13 @@ export const subrubricSlugAliases: Record<string, string> = {
   "shopping-objets-utiles": "objet-utile",
   "mariage-decor": "deco-mariage",
   "mariage-deco": "deco-mariage",
+  "sorties-degustations-de-vins": "evenements",
+  "sorties-degustation-vins": "evenements",
+  "sorties-degustation": "evenements",
+  "sorties-concert": "concerts",
+  "sorties-soirees-celibataire": "soirees-celibataires",
+  "sorties-celibataire": "soirees-celibataires",
+  "sorties-celibataires": "soirees-celibataires",
 };
 
 export function findLocalSubrubric(rubricSlug: string, subrubricSlug: string): LocalSubrubric | undefined {

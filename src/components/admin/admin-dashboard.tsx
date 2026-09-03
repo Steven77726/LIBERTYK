@@ -742,6 +742,11 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
           if (["maison", "enfants", "vêtements", "vetements", "mode"].includes(nameNorm)) return false;
           if (["maison", "enfants", "vetements", "mode", "shopping-vetements", "shopping-mode", "shopping-maison", "shopping-enfants"].includes(slugNorm)) return false;
         }
+        if (item.rubricId === "sorties" || item.rubricId === "rubric-sorties") {
+          const nameNorm = (item.name || "").trim().toLowerCase();
+          const slugNorm = (item.slug || "").trim().toLowerCase();
+          if (nameNorm.includes("degustation") || slugNorm.includes("degustation")) return false;
+        }
         return true;
       })
       .map((item) => ({

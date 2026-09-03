@@ -25,7 +25,7 @@ import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 const azamraDefaultRecord = (): EstablishmentRecord => ({
   id: "azamra",
   rubricId: "shopping",
-  subrubricId: "shopping-mode",
+  subrubricId: "vetement-feminin",
   mainPhoto: azamra.image,
   photos: azamra.photos,
   photoAlts: ["Azamra Boutique", "Azamra Collection 1", "Azamra Collection 2", "Azamra Collection 3"],

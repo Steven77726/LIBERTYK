@@ -265,7 +265,7 @@ const wineEstablishments: LocalEstablishment[] = wineActivities.map((activity, i
 const shoppingEstablishments: LocalEstablishment[] = [{
   id: azamra.slug,
   rubricId: "shopping",
-  subrubricId: "shopping-mode",
+  subrubricId: "vetement-feminin",
   mainPhoto: azamra.image,
   photos: azamra.photos,
   photoAlts: ["Azamra Boutique", "Azamra Collection 1", "Azamra Collection 2", "Azamra Collection 3"],

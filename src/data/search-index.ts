@@ -9,7 +9,7 @@ const categoryIntentions: Record<string, string[]> = {
   food: ["restaurant", "brunch", "salon de thé", "pâtisserie", "fast-food", "traiteur", "boulangerie", "glacier", "manger", "casher"],
   sorties: ["événement", "concert", "conférence", "soirée", "dj", "spectacle", "dégustation", "activité"],
   voyages: ["Marrakech", "mai", "Pessah", "traditionnel", "orthodoxe", "famille", "club", "hôtel", "séjour casher"],
-  shopping: ["boutique", "mode", "costume", "robe", "chaussures", "judaïca", "vêtement masculin", "vêtement féminin", "objet utile", "vêtements", "Azamra"],
+  shopping: ["boutique", "costume", "robe", "chaussures", "judaïca", "vêtement masculin", "vêtement féminin", "objet utile", "Azamra"],
   mariage: ["DJ", "salle", "traiteur", "décoration", "photographe", "houppa", "événement"],
   sport: ["padel", "salle femme", "coach", "musculation", "cours privé", "fitness"],
   religion: ["Torah", "cours de Torah", "synagogue", "rabbin", "chabbat", "judaïsme"],

@@ -62,9 +62,9 @@ const genericIconBySlug: Record<string, LucideIcon> = {
   brunch: Coffee,
   patisseries: CakeSlice,
   traiteurs: ChefHat,
-  mode: Store,
-  maison: Store,
-  beaute: Store,
+  "vetement-masculin": Store,
+  "vetement-feminin": Store,
+  "objet-utile": Store,
   "mikve-femme": Store,
   "mikve-vaisselle": Store,
 };
@@ -91,14 +91,17 @@ function normalizeSubrubric(item: SubrubricRecord | SubrubricPreview): Subrubric
   };
 }
 
-function filterLegacyShopping(items: SubrubricPreview[], rubricSlug: string): SubrubricPreview[] {
+const SHOPPING_WHITELIST_SLUGS = new Set([
+  "vetement-masculin",
+  "vetement-feminin",
+  "objet-utile",
+]);
+
+function applyShoppingWhitelist(items: SubrubricPreview[], rubricSlug: string): SubrubricPreview[] {
   if (rubricSlug !== "shopping" && rubricSlug !== "rubric-shopping") return items;
   return items.filter((item) => {
-    const nameNorm = (item.name || "").trim().toLowerCase();
-    const slugNorm = (item.slug || slugify(item.name)).trim().toLowerCase();
-    if (["maison", "enfants", "vêtements", "vetements", "mode"].includes(nameNorm)) return false;
-    if (["maison", "enfants", "vetements", "mode", "shopping-vetements", "shopping-mode", "shopping-maison", "shopping-enfants"].includes(slugNorm)) return false;
-    return true;
+    const slug = (item.slug || slugify(item.name)).toLowerCase();
+    return SHOPPING_WHITELIST_SLUGS.has(slug);
   });
 }
 
@@ -119,7 +122,7 @@ function localSubrubricsFor(rubricSlug: string): SubrubricPreview[] {
       order: item.order,
       status: "Publié" as const,
     }));
-  return filterLegacyShopping(list, rubricSlug);
+  return applyShoppingWhitelist(list, rubricSlug);
 }
 
 function dedupe(items: SubrubricPreview[]) {
@@ -143,7 +146,7 @@ function subrubricHref(rubricSlug: string, subrubricSlug: string) {
 }
 
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {
-  const [items, setItems] = useState<SubrubricPreview[]>(() => filterLegacyShopping(fallback, rubricSlug));
+  const [items, setItems] = useState<SubrubricPreview[]>(() => applyShoppingWhitelist(fallback, rubricSlug));
 
   useEffect(() => {
     let mounted = true;
@@ -186,7 +189,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
             }
           });
 
-          setItems(filterLegacyShopping(dedupe(merged), rubricSlug));
+          setItems(applyShoppingWhitelist(dedupe(merged), rubricSlug));
           return;
         }
         // Lecture depuis le cache de l'administrateur
@@ -232,7 +235,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
                     status: "Publié" as const,
                   })),
                 ]);
-                setItems(filterLegacyShopping(combined, rubricSlug));
+                setItems(applyShoppingWhitelist(combined, rubricSlug));
                 return;
               }
           }
@@ -240,7 +243,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
       } catch {
         // Fallback d'urgence lecture seule
       }
-      if (mounted) setItems(filterLegacyShopping(fallback, rubricSlug));
+      if (mounted) setItems(applyShoppingWhitelist(fallback, rubricSlug));
     }
     void load();
 
@@ -400,7 +403,8 @@ function SubrubricCard({
 
 export function GenericSubrubricGrid({ rubricSlug }: { rubricSlug: string }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
-  const items = usePublishedSubrubrics(rubricSlug, fallback);
+  const rawItems = usePublishedSubrubrics(rubricSlug, fallback);
+  const items = useMemo(() => applyShoppingWhitelist(rawItems, rubricSlug), [rawItems, rubricSlug]);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
 
   return (
@@ -439,7 +443,8 @@ export function CardSubrubricGrid({
   columns?: string;
 }) {
   const fallback = useMemo(() => localSubrubricsFor(rubricSlug), [rubricSlug]);
-  const items = usePublishedSubrubrics(rubricSlug, fallback);
+  const rawItems = usePublishedSubrubrics(rubricSlug, fallback);
+  const items = useMemo(() => applyShoppingWhitelist(rawItems, rubricSlug), [rawItems, rubricSlug]);
   const counts = usePublishedEstablishmentCounts(rubricSlug);
 
   return (

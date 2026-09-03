@@ -8,7 +8,7 @@ import { UniversalEstablishmentCard } from "@/components/ui/universal-establishm
 const azamraToEstablishmentRecord = (): EstablishmentRecord => ({
   id: "azamra",
   rubricId: "shopping",
-  subrubricId: "shopping-mode",
+  subrubricId: "vetement-feminin",
   mainPhoto: azamra.image,
   photos: azamra.photos,
   photoAlts: ["Azamra Boutique", "Azamra Collection 1", "Azamra Collection 2", "Azamra Collection 3"],

@@ -26,7 +26,6 @@ import { CustomerRating, RecommendationBadge } from "@/components/ui/customer-ra
 import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
-import { PhotoLightboxModal } from "@/components/ui/photo-lightbox-modal";
 import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import type { Restaurant } from "@/types/restaurant";
@@ -349,11 +348,9 @@ function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData 
 =================================================================================== */
 function EstablishmentCardGallery({
   data,
-  onPhotoClick,
   priorityImage = false,
 }: {
   data: NormalizedCardData;
-  onPhotoClick: (photoIndex: number) => void;
   priorityImage?: boolean;
 }) {
   const images = data.photos;
@@ -396,15 +393,13 @@ function EstablishmentCardGallery({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Photo cliquable pour ZOOM LIGHTBOX uniquement */}
+      {/* Photo principale sans zoom indépendant (le clic ouvre directement la fiche) */}
       <img
         src={assetPath(currentPhoto)}
         alt={data.name}
         loading={priorityImage ? "eager" : "lazy"}
         decoding="async"
-        onClick={() => onPhotoClick(photoIndex)}
-        title="Cliquer pour agrandir la photo"
-        className="size-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
+        className="pointer-events-none size-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
 
       {/* Dégradé supérieur pour lisibilité des badges */}
@@ -435,7 +430,7 @@ function EstablishmentCardGallery({
         </div>
 
         {/* Bouton Favoris */}
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
           <LikeButton
             entity={{
               id: data.entityFavId,
@@ -476,16 +471,6 @@ function EstablishmentCardGallery({
           </div>
         </>
       )}
-
-      {/* Icône discrète d'agrandissement photo */}
-      <button
-        type="button"
-        onClick={() => onPhotoClick(photoIndex)}
-        aria-label="Agrandir la photo"
-        className="pointer-events-auto absolute bottom-3 left-3 grid size-7 place-items-center rounded-full bg-black/50 text-white backdrop-blur transition hover:bg-black/75 cursor-pointer"
-      >
-        <Maximize2 size={13} />
-      </button>
     </div>
   );
 }
@@ -499,8 +484,6 @@ export function UniversalEstablishmentCard({
   priorityImage = false,
   className = "",
 }: UniversalEstablishmentCardProps) {
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [hoursOpen, setHoursOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -588,11 +571,6 @@ export function UniversalEstablishmentCard({
 
   const bookingLabel = isEvent ? "Billetterie" : "Réserver";
 
-  const handleOpenLightbox = (index: number) => {
-    setLightboxIndex(index);
-    setLightboxOpen(true);
-  };
-
   return (
     <>
       <article
@@ -600,10 +578,9 @@ export function UniversalEstablishmentCard({
         onClick={() => setDrawerOpen(true)}
         className={`group flex flex-col overflow-hidden rounded-[1.75rem] border border-black/[.06] bg-white shadow-xs transition-all duration-300 hover:shadow-soft cursor-pointer ${className}`}
       >
-        {/* 1. Galerie Photo avec clic vers Lightbox */}
+        {/* 1. Galerie Photo */}
         <EstablishmentCardGallery
           data={data}
-          onPhotoClick={handleOpenLightbox}
           priorityImage={priorityImage}
         />
 
@@ -979,15 +956,6 @@ export function UniversalEstablishmentCard({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         distanceKm={data.distanceKm}
-      />
-
-      {/* Lightbox Photo Plein Écran (PHOTO ONLY) */}
-      <PhotoLightboxModal
-        photos={data.photos}
-        initialIndex={lightboxIndex}
-        open={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-        title={data.name}
       />
     </>
   );

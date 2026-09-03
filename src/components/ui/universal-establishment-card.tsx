@@ -977,6 +977,7 @@ export function UniversalEstablishmentCard({
         establishment={detailRecord}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        distanceKm={data.distanceKm}
       />
 
       {/* Lightbox Photo Plein Écran (PHOTO ONLY) */}

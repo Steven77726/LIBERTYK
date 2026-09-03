@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { localSubrubrics } from "@/data/subrubrics";
+import { findLocalSubrubric, localSubrubrics } from "@/data/subrubrics";
 import { SubrubricPageView } from "@/components/ui/subrubric-page-view";
 import { buildPageMetadata } from "@/lib/seo";
 
 type Props = { params: Promise<{ subrubric: string }> };
 
 function findSubrubric(slug: string) {
-  return localSubrubrics.find((item) => item.rubricId === "shopping" && item.slug === slug);
+  return findLocalSubrubric("shopping", slug);
 }
 
 export function generateStaticParams() {

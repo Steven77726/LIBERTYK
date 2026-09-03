@@ -734,7 +734,17 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
     ...seed,
     ...state,
     rubrics: (state.rubrics ?? seed.rubrics).map((item) => ({ ...item, slug: item.slug ?? slugify(item.name), image: safeImageUrl(item.image), imageAlt: item.imageAlt ?? item.name, showOnHome: item.showOnHome ?? true, format: (item.format === "Carré" ? "Carré standard" : item.format) ?? "Carré standard", columnsDesktop: item.columnsDesktop ?? 3, columnsTablet: item.columnsTablet ?? 2, columnsMobile: item.columnsMobile ?? 1, searchKeywords: item.searchKeywords ?? [], createdAt: item.createdAt ?? today, updatedAt: item.updatedAt ?? today })),
-    subrubrics: (state.subrubrics ?? seed.subrubrics).map((item) => ({
+    subrubrics: (state.subrubrics ?? seed.subrubrics)
+      .filter((item) => {
+        if (item.rubricId === "shopping" || item.rubricId === "rubric-shopping") {
+          const nameNorm = (item.name || "").trim().toLowerCase();
+          const slugNorm = (item.slug || "").trim().toLowerCase();
+          if (["maison", "enfants", "vêtements", "vetements", "mode"].includes(nameNorm)) return false;
+          if (["maison", "enfants", "vetements", "mode", "shopping-vetements", "shopping-mode", "shopping-maison", "shopping-enfants"].includes(slugNorm)) return false;
+        }
+        return true;
+      })
+      .map((item) => ({
       ...item,
       slug: item.slug ?? slugify(item.name),
       photo: safeImageUrl(item.photo),

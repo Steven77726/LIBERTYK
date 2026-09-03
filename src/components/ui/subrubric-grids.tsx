@@ -91,8 +91,19 @@ function normalizeSubrubric(item: SubrubricRecord | SubrubricPreview): Subrubric
   };
 }
 
+function filterLegacyShopping(items: SubrubricPreview[], rubricSlug: string): SubrubricPreview[] {
+  if (rubricSlug !== "shopping" && rubricSlug !== "rubric-shopping") return items;
+  return items.filter((item) => {
+    const nameNorm = (item.name || "").trim().toLowerCase();
+    const slugNorm = (item.slug || slugify(item.name)).trim().toLowerCase();
+    if (["maison", "enfants", "vêtements", "vetements", "mode"].includes(nameNorm)) return false;
+    if (["maison", "enfants", "vetements", "mode", "shopping-vetements", "shopping-mode", "shopping-maison", "shopping-enfants"].includes(slugNorm)) return false;
+    return true;
+  });
+}
+
 function localSubrubricsFor(rubricSlug: string): SubrubricPreview[] {
-  return localSubrubrics
+  const list = localSubrubrics
     .filter((item) => item.rubricId === rubricSlug)
     .map((item) => ({
       id: item.id,
@@ -106,8 +117,9 @@ function localSubrubricsFor(rubricSlug: string): SubrubricPreview[] {
       visible: item.showPublicly,
       showPublicly: item.showPublicly,
       order: item.order,
-      status: "Publié",
+      status: "Publié" as const,
     }));
+  return filterLegacyShopping(list, rubricSlug);
 }
 
 function dedupe(items: SubrubricPreview[]) {
@@ -131,7 +143,7 @@ function subrubricHref(rubricSlug: string, subrubricSlug: string) {
 }
 
 function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]) {
-  const [items, setItems] = useState<SubrubricPreview[] | null>(null);
+  const [items, setItems] = useState<SubrubricPreview[]>(() => filterLegacyShopping(fallback, rubricSlug));
 
   useEffect(() => {
     let mounted = true;
@@ -174,7 +186,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
             }
           });
 
-          setItems(dedupe(merged));
+          setItems(filterLegacyShopping(dedupe(merged), rubricSlug));
           return;
         }
         // Lecture depuis le cache de l'administrateur
@@ -220,7 +232,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
                     status: "Publié" as const,
                   })),
                 ]);
-                setItems(combined);
+                setItems(filterLegacyShopping(combined, rubricSlug));
                 return;
               }
           }
@@ -228,7 +240,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
       } catch {
         // Fallback d'urgence lecture seule
       }
-      if (mounted) setItems(fallback);
+      if (mounted) setItems(filterLegacyShopping(fallback, rubricSlug));
     }
     void load();
 

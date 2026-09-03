@@ -170,26 +170,26 @@ const foodSubrubrics = foodExtra.map((name, index) => {
 const map = new Map<string, LocalSubrubric>();
 [...categorySubrubrics, ...foodSubrubrics].forEach((item) => map.set(item.id, item));
 
-// Ajouter des alias de compatibilité pour éviter tout conflit de mapping CMS
-if (map.has("mariage-deco-mariage")) {
-  const base = map.get("mariage-deco-mariage")!;
-  map.set("mariage-decor", { ...base, id: "mariage-decor", slug: "decor" });
-  map.set("mariage-deco", { ...base, id: "mariage-deco", slug: "deco" });
-}
-if (map.has("shopping-vetement-feminin")) {
-  const base = map.get("shopping-vetement-feminin")!;
-  map.set("shopping-vetements-feminin", { ...base, id: "shopping-vetements-feminin", slug: "vetements-feminin" });
-  map.set("shopping-vetements", { ...base, id: "shopping-vetements", slug: "vetements" });
-  map.set("shopping-mode", { ...base, id: "shopping-mode", slug: "mode" });
-}
-if (map.has("shopping-vetement-masculin")) {
-  const base = map.get("shopping-vetement-masculin")!;
-  map.set("shopping-vetements-masculin", { ...base, id: "shopping-vetements-masculin", slug: "vetements-masculin" });
-}
-if (map.has("shopping-objet-utile")) {
-  const base = map.get("shopping-objet-utile")!;
-  map.set("shopping-objets", { ...base, id: "shopping-objets", slug: "objets" });
-  map.set("shopping-objets-utiles", { ...base, id: "shopping-objets-utiles", slug: "objets-utiles" });
+// Alias de mapping pour la compatibilité avec les anciennes URLs sans dupliquer les listes
+export const subrubricSlugAliases: Record<string, string> = {
+  "shopping-vetements": "vetement-feminin",
+  "shopping-vetements-feminin": "vetement-feminin",
+  "shopping-vetements-masculin": "vetement-masculin",
+  "shopping-mode": "vetement-feminin",
+  "shopping-objets": "objet-utile",
+  "shopping-objets-utiles": "objet-utile",
+  "mariage-decor": "deco-mariage",
+  "mariage-deco": "deco-mariage",
+};
+
+export function findLocalSubrubric(rubricSlug: string, subrubricSlug: string): LocalSubrubric | undefined {
+  const direct = localSubrubrics.find((item) => item.rubricId === rubricSlug && item.slug === subrubricSlug);
+  if (direct) return direct;
+  const alias = subrubricSlugAliases[`${rubricSlug}-${subrubricSlug}`] || subrubricSlugAliases[subrubricSlug];
+  if (alias) {
+    return localSubrubrics.find((item) => item.rubricId === rubricSlug && item.slug === alias);
+  }
+  return undefined;
 }
 
 export const localSubrubrics = [...map.values()];

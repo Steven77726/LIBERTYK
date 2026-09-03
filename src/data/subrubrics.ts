@@ -10,6 +10,8 @@ export type LocalSubrubric = {
   image: string;
   imageAlt: string;
   showPublicly: boolean;
+  isDormant?: boolean;
+  status?: "Publié" | "En sommeil" | "Brouillon" | "Masqué";
   format: "Carré standard";
   columnsDesktop: 3;
   columnsTablet: 2;
@@ -133,7 +135,16 @@ const specificSubrubricImages: Record<string, { image: string; description: stri
   },
 };
 
-function createSubrubric(rubricId: string, name: string, order: number, image: string, description?: string, customSlug?: string): LocalSubrubric {
+function createSubrubric(
+  rubricId: string,
+  name: string,
+  order: number,
+  image: string,
+  description?: string,
+  customSlug?: string,
+  isDormant?: boolean,
+  status?: "Publié" | "En sommeil" | "Brouillon" | "Masqué"
+): LocalSubrubric {
   const slug = customSlug || subrubricSlugOverrides[`${rubricId}-${name}`] || slugify(name);
   return {
     id: `${rubricId}-${slug}`,
@@ -145,6 +156,8 @@ function createSubrubric(rubricId: string, name: string, order: number, image: s
     image,
     imageAlt: name,
     showPublicly: true,
+    isDormant: isDormant ?? false,
+    status: status ?? (isDormant ? "En sommeil" : "Publié"),
     format: "Carré standard",
     columnsDesktop: 3,
     columnsTablet: 2,
@@ -159,13 +172,16 @@ const categorySubrubrics = categories.flatMap((category) =>
     const slug = subrubricSlugOverrides[`${category.slug}-${item}`] || slugify(item);
     const key = `${category.slug}-${slug}`;
     const specific = specificSubrubricImages[key] || specificSubrubricImages[`${category.slug}-${slugify(item)}`];
+    const isCatDormant = category.isDormant === true || category.status === "En sommeil";
     return createSubrubric(
       category.slug,
       item,
       index + 1,
       specific?.image ?? category.image,
       specific?.description,
-      slug
+      slug,
+      isCatDormant,
+      isCatDormant ? "En sommeil" : "Publié"
     );
   }),
 );

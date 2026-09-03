@@ -136,8 +136,9 @@ function localSubrubricsFor(rubricSlug: string): SubrubricPreview[] {
       imageAlt: item.imageAlt,
       visible: item.showPublicly,
       showPublicly: item.showPublicly,
+      isDormant: item.isDormant,
+      status: item.status ?? (item.isDormant ? ("En sommeil" as const) : ("Publié" as const)),
       order: item.order,
-      status: "Publié" as const,
     }));
   return applyWhitelists(list, rubricSlug);
 }
@@ -179,7 +180,6 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
           });
 
           const merged: SubrubricPreview[] = remote
-            .filter((item) => !item.isDormant && !item.searchKeywords?.includes("__dormant__"))
             .map((item) => {
               const norm = normalizeSubrubric(item);
               const key = norm.slug ?? slugify(norm.name);

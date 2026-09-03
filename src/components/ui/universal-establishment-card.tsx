@@ -27,6 +27,7 @@ import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 import { PhotoLightboxModal } from "@/components/ui/photo-lightbox-modal";
+import { EstablishmentDetailDrawer } from "@/components/ui/establishment-detail-drawer";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import type { Restaurant } from "@/types/restaurant";
 import type { Brunch } from "@/types/brunch";
@@ -501,9 +502,59 @@ export function UniversalEstablishmentCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [hoursOpen, setHoursOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const data = useMemo(() => normalizeCardData(establishment), [establishment]);
   const metroStyle = data.nearestMetroLine ? getMetroLineStyle(data.nearestMetroLine) : null;
+
+  const detailRecord: EstablishmentRecord = useMemo(() => {
+    if ("rubricId" in establishment && "mainPhoto" in establishment) {
+      return establishment as EstablishmentRecord;
+    }
+    return {
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      rubricId: data.rubricId,
+      subrubricId: data.subrubricId,
+      address: data.address,
+      city: data.city,
+      arrondissement: data.arrondissement,
+      postalCode: data.postalCode,
+      mainPhoto: data.photos[0] || "/images/food/restaurants-khan.jpg",
+      photos: data.photos,
+      description: data.description,
+      shortDescription: data.shortDescription,
+      phone: data.phone,
+      whatsapp: data.whatsapp,
+      instagram: data.instagram,
+      website: data.website,
+      status: "Publié",
+      visible: true,
+      sponsored: data.sponsored,
+      sponsorshipLevel: data.sponsored ? "Sponsorisé" : "Standard",
+      sponsorPriority: 0,
+      sponsorDuration: "",
+      reservationTarget: data.reservationTarget,
+      cuisineTypes: [],
+      order: 0,
+      visibleTagIds: data.tags,
+      customerSearches: [],
+      terrace: data.amenities.terrace === true,
+      delivery: data.services.delivery === true,
+      takeaway: data.services.takeaway === true,
+      reservation: data.reservationEnabled,
+      privateHire: data.amenities.privateHire === true,
+      certification: data.certification,
+      kosherType: (data.kosherType || "Bassari") as "Bassari" | "Halavi" | "Parvé" | "À compléter",
+      averagePrice: data.price,
+      hours: data.hours,
+      nearestMetroName: data.nearestMetroName,
+      nearestMetroLine: data.nearestMetroLine,
+      latitude: "latitude" in establishment && establishment.latitude ? String(establishment.latitude) : "",
+      longitude: "longitude" in establishment && establishment.longitude ? String(establishment.longitude) : "",
+    };
+  }, [establishment, data]);
 
   const hasMeaningfulAddress =
     Boolean(data.address?.trim()) &&
@@ -558,9 +609,12 @@ export function UniversalEstablishmentCard({
         {/* 2. Corps de la Fiche Publique Autonome */}
         <div className="flex flex-1 flex-col justify-between p-5">
           <div>
-            {/* Identité : Nom (Texte neutre) */}
+            {/* Identité : Nom (Cliquable vers la fiche détaillée) */}
             <div className="flex items-start justify-between gap-3">
-              <h3 className="text-xl font-bold tracking-tight text-ink">
+              <h3
+                onClick={() => setDrawerOpen(true)}
+                className="text-xl font-bold tracking-tight text-ink cursor-pointer transition hover:text-moss"
+              >
                 {data.name}
               </h3>
             </div>
@@ -783,6 +837,17 @@ export function UniversalEstablishmentCard({
           {/* 3. Actions Directes & Liens Externes : Tous sur la même ligne avec la même forme */}
           <div className="mt-4 pt-3 border-t border-black/[.05] space-y-2">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              {/* Bouton Fiche / Détails Plein Écran */}
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="flex flex-1 min-w-[80px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss cursor-pointer"
+                title="Ouvrir la fiche complète"
+              >
+                <Maximize2 size={13} className="text-moss" />
+                <span>Détails</span>
+              </button>
+
               {/* Bouton Téléphone */}
               {data.fieldVisibility.phone !== false && data.phone && (
                 <a
@@ -906,6 +971,13 @@ export function UniversalEstablishmentCard({
           </div>
         </div>
       </article>
+
+      {/* Panneau Détaillé Mobile & Modal Desktop (Bottom Sheet iOS) */}
+      <EstablishmentDetailDrawer
+        establishment={detailRecord}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
 
       {/* Lightbox Photo Plein Écran (PHOTO ONLY) */}
       <PhotoLightboxModal

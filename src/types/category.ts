@@ -10,8 +10,12 @@ export type Category = {
   color: string;
   softColor: string;
   image: string;
+  imageAlt?: string;
   featured: string[];
   isDormant?: boolean;
   status?: "Publié" | "En sommeil" | "Brouillon" | "Masqué";
+  format?: "Petit carré" | "Carré" | "Carré standard" | "Grand carré" | "Rectangle horizontal" | "Bannière" | "Bannière pleine largeur";
+  subrubricCount?: number;
+  order?: number;
 };
 

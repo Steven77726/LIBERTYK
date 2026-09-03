@@ -5,8 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Store } from "lucide-react";
 import { categories } from "@/data/categories";
 import { assetPath } from "@/lib/assets";
-import { listPublishedRubrics, type RubricRecord } from "@/lib/supabase/rubrics-repository";
-import { listPublishedSubrubricCountsByRubric } from "@/lib/supabase/subrubrics-repository";
 
 type AdminRubricPreview = {
   id: string;
@@ -31,43 +29,31 @@ function rubricHref(slug: string) {
   return `/rubrique?slug=${encodeURIComponent(slug)}`;
 }
 
+const initialCards = categories
+  .filter((category) => category.status !== "Masqué")
+  .map((category) => ({
+    slug: category.slug,
+    label: category.label,
+    description: category.description,
+    image: category.image,
+    imageAlt: category.imageAlt ?? category.label,
+    format: category.format ?? ("Carré standard" as const),
+    icon: category.icon,
+    softColor: category.softColor,
+    subrubricCount: category.subrubricCount ?? 0,
+    isDormant: category.isDormant === true || category.status === "En sommeil",
+  }));
+
 export function CategoryGrid() {
   const [adminRubrics, setAdminRubrics] = useState<AdminRubricPreview[] | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadRubrics() {
-      try {
-        const [publishedRubrics, subrubricCounts] = await Promise.all([
-          listPublishedRubrics(),
-          listPublishedSubrubricCountsByRubric().catch(() => null),
-        ]);
-        if (mounted && publishedRubrics?.length) {
-          setAdminRubrics(
-            publishedRubrics.map((rubric: RubricRecord) => ({
-              id: rubric.id,
-              slug: rubric.slug,
-              name: rubric.name,
-              description: rubric.description,
-              image: rubric.image,
-              imageAlt: rubric.imageAlt,
-              showOnHome: rubric.showOnHome,
-              isDormant: rubric.isDormant,
-              searchKeywords: rubric.searchKeywords,
-              format: rubric.format,
-              order: rubric.order,
-              status: rubric.status,
-              subrubricCount: subrubricCounts?.[rubric.slug ?? rubric.id] ?? subrubricCounts?.[rubric.id] ?? 0,
-            }))
-          );
-          return;
-        }
-
-        // Fallback immédiat sur le cache de l'administrateur
-        if (typeof window !== "undefined") {
-          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
-          if (raw) {
+    // Écoute uniquement les événements de publication de l'administrateur en direct
+    const handleUpdate = () => {
+      if (typeof window !== "undefined") {
+        const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+        if (raw) {
+          try {
             const parsed = JSON.parse(raw);
             if (parsed?.rubrics?.length) {
               setAdminRubrics(
@@ -99,51 +85,26 @@ export function CategoryGrid() {
                   status: rubric.status ?? "Publié",
                 }))
               );
-              return;
             }
+          } catch {
+            // Conserve initialCards
           }
         }
-      } catch {
-        if (mounted) setAdminRubrics(null);
       }
-    }
-
-    void loadRubrics();
-
-    const handleUpdate = () => {
-      void loadRubrics();
     };
 
     window.addEventListener("storage", handleUpdate);
     window.addEventListener("liberty-admin-published", handleUpdate);
-    window.addEventListener("focus", handleUpdate);
-    document.addEventListener("visibilitychange", handleUpdate);
 
     return () => {
-      mounted = false;
       window.removeEventListener("storage", handleUpdate);
       window.removeEventListener("liberty-admin-published", handleUpdate);
-      window.removeEventListener("focus", handleUpdate);
-      document.removeEventListener("visibilitychange", handleUpdate);
     };
   }, []);
 
   const cards = useMemo(() => {
     if (!adminRubrics?.length) {
-      return categories
-        .filter((category) => category.status !== "Masqué")
-        .map((category) => ({
-          slug: category.slug,
-          label: category.label,
-          description: category.description,
-          image: category.image,
-          imageAlt: category.label,
-          format: "Carré standard" as const,
-          icon: category.icon,
-          softColor: category.softColor,
-          subrubricCount: 0,
-          isDormant: category.isDormant === true || category.status === "En sommeil",
-        }));
+      return initialCards;
     }
     return adminRubrics
       .filter((rubric) => rubric.status !== "Masqué" && rubric.showOnHome !== false)
@@ -157,10 +118,10 @@ export function CategoryGrid() {
           description: rubric.description || fallback?.description || "",
           image: rubric.image || fallback?.image || "/images/food/restaurants-khan.jpg",
           imageAlt: rubric.imageAlt ?? rubric.name ?? fallback?.label,
-          format: rubric.format ?? "Carré standard",
+          format: rubric.format ?? fallback?.format ?? "Carré standard",
           icon: fallback?.icon ?? Store,
           softColor: fallback?.softColor ?? "#e2eae4",
-          subrubricCount: rubric.subrubricCount ?? 0,
+          subrubricCount: rubric.subrubricCount ?? fallback?.subrubricCount ?? 0,
           isDormant: Boolean(isDormant),
         };
       });

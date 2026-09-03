@@ -597,7 +597,8 @@ export function UniversalEstablishmentCard({
     <>
       <article
         id={data.slug}
-        className={`group flex flex-col overflow-hidden rounded-[1.75rem] border border-black/[.06] bg-white shadow-xs transition-all duration-300 hover:shadow-soft ${className}`}
+        onClick={() => setDrawerOpen(true)}
+        className={`group flex flex-col overflow-hidden rounded-[1.75rem] border border-black/[.06] bg-white shadow-xs transition-all duration-300 hover:shadow-soft cursor-pointer ${className}`}
       >
         {/* 1. Galerie Photo avec clic vers Lightbox */}
         <EstablishmentCardGallery
@@ -835,7 +836,7 @@ export function UniversalEstablishmentCard({
           </div>
 
           {/* 3. Actions Directes & Liens Externes : Tous sur la même ligne avec la même forme */}
-          <div className="mt-4 pt-3 border-t border-black/[.05] space-y-2">
+          <div className="mt-4 pt-3 border-t border-black/[.05] space-y-2" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               {/* Bouton Fiche / Détails Plein Écran */}
               <button

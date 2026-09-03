@@ -123,12 +123,17 @@ function todayHours(hours?: string) {
   return lines.find((line) => line.day === today)?.value ?? "";
 }
 
-function Gallery({ establishment }: { establishment: EstablishmentRecord }) {
+function Gallery({
+  establishment,
+  onClose,
+}: {
+  establishment: EstablishmentRecord;
+  onClose?: () => void;
+}) {
   const images = uniqueList([establishment.mainPhoto, ...(establishment.photos ?? [])]);
   const [index, setIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [pausedUntil, setPausedUntil] = useState(0);
-  const touchStartX = useRef<number | null>(null);
   const current = images[index] ?? images[0];
 
   useEffect(() => {
@@ -163,13 +168,6 @@ function Gallery({ establishment }: { establishment: EstablishmentRecord }) {
     pause();
     setIndex((currentIndex) => (currentIndex + delta + images.length) % images.length);
   };
-  const onTouchEnd = (clientX: number) => {
-    if (touchStartX.current === null) return;
-    const delta = clientX - touchStartX.current;
-    touchStartX.current = null;
-    if (Math.abs(delta) < 36 || images.length <= 1) return;
-    move(delta < 0 ? 1 : -1);
-  };
 
   return (
     <>
@@ -180,6 +178,22 @@ function Gallery({ establishment }: { establishment: EstablishmentRecord }) {
           className="size-full object-cover transition duration-500 hover:scale-[1.015]"
           onClick={() => setLightboxOpen(true)}
         />
+
+        {/* Bouton croix ✕ bien visible par-dessus la photo en haut à droite (zone 44px min, z-50) */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute right-3 top-3 z-50 grid min-h-[44px] min-w-[44px] place-items-center rounded-full bg-black/60 text-white backdrop-blur-md shadow-md transition hover:bg-black/80 hover:scale-105 cursor-pointer"
+            aria-label="Fermer la fiche"
+          >
+            <X size={20} />
+          </button>
+        )}
+
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/60 to-transparent p-4 text-white">
           <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-md">
             {index + 1} / {images.length}
@@ -394,9 +408,9 @@ export function EstablishmentDetailModal({
       }`}
       aria-hidden={!open}
     >
-      {/* 1. Arrière-plan flou universel (Voile sombre semi-transparent) */}
+      {/* 1. Arrière-plan flou universel (Voile sombre semi-transparent avec tap iOS fiable) */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300 cursor-pointer ${
           open ? "opacity-100" : "opacity-0"
         }`}
         aria-hidden
@@ -405,7 +419,7 @@ export function EstablishmentDetailModal({
 
       {/* 2. Conteneur de positionnement Responsive (Centré sur PC, coulissant en bas sur Mobile) */}
       <div
-        className="fixed inset-0 flex items-end justify-center p-0 sm:items-center sm:p-4 md:p-6"
+        className="fixed inset-0 flex items-end justify-center p-0 sm:items-center sm:p-4 md:p-6 cursor-pointer"
         onClick={onClose}
       >
         <aside
@@ -413,7 +427,7 @@ export function EstablishmentDetailModal({
           aria-modal="true"
           aria-label={establishment.name}
           onClick={(e) => e.stopPropagation()}
-          className={`relative flex flex-col w-full bg-[#fcfbfa] shadow-2xl transition-all duration-300 ease-out
+          className={`relative flex flex-col w-full bg-[#fcfbfa] shadow-2xl transition-all duration-300 ease-out cursor-default
             max-h-[90dvh] rounded-t-[32px] sm:max-h-[88vh] sm:max-w-2xl sm:rounded-3xl
             ${
               open
@@ -449,7 +463,7 @@ export function EstablishmentDetailModal({
           {/* Corps défilable interne */}
           <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6">
             {/* Galerie Photo */}
-            <Gallery establishment={establishment} />
+            <Gallery establishment={establishment} onClose={onClose} />
 
             {/* Titre, Badges & Note */}
             <div>

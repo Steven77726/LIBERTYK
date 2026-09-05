@@ -38,6 +38,10 @@ export function normalizeRestaurantRow(row: RestaurantImportRow, index = 0): Res
     phone: normalize(row["Téléphone"]),
     specialty: normalize(row["Spécialité"]),
     cuisine: normalize(row["Cuisine"]),
+    cuisineTypes: (normalize(row["Cuisine"] ?? row["Types de cuisine"] ?? row["Types de cuisine / Spécialités"]) || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
     type: isUnknown(get("Type (Viande/Lait/Parvé)")) ? "À compléter" : normalize(get("Type (Viande/Lait/Parvé)")) as Restaurant["type"],
     certification: isUnknown(get("Certification")) ? "À compléter" : normalize(get("Certification")),
     services: {

@@ -144,7 +144,7 @@ const brunchToEstablishmentRecord = (brunch: Brunch): EstablishmentRecord => ({
   sponsorPlacement: "",
   sponsorNotes: "",
   reservationTarget: "",
-  cuisineTypes: [brunch.cuisine, brunch.specialty, ...brunch.tags].filter(Boolean),
+  cuisineTypes: (brunch.cuisine ? [brunch.cuisine.split("/")[0].trim()] : ["Brunch"]).filter(Boolean),
   order: 0,
   customerSearches: [],
   visibleTagIds: brunch.tags,

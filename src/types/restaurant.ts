@@ -29,6 +29,7 @@ export type Restaurant = {
   phone: string;
   specialty: string;
   cuisine: string;
+  cuisineTypes?: string[];
   type: RestaurantType;
   certification: string;
   services: RestaurantServices;

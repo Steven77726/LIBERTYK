@@ -146,7 +146,7 @@ const restaurantEstablishments: LocalEstablishment[] = restaurants.map((restaura
   sponsorPlacement: "",
   sponsorNotes: "",
   reservationTarget: "",
-  cuisineTypes: [restaurant.cuisine].filter(Boolean),
+  cuisineTypes: (restaurant.cuisine ? restaurant.cuisine.split(",").map((s) => s.trim()) : []).filter(Boolean),
   order: index + 1,
   customerSearches: [
     restaurant.name,
@@ -207,7 +207,7 @@ const brunchEstablishments: LocalEstablishment[] = brunches.map((brunch, index) 
   sponsorPlacement: "",
   sponsorNotes: "",
   reservationTarget: "",
-  cuisineTypes: [brunch.cuisine, brunch.specialty, ...brunch.tags].filter(Boolean),
+  cuisineTypes: (brunch.cuisine ? [brunch.cuisine.split("/")[0].trim()] : ["Brunch"]).filter(Boolean),
   order: restaurantEstablishments.length + index + 1,
   customerSearches: [brunch.name, brunch.specialty, brunch.cuisine, "brunch", "pancakes", "avocado toast", "café", "halavi", "lait"].filter(Boolean),
   visibleTagIds: ["reservation", "livraison", "halavi", "terrasse"].filter(Boolean),

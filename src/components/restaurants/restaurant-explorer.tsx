@@ -267,6 +267,9 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
       email: item.email,
       specialty: item.shortDescription || item.description || "Restaurant casher",
       cuisine: item.cuisineTypes?.length ? item.cuisineTypes.join(", ") : item.kosherType || "Restaurant casher",
+      cuisineTypes: Array.isArray(item.cuisineTypes)
+        ? item.cuisineTypes.flatMap((c) => (typeof c === "string" ? c.split(",") : [])).map((s) => s.trim()).filter(Boolean)
+        : [],
       type: mapKosherType(item.kosherType),
       certification: item.certification || "",
       services: {
@@ -327,30 +330,79 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
   });
 }
 
-const cuisineMatch = (restaurant: Restaurant, filter: string) => {
-  const corpus = normalize(`${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
-  const aliases: Record<string, string[]> = {
-    Japonais: ["japon", "japonaise", "sushi"], Italien: ["italien", "italienne", "pizza"], Israélien: ["israel"],
-    Français: ["franc"], Indien: ["indien"], Africain: ["afric", "africa", "afrique", "yassa", "mafe", "thieb", "alloko"], Pizzeria: ["pizza"],
-    Bassari: ["bassari", "viande"], Halavi: ["halavi", "lait"], Parvé: ["parve", "parvé"],
-  };
-  return (aliases[filter] ?? [normalize(filter)]).some((term) => corpus.includes(normalize(term)));
-};
+/**
+ * Extrait exclusivement les types de cuisine définis dans le champ du dashboard
+ * (cuisineTypes ou cuisine) sans chercher dans les descriptions, tags ou métadonnées.
+ */
+export function getEstablishmentCuisineTypes(item: { cuisineTypes?: string[]; cuisine?: string }): string[] {
+  if (Array.isArray(item.cuisineTypes) && item.cuisineTypes.length > 0) {
+    return item.cuisineTypes
+      .flatMap((c) => (typeof c === "string" ? c.split(",") : []))
+      .map((c) => c.trim())
+      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher");
+  }
+  if (typeof item.cuisine === "string" && item.cuisine.trim()) {
+    return item.cuisine
+      .split(",")
+      .map((c) => c.trim())
+      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher");
+  }
+  return [];
+}
+
+/**
+ * Génère la liste des options uniques pour le filtre Cuisine
+ * alimentée EXCLUSIVEMENT par les entrées du champ Types de cuisine.
+ */
+export function generateCuisineFilterOptions(restaurants: Restaurant[]): string[] {
+  const uniqueMap = new Map<string, string>();
+  restaurants.forEach((restaurant) => {
+    const types = getEstablishmentCuisineTypes(restaurant);
+    types.forEach((type) => {
+      const clean = type.trim();
+      if (clean) {
+        const norm = normalize(clean);
+        if (!uniqueMap.has(norm)) {
+          const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+          uniqueMap.set(norm, formatted);
+        }
+      }
+    });
+  });
+  return Array.from(uniqueMap.values()).sort((a, b) =>
+    a.localeCompare(b, "fr", { sensitivity: "base" })
+  );
+}
+
+/**
+ * Condition de filtrage STRICTE par type de cuisine :
+ * Vérifie UNIQUEMENT les valeurs du champ Types de cuisine (cuisineTypes / cuisine)
+ * SANS AUCUN repli (fallback) dans description, specialty, tags ou keywords.
+ */
+export function matchesStrictCuisineFilter(
+  restaurant: Restaurant,
+  selectedCuisineFilter: string
+): boolean {
+  const normFilter = normalize(selectedCuisineFilter.trim());
+  if (!normFilter) return true;
+
+  const rawCuisines = getEstablishmentCuisineTypes(restaurant);
+  const normalizedCuisines = rawCuisines.map((c) => normalize(c.trim())).filter(Boolean);
+
+  if (!normalizedCuisines.length) return false;
+
+  return normalizedCuisines.some((c) => {
+    return (
+      c === normFilter ||
+      c.startsWith(normFilter) ||
+      normFilter.startsWith(c) ||
+      c.replace(/e?s?$/, "") === normFilter.replace(/e?s?$/, "")
+    );
+  });
+}
 
 function matchesSmartFilter(restaurant: Restaurant, filter: string) {
   const normalized = normalize(filter);
-  const corpus = normalize([
-    restaurant.name,
-    restaurant.fullAddress,
-    restaurant.arrondissement,
-    restaurant.cuisine,
-    restaurant.specialty,
-    restaurant.type,
-    restaurant.certification,
-    ...(restaurant.tags ?? []),
-  ].join(" "));
-  if (cuisineMatch(restaurant, filter)) return true;
-  if (corpus.includes(normalized)) return true;
   const serviceMap: Record<string, boolean | null> = {
     "sur place": restaurant.services.dineIn,
     "a emporter": restaurant.services.takeaway,
@@ -358,7 +410,18 @@ function matchesSmartFilter(restaurant: Restaurant, filter: string) {
     "reservation": restaurant.services.reservation,
     "terrasse": restaurant.amenities.terrace,
   };
-  return serviceMap[normalized] === true;
+  if (serviceMap[normalized] !== undefined) {
+    return serviceMap[normalized] === true;
+  }
+  const corpus = normalize([
+    restaurant.name,
+    restaurant.fullAddress,
+    restaurant.arrondissement,
+    restaurant.type,
+    restaurant.certification,
+    ...(restaurant.tags ?? []),
+  ].join(" "));
+  return corpus.includes(normalized);
 }
 
 function FilterSection({ title, options, active, toggle }: { title: string; options: string[]; active: string[]; toggle: (value: string) => void }) {
@@ -544,13 +607,18 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     setQuery("");
     window.requestAnimationFrame(() => document.getElementById("restaurant-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
+  const dynamicCuisineFilters = useMemo(() => {
+    const options = generateCuisineFilterOptions(restaurantData);
+    return options.length > 0 ? options : cuisineFilters;
+  }, [restaurantData]);
+
   const results = useMemo(() => {
     const search = normalize(query);
     const filtered = restaurantData.filter((restaurant) => {
       const corpus = normalize(`${restaurant.name} ${restaurant.fullAddress} ${restaurant.arrondissement} ${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
       if (search && !corpus.includes(search)) return false;
-      const cuisineSelected = filters.filter((filter) => cuisineFilters.includes(filter));
-      if (cuisineSelected.length && !cuisineSelected.some((filter) => cuisineMatch(restaurant, filter))) return false;
+      const cuisineSelected = filters.filter((filter) => dynamicCuisineFilters.includes(filter));
+      if (cuisineSelected.length && !cuisineSelected.some((filter) => matchesStrictCuisineFilter(restaurant, filter))) return false;
       const typesSelected = filters.filter((filter) => typeFilters.includes(filter));
       if (typesSelected.length && !typesSelected.includes(restaurant.type)) return false;
       const services: Record<string, boolean | null> = {
@@ -600,7 +668,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       if (filters.includes("À moins de 5 km") && restaurant.distanceKm >= 5) return false;
       if (filters.includes("À moins de 10 km") && restaurant.distanceKm >= 10) return false;
 
-      const knownFilters = new Set([...cuisineFilters, ...typeFilters, ...serviceFilters, ...availabilityFilters, ...comfortFilters, ...locationFilters]);
+      const knownFilters = new Set([...dynamicCuisineFilters, ...typeFilters, ...serviceFilters, ...availabilityFilters, ...comfortFilters, ...locationFilters]);
       const smartFilters = filters.filter((filter) => !knownFilters.has(filter));
       if (smartFilters.length && !smartFilters.every((filter) => matchesSmartFilter(restaurant, filter))) return false;
       return true;
@@ -622,7 +690,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       const distDiff = (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
       return distDiff !== 0 ? distDiff : (b.rating ?? 0) - (a.rating ?? 0);
     });
-  }, [restaurantData, query, filters, sort]);
+  }, [restaurantData, query, filters, sort, dynamicCuisineFilters]);
 
   const mapItems = useMemo<MapEstablishment[]>(() => results.map((r) => ({
     id: r.id,
@@ -692,7 +760,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
           <aside className={`${showFilters ? "fixed inset-0 z-[70] overflow-y-auto bg-cream p-6" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-white lg:p-5`}>
             <div className="flex items-center justify-between"><p className="font-semibold">Filtres</p><div className="flex items-center gap-3">{filters.length > 0 && <button onClick={() => setFilters([])} className="text-[11px] font-semibold text-moss">Tout effacer</button>}<button onClick={() => setShowFilters(false)} className="lg:hidden"><X size={19} /></button></div></div>
             <FilterSection title="Localisation" options={locationFilters} active={filters} toggle={toggleFilter} />
-            <FilterSection title="Cuisine" options={cuisineFilters} active={filters} toggle={toggleFilter} />
+            <FilterSection title="Cuisine" options={dynamicCuisineFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Type" options={typeFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Services" options={serviceFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Disponibilité" options={availabilityFilters} active={filters} toggle={toggleFilter} />

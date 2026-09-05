@@ -12,6 +12,7 @@ import {
   Camera,
   CheckCircle2,
   ChevronDown,
+  Download,
   Eye,
   EyeOff,
   FileDown,
@@ -23,6 +24,7 @@ import {
   MessageSquareText,
   Moon,
   Plus,
+  RefreshCw,
   Search,
   Settings,
   ShieldCheck,
@@ -74,6 +76,7 @@ import {
   publishSubrubric as publishSubrubricInSupabase,
   sleepSubrubric as sleepSubrubricInSupabase,
   restoreSubrubric as restoreSubrubricInSupabase,
+  updateSubrubric as updateSubrubricInSupabase,
   updateSubrubricOrder,
 } from "@/lib/supabase/subrubrics-repository";
 import {
@@ -3748,6 +3751,70 @@ export function AdminDashboard() {
     }
   };
 
+  const [syncingSupabase, setSyncingSupabase] = useState(false);
+
+  const downloadDataJson = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      rubrics: state.rubrics,
+      subrubrics: state.subrubrics,
+      establishments: state.establishments,
+      tags: state.tags,
+      banners: state.banners,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `liberty-kosher-data-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setAdminMessage("Fichier data.json exporté avec succès.");
+  };
+
+  const syncAllToSupabase = async () => {
+    if (savingAction || syncingSupabase) return;
+    if (!requireAdminWrite()) return;
+    setSyncingSupabase(true);
+    setAdminMessage("Synchronisation de toutes les données vers Supabase en cours…");
+    try {
+      let rubricsCount = 0;
+      let subrubricsCount = 0;
+      let establishmentsCount = 0;
+
+      for (const rubric of state.rubrics) {
+        try {
+          await updateRubricInSupabase(rubric);
+          rubricsCount++;
+        } catch {}
+      }
+
+      for (const sub of state.subrubrics) {
+        try {
+          await updateSubrubricInSupabase(sub);
+          subrubricsCount++;
+        } catch {}
+      }
+
+      for (const est of state.establishments) {
+        try {
+          await updateEstablishmentInSupabase(est);
+          establishmentsCount++;
+        } catch {}
+      }
+
+      setAdminMessage(`✅ Synchronisation terminée (${rubricsCount} rubriques, ${subrubricsCount} sous-rubriques, ${establishmentsCount} fiches) !`);
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+    } catch (error) {
+      setAdminMessage(`Erreur de synchronisation : ${(error as Error).message}`);
+    } finally {
+      setSyncingSupabase(false);
+    }
+  };
+
   const saveEstablishmentDraft = async (establishment: AdminEstablishment) => {
     if (savingAction || rubricsOperation) return;
     if (!requireAdminWrite()) return;
@@ -4254,6 +4321,27 @@ export function AdminDashboard() {
                     className="w-full bg-transparent text-sm outline-none placeholder:text-ink/35"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={downloadDataJson}
+                  title="Télécharger l’ensemble des données à jour (data.json)"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3.5 py-2.5 text-xs font-semibold text-ink shadow-sm transition hover:bg-cream"
+                >
+                  <Download size={14} />
+                  <span className="hidden sm:inline">data.json</span>
+                </button>
+                {auth.configured && hasAdminAccess && (
+                  <button
+                    type="button"
+                    disabled={syncingSupabase || Boolean(savingAction)}
+                    onClick={() => void syncAllToSupabase()}
+                    title="Pousser toutes les données et images locales vers Supabase"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-sage px-3.5 py-2.5 text-xs font-semibold text-moss shadow-sm transition hover:bg-moss/10 disabled:opacity-50"
+                  >
+                    <RefreshCw size={14} className={syncingSupabase ? "animate-spin" : ""} />
+                    <span className="hidden sm:inline">{syncingSupabase ? "Sync…" : "Sync Supabase"}</span>
+                  </button>
+                )}
                 <button onClick={() => goToSection("dashboard")} className="grid size-11 place-items-center rounded-full bg-white shadow-sm" aria-label="Retour au Dashboard">
                   <Home size={18} />
                 </button>

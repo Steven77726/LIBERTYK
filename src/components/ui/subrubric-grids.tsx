@@ -18,7 +18,7 @@ import type { LucideIcon } from "lucide-react";
 import { categories } from "@/data/categories";
 import { localSubrubrics, subrubricSlugAliases } from "@/data/subrubrics";
 import { localEstablishments } from "@/data/establishments";
-import { assetPath } from "@/lib/assets";
+import { assetPath, withCacheBust } from "@/lib/assets";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { listPublishedEstablishmentCountsBySubrubric } from "@/lib/supabase/establishments-repository";
 
@@ -201,7 +201,30 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
         subMap.set(canonical, { ...item, slug: canonical });
       });
 
-      // 2. Fusionner immédiatement avec le cache local de l'admin (localStorage)
+      // 2. Fusionner avec Supabase en direct (données distantes partagées)
+      try {
+        const remote = await listPublishedSubrubrics(rubricSlug);
+        if (mounted && remote && remote.length > 0) {
+          remote.forEach((item) => {
+            const canonical = getCanonicalSubrubricSlug(item.slug || item.name || item.id, rubricSlug);
+            const existing = subMap.get(canonical);
+            const photo = (item.photo || existing?.photo || "").trim();
+            const updated: SubrubricPreview = {
+              ...existing,
+              ...normalizeSubrubric(item),
+              id: item.id || existing?.id || canonical,
+              rubricId: rubricSlug,
+              slug: canonical,
+              photo,
+            };
+            subMap.set(canonical, updated);
+          });
+        }
+      } catch {
+        // Fallback local intact
+      }
+
+      // 3. Fusionner et ÉCRASER en priorité absolue avec le cache local de l'admin (localStorage)
       if (typeof window !== "undefined") {
         try {
           const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
@@ -258,29 +281,6 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
         } catch {
           // ignore
         }
-      }
-
-      // 3. Fusionner avec Supabase en direct
-      try {
-        const remote = await listPublishedSubrubrics(rubricSlug);
-        if (mounted && remote && remote.length > 0) {
-          remote.forEach((item) => {
-            const canonical = getCanonicalSubrubricSlug(item.slug || item.name || item.id, rubricSlug);
-            const existing = subMap.get(canonical);
-            const photo = (item.photo || existing?.photo || "").trim();
-            const updated: SubrubricPreview = {
-              ...existing,
-              ...normalizeSubrubric(item),
-              id: item.id || existing?.id || canonical,
-              rubricId: rubricSlug,
-              slug: canonical,
-              photo,
-            };
-            subMap.set(canonical, updated);
-          });
-        }
-      } catch {
-        // Fallback local intact
       }
 
       if (mounted) {
@@ -467,7 +467,7 @@ function SubrubricCard({
   const content = (
     <>
       <img
-        src={assetPath(image)}
+        src={withCacheBust(assetPath(image))}
         alt={item.imageAlt || item.name}
         loading="lazy"
         decoding="async"

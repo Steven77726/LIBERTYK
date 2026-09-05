@@ -210,7 +210,7 @@ export function SubrubricPageView({
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
     };
-  }, [rubricSlug, subrubricSlug, fallbackImage, fallbackTitle, fallbackDescription]);
+  }, [rubricSlug, subrubricSlug, fallbackImage, fallbackTitle, fallbackDescription, target]);
 
   const countLabel = useMemo(() => {
     if (loading) return "Chargement…";

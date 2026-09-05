@@ -14,9 +14,9 @@ import { InteractiveMap, type MapEstablishment } from "@/components/map/interact
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
+import { buildLocationFilterOptions, matchesAnyLocationFilter } from "@/lib/geo/location-filters";
 
-const groups = [
-  { title: "Localisation", values: ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"] },
+const baseGroups = [
   { title: "Type de brunch", values: ["Pancakes", "Avocado Toast", "Œufs Bénédicte", "Bagels", "Gaufres", "Viennoiseries", "Café de spécialité", "Brunch israélien", "Healthy", "Buffet", "Fromages", "Pâtisseries"] },
   { title: "Type cacher", values: ["Viande", "Lait", "Parvé"] },
   { title: "Services", values: ["Sur place", "À emporter", "Livraison", "Click & Collect", "Réservation"] },
@@ -244,21 +244,32 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
     }, () => undefined, { maximumAge: 300000, timeout: 6000 });
   }, []);
 
+  const dynamicLocationFilters = useMemo(() => {
+    return buildLocationFilterOptions(brunchData);
+  }, [brunchData]);
+
+  const groups = useMemo(() => {
+    return [
+      { title: "Localisation", values: dynamicLocationFilters },
+      ...baseGroups,
+    ];
+  }, [dynamicLocationFilters]);
+
   const results = useMemo(() => {
     const q = fold(query);
-    const typeTags = groups[1].values;
-    const kosher = groups[2].values;
-    const services = [...groups[3].values, ...groups[6].values];
+    const typeTags = baseGroups[0].values;
+    const kosher = baseGroups[1].values;
+    const services = [...baseGroups[2].values, ...baseGroups[5].values];
     const list = brunchData.filter((brunch) => {
       if (q && !fold(`${brunch.name} ${brunch.address ?? ""} ${brunch.arrondissement ?? ""} ${brunch.cuisine} ${brunch.specialty}`).includes(q)) return false;
+
+      if (!matchesAnyLocationFilter(brunch, filters, dynamicLocationFilters)) return false;
+
       const chosenTypes = filters.filter((item) => typeTags.includes(item));
       if (chosenTypes.length && !chosenTypes.some((item) => fold(`${brunch.specialty} ${brunch.tags.join(" ")}`).includes(fold(item)))) return false;
       const chosenKosher = filters.filter((item) => kosher.includes(item));
       if (chosenKosher.length && !chosenKosher.includes(brunch.kosherType)) return false;
       if (filters.filter((item) => services.includes(item)).some((item) => serviceMap(brunch)[item] !== true)) return false;
-      if (filters.includes("À moins de 2 km") && brunch.distanceKm >= 2) return false;
-      if (filters.includes("À moins de 5 km") && brunch.distanceKm >= 5) return false;
-      if (filters.includes("À moins de 10 km") && brunch.distanceKm >= 10) return false;
       if (filters.some((item) => ["€", "€€", "€€€"].includes(item)) && !filters.includes(brunch.price ?? "")) return false;
       if (filters.includes("Ouvert le dimanche") && !brunch.hours.dimanche) return false;
       return true;
@@ -282,7 +293,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
       const distDiff = (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
       return distDiff !== 0 ? distDiff : (b.rating ?? 0) - (a.rating ?? 0);
     });
-  }, [brunchData, query, filters, sort]);
+  }, [brunchData, query, filters, sort, dynamicLocationFilters]);
 
   const mapItems = useMemo<MapEstablishment[]>(() => results.map((item) => ({
     id: item.slug,

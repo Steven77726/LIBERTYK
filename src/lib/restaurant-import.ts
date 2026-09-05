@@ -75,7 +75,19 @@ export function normalizeRestaurantRow(row: RestaurantImportRow, index = 0): Res
     latitude: row.Latitude !== undefined && row.Latitude !== null ? Number(row.Latitude) : 48.8566 + ((index % 7) - 3) * 0.008,
     longitude: row.Longitude !== undefined && row.Longitude !== null ? Number(row.Longitude) : 2.3522 + ((index % 6) - 2.5) * 0.012,
     importedAt: "2026-07-03",
+    city: extractCityFromAddress(fullAddress, normalize(row["Code postal"])),
   };
+}
+
+function extractCityFromAddress(address: string, postalCode?: string): string {
+  if (postalCode && postalCode.startsWith("75")) return "Paris";
+  if (!address) return "Paris";
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    const last = parts[parts.length - 1].replace(/^\d{5}\s*/, "").trim();
+    if (last) return last;
+  }
+  return "Paris";
 }
 
 /** Upsert sans doublon : les favoris et avis existants restent attachés à l'identité nom + adresse. */

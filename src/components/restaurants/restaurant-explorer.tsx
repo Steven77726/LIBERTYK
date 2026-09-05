@@ -17,6 +17,7 @@ import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/sup
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
+import { buildLocationFilterOptions, matchesAnyLocationFilter } from "@/lib/geo/location-filters";
 
 const cuisineFilters = [
   "Français",
@@ -36,7 +37,6 @@ const typeFilters = ["Viande", "Lait", "Parvé"];
 const serviceFilters = ["Sur place", "À emporter", "Livraison", "Click & Collect", "Réservation en ligne"];
 const availabilityFilters = ["Ouvert maintenant", "Ouvert le midi", "Ouvert le soir", "Ouvert le dimanche", "Ouvert tard"];
 const comfortFilters = ["Adapté aux familles", "Terrasse", "Wifi", "Menu enfant", "Privatisation"];
-const locationFilters = ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"];
 
 const excludedCuisineKeywords = new Set([
   "food", "restaurants", "brunch", "salons-de-the", "patisseries", "traiteurs",
@@ -752,11 +752,17 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     return options.length > 0 ? options : cuisineFilters;
   }, [restaurantData]);
 
+  const dynamicLocationFilters = useMemo(() => {
+    return buildLocationFilterOptions(restaurantData);
+  }, [restaurantData]);
+
   const results = useMemo(() => {
     const search = normalize(query);
     const filtered = restaurantData.filter((restaurant) => {
       const corpus = normalize(`${restaurant.name} ${restaurant.fullAddress} ${restaurant.arrondissement} ${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
       if (search && !corpus.includes(search)) return false;
+
+      if (!matchesAnyLocationFilter(restaurant, filters, dynamicLocationFilters)) return false;
 
       const cuisineSelected = filters.filter((filter) => {
         const norm = normalize(filter);
@@ -813,10 +819,6 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       };
       if (filters.filter((filter) => comfortFilters.includes(filter)).some((filter) => comfort[filter] !== true)) return false;
 
-      if (filters.includes("À moins de 2 km") && restaurant.distanceKm >= 2) return false;
-      if (filters.includes("À moins de 5 km") && restaurant.distanceKm >= 5) return false;
-      if (filters.includes("À moins de 10 km") && restaurant.distanceKm >= 10) return false;
-
       const knownFilterNorms = new Set([
         ...dynamicCuisineFilters.map(normalize),
         ...dynamicCuisineFilters.map((c) => normalize(toCanonicalCuisineName(c))),
@@ -824,7 +826,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         ...serviceFilters.map(normalize),
         ...availabilityFilters.map(normalize),
         ...comfortFilters.map(normalize),
-        ...locationFilters.map(normalize),
+        ...dynamicLocationFilters.map(normalize),
       ]);
       const smartFilters = filters.filter((filter) => {
         const norm = normalize(filter);
@@ -851,7 +853,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       const distDiff = (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
       return distDiff !== 0 ? distDiff : (b.rating ?? 0) - (a.rating ?? 0);
     });
-  }, [restaurantData, query, filters, sort, dynamicCuisineFilters]);
+  }, [restaurantData, query, filters, sort, dynamicCuisineFilters, dynamicLocationFilters]);
 
   const mapItems = useMemo<MapEstablishment[]>(() => results.map((r) => ({
     id: r.id,
@@ -920,7 +922,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_450px]">
           <aside className={`${showFilters ? "fixed inset-0 z-[70] overflow-y-auto bg-cream p-6" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-white lg:p-5`}>
             <div className="flex items-center justify-between"><p className="font-semibold">Filtres</p><div className="flex items-center gap-3">{filters.length > 0 && <button onClick={() => setFilters([])} className="text-[11px] font-semibold text-moss">Tout effacer</button>}<button onClick={() => setShowFilters(false)} className="lg:hidden"><X size={19} /></button></div></div>
-            <FilterSection title="Localisation" options={locationFilters} active={filters} toggle={toggleFilter} />
+            <FilterSection title="Localisation" options={dynamicLocationFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Cuisine" options={dynamicCuisineFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Type" options={typeFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Services" options={serviceFilters} active={filters} toggle={toggleFilter} />

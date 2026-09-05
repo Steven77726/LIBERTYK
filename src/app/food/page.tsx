@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
-  ArrowRight, CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
-  Sandwich, Soup, Store, UtensilsCrossed,
+  CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
+  Sandwich, Soup, UtensilsCrossed,
 } from "lucide-react";
 import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
-import { FoodCuisineList } from "@/components/food/food-cuisine-list";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -47,28 +45,11 @@ export default function FoodPage() {
       </section>
 
       <section className="page-shell py-10 sm:py-14">
-        <div className="grid items-start gap-16 lg:grid-cols-2 lg:gap-7">
-          <div>
-            <div className="mb-8">
-              <p className="eyebrow">Choisir une adresse</p>
-              <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Où souhaitez-vous aller ?</h2>
-            </div>
-            <FoodSubrubricGrid fallbackCards={addressTypes.map(({ label, description, href, image }) => ({ label, description, href, image }))} />
-          </div>
-
-          <div className="lg:sticky lg:top-28">
-            <div className="mb-8">
-              <p className="eyebrow">Choisir une cuisine</p>
-              <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Quelle saveur vous appelle ?</h2>
-            </div>
-            <FoodCuisineList />
-            <div className="mt-5 flex items-center gap-4 rounded-[1.75rem] bg-[#e2eae4] p-5">
-              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-moss"><Store size={20} /></span>
-              <div><p className="text-sm font-semibold">Vous êtes restaurateur ?</p><p className="mt-1 text-xs text-ink/45">Faites découvrir votre établissement.</p></div>
-              <ArrowRight size={17} className="ml-auto text-moss" />
-            </div>
-          </div>
+        <div className="mb-8">
+          <p className="eyebrow">Choisir une adresse</p>
+          <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Où souhaitez-vous aller ?</h2>
         </div>
+        <FoodSubrubricGrid fallbackCards={addressTypes.map(({ label, description, href, image }) => ({ label, description, href, image }))} />
       </section>
     </>
   );

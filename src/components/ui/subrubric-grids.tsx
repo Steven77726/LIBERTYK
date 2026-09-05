@@ -442,7 +442,7 @@ export function FoodSubrubricGrid({ fallbackCards }: { fallbackCards: StaticSubr
   const counts = usePublishedEstablishmentCounts("food");
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item, index) => (
         <SubrubricCard key={item.id} rubricSlug="food" item={item} fallbackCards={fallbackCards} establishmentCount={countForSubrubric(counts, item)} featured={index === 0} />
       ))}

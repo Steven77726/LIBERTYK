@@ -591,14 +591,19 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     const params = new URLSearchParams(window.location.search);
     const cuisineParam = params.get("cuisine");
     if (cuisineParam) {
-      const formatted = cuisineParam.charAt(0).toUpperCase() + cuisineParam.slice(1);
-      setFilters((prev) => (prev.includes(formatted) ? prev : [...prev, formatted]));
+      const normParam = normalize(cuisineParam.replace(/-/g, " "));
+      const allOpts = generateCuisineFilterOptions(restaurantData);
+      const matched =
+        allOpts.find((opt) => normalize(opt) === normParam || slugify(opt) === slugify(cuisineParam)) ||
+        allOpts.find((opt) => normalize(opt).startsWith(normParam) || normParam.startsWith(normalize(opt))) ||
+        (cuisineParam.charAt(0).toUpperCase() + cuisineParam.slice(1));
+      setFilters((prev) => (prev.includes(matched) ? prev : [...prev, matched]));
     }
     const qParam = params.get("q") || params.get("search");
     if (qParam) {
       setQuery(qParam);
     }
-  }, []);
+  }, [restaurantData]);
 
   const toggleFilter = (filter: string) => setFilters((current) => current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter]);
   const applyTagFilter = (tag: string) => {

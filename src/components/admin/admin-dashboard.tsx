@@ -1962,6 +1962,24 @@ export function AdminDashboard() {
   const [seoFilter, setSeoFilter] = useState("Toutes les pages");
   const [selectedSeoReportId, setSelectedSeoReportId] = useState("");
   const [tagPickerSearch, setTagPickerSearch] = useState("");
+
+  const allAvailableCuisineTypes = useMemo(() => {
+    const set = new Set<string>([
+      "Africain", "Américain", "Ashkénaze", "Asiatique", "Boucherie", "Boulangerie",
+      "Brunch", "Burgers", "Chinois", "Français", "Glacier", "Grillades", "Indien",
+      "Israélien", "Italien", "Japonais", "Libanais", "Marocain", "Oriental",
+      "Pâtisserie", "Pizzeria", "Salon de thé", "Sandwicherie", "Street food",
+      "Thaïlandais", "Traiteur", "Tunisien",
+    ]);
+    state.establishments.forEach((est) => {
+      (est.cuisineTypes ?? []).forEach((c) => {
+        const trimmed = c.trim();
+        if (trimmed) set.add(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+  }, [state.establishments]);
+
   const skipNextAdminStateSave = useRef(false);
   const subrubricNameRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
   const [subrubricValidationErrors, setSubrubricValidationErrors] = useState<Record<string, Record<string, string>>>({});
@@ -4985,6 +5003,7 @@ export function AdminDashboard() {
                     subrubrics={state.subrubrics}
                     tags={state.tags}
                     certifications={state.certifications}
+                    allAvailableCuisineTypes={allAvailableCuisineTypes}
                     beautyCategories={beautyCategories}
                     beautyServices={beautyServices}
                     beautyServicesByProfessional={beautyServicesByProfessional}

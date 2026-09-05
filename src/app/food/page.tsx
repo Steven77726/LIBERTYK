@@ -5,6 +5,7 @@ import {
   Sandwich, Soup, Store, UtensilsCrossed,
 } from "lucide-react";
 import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { FoodCuisineList } from "@/components/food/food-cuisine-list";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -14,8 +15,6 @@ export const metadata: Metadata = buildPageMetadata({
   image: "/images/food/restaurants-khan.jpg",
   imageAlt: "Restaurant casher Khan à Paris",
 });
-
-import { restaurants } from "@/data/restaurants";
 
 const addressTypes = [
   { label: "Restaurants", description: "Les tables incontournables", href: "/food/restaurants", icon: UtensilsCrossed, image: "/images/food/restaurants-khan.jpg" },
@@ -29,56 +28,6 @@ const addressTypes = [
   { label: "Boulangeries", description: "Le goût du savoir-faire", href: "/food/boulangeries", icon: Croissant, image: "/images/food/boulangerie.jpg" },
   { label: "Glaciers", description: "Fraîcheur et plaisir", href: "/food/glaciers", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
 ];
-
-const cuisineList = [
-  { label: "Français", detail: "Élégance & tradition" },
-  { label: "Israélien", detail: "Solaire & généreux" },
-  { label: "Japonais", detail: "Précis & raffiné" },
-  { label: "Chinois", detail: "Parfumé & authentique" },
-  { label: "Thaïlandais", detail: "Vibrant & épicé" },
-  { label: "Africain", detail: "Intense & convivial" },
-  { label: "Italien", detail: "Simple & passionné" },
-  { label: "Libanais", detail: "Frais & généreux" },
-  { label: "Américain", detail: "Gourmand & iconique" },
-  { label: "Marocain", detail: "Chaleureux & parfumé" },
-  { label: "Tunisien", detail: "Solaire & relevé" },
-  { label: "Ashkénaze", detail: "Mémoire & transmission" },
-];
-
-function slugify(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, "-");
-}
-
-function getCuisineCount(label: string): number {
-  const norm = (s: string) =>
-    s
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-
-  const target = norm(label);
-
-  const count = restaurants.filter((r) => {
-    const full = norm(
-      `${r.cuisine || ""} ${r.specialty || ""} ${r.name || ""} ${(r.tags || []).join(" ")}`
-    );
-    if (target === "francais") return full.includes("francais") || full.includes("francaise") || full.includes("gastronomique");
-    if (target === "israelien") return full.includes("israel") || full.includes("israélien") || full.includes("israelienne");
-    if (target === "japonais") return full.includes("japon") || full.includes("sushi") || full.includes("asiatique");
-    if (target === "chinois") return full.includes("chinois") || full.includes("chinoise") || full.includes("asiatique");
-    if (target === "thailandais") return full.includes("thai") || full.includes("asiatique");
-    if (target === "africain") return full.includes("afric") || full.includes("africa") || full.includes("yassa") || full.includes("mafe");
-    if (target === "italien") return full.includes("italien") || full.includes("italienne") || full.includes("pizza");
-    if (target === "libanais") return full.includes("libanais") || full.includes("libanaise") || full.includes("oriental");
-    if (target === "americain") return full.includes("americain") || full.includes("burger") || full.includes("fast-food");
-    if (target === "marocain") return full.includes("maroc") || full.includes("oriental");
-    if (target === "tunisien") return full.includes("tunisi") || full.includes("oriental");
-    if (target === "ashkenaze") return full.includes("ashkenaze") || full.includes("sandwicherie") || full.includes("traiteur");
-    return full.includes(target);
-  }).length;
-
-  return count;
-}
 
 export default function FoodPage() {
   return (
@@ -112,34 +61,7 @@ export default function FoodPage() {
               <p className="eyebrow">Choisir une cuisine</p>
               <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Quelle saveur vous appelle ?</h2>
             </div>
-            <div className="overflow-hidden rounded-[2rem] border border-black/[.06] bg-white p-2 shadow-soft sm:p-3">
-              {cuisineList.map(({ label, detail }, index) => {
-                const count = getCuisineCount(label);
-                return (
-                  <Link
-                    key={label}
-                    href={`/food/restaurants?cuisine=${slugify(label)}`}
-                    className={`group flex items-center gap-4 rounded-2xl px-3 py-4 transition hover:bg-cream sm:px-5 ${index !== cuisineList.length - 1 ? "border-b border-black/[.055]" : ""}`}
-                  >
-                    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#f2eee5] text-base font-extrabold tracking-tight text-[#806944] transition group-hover:bg-ink group-hover:text-white shadow-2xs">
-                      {count}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold tracking-tight">{label}</h3>
-                        <span className="text-[11px] font-medium text-ink/40">
-                          ({count} restaurant{count > 1 ? "s" : ""})
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-xs text-ink/40">{detail}</p>
-                    </div>
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-cream text-ink/35 transition group-hover:bg-ink group-hover:text-white">
-                      <ArrowRight size={15} />
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+            <FoodCuisineList />
             <div className="mt-5 flex items-center gap-4 rounded-[1.75rem] bg-[#e2eae4] p-5">
               <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-moss"><Store size={20} /></span>
               <div><p className="text-sm font-semibold">Vous êtes restaurateur ?</p><p className="mt-1 text-xs text-ink/45">Faites découvrir votre établissement.</p></div>

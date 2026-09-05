@@ -62,6 +62,7 @@ export type EstablishmentEditorProps = {
   subrubrics: AdminSubrubric[];
   tags: AdminTag[];
   certifications: AdminCertification[];
+  allAvailableCuisineTypes?: string[];
   beautyCategories?: BeautyCategory[];
   beautyServices?: BeautyService[];
   beautyServicesByProfessional?: Record<string, BeautyProfessionalService[]>;
@@ -80,14 +81,7 @@ export type EstablishmentEditorProps = {
   onAddTag?: () => void;
 };
 
-function cleanTextList(value: string): string[] {
-  return value
-    .split(/[,\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function slugify(value: string): string {
+function slugify(value: string) {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -100,31 +94,166 @@ function safeExternalUrl(value?: string | null): string {
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return "";
   if (/^(https?:|mailto:|tel:|whatsapp:)/i.test(trimmed)) return trimmed;
-  if (trimmed.startsWith("@")) return `https://instagram.com/${trimmed.slice(1)}`;
-  if (/^[a-zA-Z0-9_.-]+$/.test(trimmed) && !trimmed.includes("/")) {
-    return `https://instagram.com/${trimmed}`;
-  }
   return `https://${trimmed}`;
 }
 
-const visibilityLabels: Array<{ key: string; label: string; description: string }> = [
-  { key: "address", label: "Adresse & Localisation", description: "Affiche l'adresse postale et la ville" },
-  { key: "opening_hours", label: "Horaires d'ouverture", description: "Affiche le statut en direct et la grille hebdo" },
-  { key: "phone", label: "Téléphone", description: "Affiche le bouton d'appel direct" },
-  { key: "whatsapp", label: "WhatsApp", description: "Affiche le bouton de contact WhatsApp" },
-  { key: "instagram", label: "Instagram", description: "Affiche le bouton direct vers le profil Instagram" },
-  { key: "website", label: "Site internet", description: "Affiche le lien vers le site web officiel" },
-  { key: "reservation", label: "Réservation / Billetterie", description: "Affiche le bouton Réserver ou Billetterie" },
-  { key: "delivery", label: "Boutons Livraison", description: "Affiche les badges Deliveroo & Uber Eats" },
-  { key: "takeaway", label: "À emporter", description: "Indique si la vente à emporter est proposée" },
-  { key: "terrace", label: "Terrasse", description: "Affiche la mention terrasse" },
-  { key: "tags", label: "Tags visibles", description: "Affiche les badges de tags associés" },
-  { key: "certification", label: "Certification casher", description: "Affiche le badge de certification (ex: Beth Din)" },
-  { key: "price", label: "Niveau de prix", description: "Affiche l'indicateur de prix (€, €€, €€€)" },
-  { key: "gallery", label: "Galerie photos", description: "Affiche le carrousel photo sur la fiche" },
-  { key: "reviews", label: "Notes & Avis Google", description: "Affiche la note et le nombre d'avis vérifiés" },
-  { key: "map", label: "GPS / Navigation", description: "Affiche les liens Maps & Waze" },
+const cleanTextList = (value: string) =>
+  value
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const defaultCuisineOptions = [
+  "Africain", "Américain", "Ashkénaze", "Asiatique", "Boucherie", "Boulangerie",
+  "Brunch", "Burgers", "Chinois", "Français", "Glacier", "Grillades", "Indien",
+  "Israélien", "Italien", "Japonais", "Libanais", "Marocain", "Oriental",
+  "Pâtisserie", "Pizzeria", "Salon de thé", "Sandwicherie", "Street food",
+  "Thaïlandais", "Traiteur", "Tunisien"
 ];
+
+const visibilityLabels: Array<{ key: string; label: string; description?: string }> = [
+  { key: "phone", label: "Téléphone", description: "Bouton d'appel direct" },
+  { key: "whatsapp", label: "WhatsApp", description: "Bouton de contact WhatsApp" },
+  { key: "email", label: "Email", description: "Lien de contact email" },
+  { key: "instagram", label: "Instagram", description: "Lien vers profil social" },
+  { key: "deliveroo", label: "Deliveroo", description: "Bouton de commande Deliveroo" },
+  { key: "ubereats", label: "Uber Eats", description: "Bouton de commande Uber Eats" },
+  { key: "website", label: "Site internet", description: "Lien vers le site officiel" },
+  { key: "reservation", label: "Réservation", description: "Lien ou bouton de réservation" },
+  { key: "address", label: "Adresse", description: "Adresse et itinéraire" },
+  { key: "opening_hours", label: "Horaires", description: "Grille des horaires d'ouverture" },
+  { key: "tags", label: "Tags & Ambiance", description: "Badges de caractéristiques" },
+  { key: "terrace", label: "Terrasse", description: "Indicateur de terrasse" },
+  { key: "delivery", label: "Livraison", description: "Indicateur de livraison" },
+  { key: "takeaway", label: "À emporter", description: "Indicateur à emporter" },
+  { key: "price", label: "Gamme de prix", description: "Niveau de prix (€, €€, €€€)" },
+  { key: "map", label: "Carte interactive", description: "Localisation sur plan" },
+  { key: "reviews", label: "Avis clients", description: "Note et avis vérifiés" },
+  { key: "gallery", label: "Galerie photos", description: "Carrousel et grille d'images" },
+  { key: "certification", label: "Certification", description: "Badge de cacherout" },
+];
+
+function CuisineTypesSelector({
+  value = [],
+  availableOptions = defaultCuisineOptions,
+  onChange,
+}: {
+  value: string[];
+  availableOptions?: string[];
+  onChange: (newValues: string[]) => void;
+}) {
+  const [newTagInput, setNewTagInput] = useState("");
+
+  const allKnownOptions = useMemo(() => {
+    const set = new Set<string>(availableOptions);
+    value.forEach((v) => {
+      const trimmed = v.trim();
+      if (trimmed) set.add(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+  }, [availableOptions, value]);
+
+  const handleToggle = (tag: string) => {
+    const trimmed = tag.trim();
+    if (!trimmed) return;
+    const exists = value.some((v) => v.trim().toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      onChange(value.filter((v) => v.trim().toLowerCase() !== trimmed.toLowerCase()));
+    } else {
+      onChange([...value, trimmed]);
+    }
+  };
+
+  const handleAddNew = () => {
+    const trimmed = newTagInput.trim();
+    if (!trimmed) return;
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    if (!value.some((v) => v.trim().toLowerCase() === formatted.toLowerCase())) {
+      onChange([...value, formatted]);
+    }
+    setNewTagInput("");
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-bold text-ink/70">Types de cuisine / Spécialités</label>
+        <span className="text-[11px] font-semibold text-ink/40">{value.length} sélectionné{value.length > 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Badges des tags sélectionnés */}
+      <div className="flex flex-wrap gap-1.5 min-h-[42px] p-2 rounded-2xl border border-black/10 bg-cream/40 items-center">
+        {value.length === 0 ? (
+          <span className="text-xs text-ink/35 italic px-1">Aucun type de cuisine assigné (choisissez ci-dessous)</span>
+        ) : (
+          value.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white shadow-xs"
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => handleToggle(tag)}
+                className="hover:text-red-300 transition cursor-pointer"
+                title={`Retirer ${tag}`}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+
+      {/* Menu déroulant de sélection + Champ d'ajout rapide de nouveau tag */}
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) {
+              handleToggle(e.target.value);
+            }
+          }}
+          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-xs font-semibold outline-hidden focus:border-moss cursor-pointer"
+        >
+          <option value="">+ Choisir parmi les tags de cuisine ({allKnownOptions.length})...</option>
+          {allKnownOptions.map((opt) => {
+            const isSelected = value.some((v) => v.trim().toLowerCase() === opt.toLowerCase());
+            return (
+              <option key={opt} value={opt}>
+                {isSelected ? `✓ ${opt} (sélectionné)` : `+ ${opt}`}
+              </option>
+            );
+          })}
+        </select>
+
+        <div className="flex gap-1.5">
+          <input
+            type="text"
+            value={newTagInput}
+            onChange={(e) => setNewTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddNew();
+              }
+            }}
+            placeholder="Nouveau tag..."
+            className="w-32 sm:w-36 rounded-2xl border border-black/10 bg-white px-3 py-2 text-xs font-medium outline-hidden focus:border-moss"
+          />
+          <button
+            type="button"
+            onClick={handleAddNew}
+            disabled={!newTagInput.trim()}
+            className="rounded-2xl bg-moss px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-moss/90 disabled:opacity-40 transition cursor-pointer"
+          >
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function EstablishmentEditor({
   establishment,
@@ -132,6 +261,7 @@ export function EstablishmentEditor({
   subrubrics,
   tags,
   certifications,
+  allAvailableCuisineTypes,
   busy = false,
   savingAction = "",
   onUpdate,
@@ -562,15 +692,12 @@ export function EstablishmentEditor({
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-2 items-start">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-ink/70">Types de cuisine / Spécialités</label>
-                    <input
-                      type="text"
-                      value={(establishment.cuisineTypes ?? []).join(", ")}
-                      onChange={(e) => onUpdate({ cuisineTypes: cleanTextList(e.target.value) })}
-                      placeholder="Ex. Grillades, Burgers, Italien, Israélien"
-                      className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-medium outline-hidden focus:border-moss"
+                    <CuisineTypesSelector
+                      value={establishment.cuisineTypes ?? []}
+                      availableOptions={allAvailableCuisineTypes || defaultCuisineOptions}
+                      onChange={(cuisineTypes) => onUpdate({ cuisineTypes })}
                     />
                   </div>
 

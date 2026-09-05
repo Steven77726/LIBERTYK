@@ -299,11 +299,6 @@ function CuisineTypesSelector({
             type="text"
             value={newTagInput}
             onChange={(e) => setNewTagInput(e.target.value)}
-            onBlur={() => {
-              if (newTagInput.trim()) {
-                handleAddNewCustom();
-              }
-            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -311,7 +306,7 @@ function CuisineTypesSelector({
                 handleAddNewCustom();
               }
             }}
-            placeholder="Saisir un tag (Entrée pour valider)..."
+            placeholder="Autre spécialité (ex: Tunisien)..."
             className="w-44 sm:w-56 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-medium outline-hidden focus:border-moss"
           />
           <button
@@ -320,7 +315,7 @@ function CuisineTypesSelector({
             disabled={!newTagInput.trim()}
             className="rounded-xl bg-moss px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-moss/90 disabled:opacity-40 transition cursor-pointer shrink-0"
           >
-            Ajouter (Entrée)
+            + Ajouter
           </button>
         </div>
       </div>
@@ -1472,9 +1467,20 @@ export function EstablishmentEditor({
             <div>
               <h3 className="text-base font-bold text-ink">Tags & Mots-clés de recherche</h3>
               <p className="text-xs text-ink/45">
-                Les tags sont 100% facultatifs. 0 tag sélectionné est un état tout à fait valide.
+                Gérez les types de cuisine (pour les restaurants) et les tags de caractéristiques.
               </p>
             </div>
+
+            {/* Types de cuisine pour restaurants */}
+            {isFoodCategory && (
+              <div>
+                <CuisineTypesSelector
+                  value={establishment.cuisineTypes ?? []}
+                  availableOptions={allAvailableCuisineTypes || defaultCuisineOptions}
+                  onChange={(cuisineTypes) => onUpdate({ cuisineTypes })}
+                />
+              </div>
+            )}
 
             {/* Tags visibles sélectionnés */}
             <div className="rounded-2xl border border-black/10 bg-cream/20 p-5">

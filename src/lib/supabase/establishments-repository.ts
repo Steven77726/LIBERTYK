@@ -419,7 +419,15 @@ function rowToEstablishment(row: EstablishmentRow, photos: PhotoRow[] = [], tagM
     sponsorNotes: row.sponsor_notes ?? "",
     reservationTarget: row.reservation_url ?? row.reservation_target ?? "",
     ownerId: row.owner_id ?? undefined,
-    cuisineTypes: [],
+    cuisineTypes: Array.isArray((services as Record<string, unknown>)?.cuisineTypes)
+      ? ((services as Record<string, unknown>).cuisineTypes as string[])
+      : Array.isArray((amenities as Record<string, unknown>)?.cuisineTypes)
+      ? ((amenities as Record<string, unknown>).cuisineTypes as string[])
+      : Array.isArray((row as Record<string, unknown>)?.cuisine_types)
+      ? ((row as Record<string, unknown>).cuisine_types as string[])
+      : Array.isArray((row as Record<string, unknown>)?.cuisineTypes)
+      ? ((row as Record<string, unknown>).cuisineTypes as string[])
+      : [],
     order: row.display_order ?? 0,
     customerSearches: row.customer_searches ?? [],
     visibleTagIds: tagMap ? resolveVisibleTags(row.visible_tags, tagMap) : row.visible_tags ?? [],
@@ -485,6 +493,7 @@ async function establishmentToPayload(establishment: EstablishmentRecord, status
     amenities: {
       terrace: establishment.terrace,
       privateHire: establishment.privateHire,
+      cuisineTypes: establishment.cuisineTypes ?? [],
     },
     services: {
       delivery: establishment.delivery,
@@ -492,6 +501,7 @@ async function establishmentToPayload(establishment: EstablishmentRecord, status
       reservation: establishment.reservation,
       deliverooUrl: establishment.deliverooUrl || undefined,
       uberEatsUrl: establishment.uberEatsUrl || undefined,
+      cuisineTypes: establishment.cuisineTypes ?? [],
     },
     certification: establishment.certification ?? "",
     kosher_type: establishment.kosherType ?? "À compléter",

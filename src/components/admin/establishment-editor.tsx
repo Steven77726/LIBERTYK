@@ -299,22 +299,28 @@ function CuisineTypesSelector({
             type="text"
             value={newTagInput}
             onChange={(e) => setNewTagInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
+            onBlur={() => {
+              if (newTagInput.trim()) {
                 handleAddNewCustom();
               }
             }}
-            placeholder="Nouveau tag personnalisé..."
-            className="w-36 sm:w-44 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-medium outline-hidden focus:border-moss"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddNewCustom();
+              }
+            }}
+            placeholder="Saisir un tag (Entrée pour valider)..."
+            className="w-44 sm:w-56 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-medium outline-hidden focus:border-moss"
           />
           <button
             type="button"
             onClick={handleAddNewCustom}
             disabled={!newTagInput.trim()}
-            className="rounded-xl bg-moss px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-moss/90 disabled:opacity-40 transition cursor-pointer"
+            className="rounded-xl bg-moss px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-moss/90 disabled:opacity-40 transition cursor-pointer shrink-0"
           >
-            Ajouter
+            Ajouter (Entrée)
           </button>
         </div>
       </div>
@@ -1523,7 +1529,31 @@ export function EstablishmentEditor({
                     type="text"
                     value={tagSearch}
                     onChange={(e) => setTagSearch(e.target.value)}
-                    placeholder="Rechercher un tag à ajouter (terrasse, bassari, buffet, musique live...)"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const query = tagSearch.trim();
+                        if (!query) return;
+                        const existingTag = tags.find(
+                          (t) =>
+                            t.label.toLowerCase() === query.toLowerCase() ||
+                            t.id.toLowerCase() === query.toLowerCase()
+                        );
+                        const current = establishment.visibleTagIds ?? [];
+                        if (existingTag) {
+                          if (!current.includes(existingTag.id)) {
+                            onUpdate({ visibleTagIds: [...current, existingTag.id] });
+                          }
+                        } else {
+                          if (!current.includes(query)) {
+                            onUpdate({ visibleTagIds: [...current, query] });
+                          }
+                        }
+                        setTagSearch("");
+                      }
+                    }}
+                    placeholder="Rechercher ou saisir un tag à ajouter (Entrée pour valider)..."
                     className="w-full rounded-xl border border-black/10 bg-white pl-9 pr-4 py-2 text-xs font-medium outline-hidden focus:border-moss"
                   />
                 </div>

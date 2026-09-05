@@ -3637,11 +3637,18 @@ export function AdminDashboard() {
 
   const applyEstablishmentLocally = (establishment: AdminEstablishment, message: string) => {
     setState((current) => {
+      const existing = current.establishments.find((item) => item.id === establishment.id || item.slug === establishment.slug || slugify(item.name) === slugify(establishment.name));
+      const mergedEstablishment = {
+        ...existing,
+        ...establishment,
+        cuisineTypes: (establishment.cuisineTypes?.length ? establishment.cuisineTypes : existing?.cuisineTypes) ?? [],
+        visibleTagIds: (establishment.visibleTagIds?.length ? establishment.visibleTagIds : existing?.visibleTagIds) ?? [],
+      };
       const next = normalizeAdminState({
         ...current,
         establishments: current.establishments.some((item) => item.id === establishment.id)
-          ? current.establishments.map((item) => (item.id === establishment.id ? establishment : item))
-          : [establishment, ...current.establishments],
+          ? current.establishments.map((item) => (item.id === establishment.id ? mergedEstablishment : item))
+          : [mergedEstablishment, ...current.establishments],
       });
       persistAdminStateSnapshot(next);
       window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
@@ -3721,7 +3728,12 @@ export function AdminDashboard() {
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await createEstablishmentInSupabase(draft as EstablishmentRecord);
-        let nextSaved = saved as AdminEstablishment;
+        let nextSaved = {
+          ...draft,
+          ...saved,
+          cuisineTypes: (draft.cuisineTypes?.length ? draft.cuisineTypes : saved.cuisineTypes) ?? [],
+          visibleTagIds: (draft.visibleTagIds?.length ? draft.visibleTagIds : saved.visibleTagIds) ?? [],
+        } as AdminEstablishment;
         if (saved.databaseId && (draft.beautyServices ?? []).length) {
           const savedServices = await replaceProfessionalServices(saved.databaseId, draft.beautyServices ?? []);
           nextSaved = { ...nextSaved, beautyServices: savedServices };
@@ -3755,7 +3767,12 @@ export function AdminDashboard() {
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await publishEstablishmentInSupabase(published as EstablishmentRecord);
-        let nextSaved = saved as AdminEstablishment;
+        let nextSaved = {
+          ...published,
+          ...saved,
+          cuisineTypes: (published.cuisineTypes?.length ? published.cuisineTypes : saved.cuisineTypes) ?? [],
+          visibleTagIds: (published.visibleTagIds?.length ? published.visibleTagIds : saved.visibleTagIds) ?? [],
+        } as AdminEstablishment;
         if (saved.databaseId && (published.beautyServices ?? []).length) {
           const savedServices = await replaceProfessionalServices(saved.databaseId, published.beautyServices ?? []);
           nextSaved = { ...nextSaved, beautyServices: savedServices };

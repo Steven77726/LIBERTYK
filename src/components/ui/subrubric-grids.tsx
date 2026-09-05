@@ -74,15 +74,22 @@ function slugify(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+function getCanonicalSubrubricSlug(slugOrNameOrId: string, rubricSlug: string): string {
+  if (!slugOrNameOrId) return "";
+  const clean = slugify(slugOrNameOrId).toLowerCase().replace(new RegExp(`^(${rubricSlug}|rubric-${rubricSlug})-`), "");
+  return subrubricSlugAliases[`${rubricSlug}-${clean}`] || subrubricSlugAliases[clean] || clean;
+}
+
 function normalizeSubrubric(item: SubrubricRecord | SubrubricPreview): SubrubricPreview {
+  const slug = getCanonicalSubrubricSlug(item.slug || item.name || item.id, item.rubricId);
   return {
     id: item.id,
-    rubricId: item.rubricId,
-    slug: item.slug,
+    rubricId: item.rubricId.replace(/^rubric-/, ""),
+    slug,
     name: item.name,
     description: item.description,
     icon: item.icon,
-    photo: "photo" in item ? item.photo : undefined,
+    photo: ("photo" in item ? item.photo : undefined) || "",
     imageAlt: item.imageAlt,
     visible: item.visible,
     showPublicly: item.showPublicly,
@@ -104,20 +111,36 @@ const SORTIES_WHITELIST_SLUGS = new Set([
   "concert",
   "soirees-celibataires",
   "soirees-celibataire",
+  "soiree-celibataires",
+  "soiree-celibataire",
+  "soirees-celibatiare",
   "celibataire",
+  "celibataires",
 ]);
 
 function applyWhitelists(items: SubrubricPreview[], rubricSlug: string): SubrubricPreview[] {
   if (rubricSlug === "shopping" || rubricSlug === "rubric-shopping") {
     return items.filter((item) => {
-      const slug = (item.slug || slugify(item.name)).toLowerCase();
-      return SHOPPING_WHITELIST_SLUGS.has(slug);
+      const slug = getCanonicalSubrubricSlug(item.slug || item.name || item.id, "shopping");
+      return (
+        SHOPPING_WHITELIST_SLUGS.has(slug) ||
+        slug.includes("masculin") ||
+        slug.includes("feminin") ||
+        slug.includes("objet") ||
+        slug.includes("utile")
+      );
     });
   }
   if (rubricSlug === "sorties" || rubricSlug === "rubric-sorties") {
     return items.filter((item) => {
-      const slug = (item.slug || slugify(item.name)).toLowerCase();
-      return SORTIES_WHITELIST_SLUGS.has(slug);
+      const slug = getCanonicalSubrubricSlug(item.slug || item.name || item.id, "sorties");
+      return (
+        SORTIES_WHITELIST_SLUGS.has(slug) ||
+        slug.includes("evenement") ||
+        slug.includes("concert") ||
+        slug.includes("celibat") ||
+        slug.includes("soiree")
+      );
     });
   }
   return items;
@@ -129,7 +152,7 @@ function localSubrubricsFor(rubricSlug: string): SubrubricPreview[] {
     .map((item) => ({
       id: item.id,
       rubricId: item.rubricId,
-      slug: item.slug,
+      slug: getCanonicalSubrubricSlug(item.slug, rubricSlug),
       name: item.name,
       description: item.description,
       icon: item.icon,
@@ -148,7 +171,7 @@ function dedupe(items: SubrubricPreview[]) {
   const map = new Map<string, SubrubricPreview>();
   items.forEach((item) => {
     const key = `${item.rubricId}-${item.slug ?? slugify(item.name)}`;
-    if (!map.has(key)) map.set(key, item);
+    map.set(key, item);
   });
   return [...map.values()].sort((a, b) => a.order - b.order);
 }
@@ -174,10 +197,8 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
       // 1. Initialiser depuis les données locales de secours
       const subMap = new Map<string, SubrubricPreview>();
       applyWhitelists(fallback, rubricSlug).forEach((item) => {
-        const key = item.slug ?? slugify(item.name);
-        subMap.set(item.id, item);
-        subMap.set(key, item);
-        subMap.set(`${rubricSlug}-${key}`, item);
+        const canonical = getCanonicalSubrubricSlug(item.slug || item.name || item.id, rubricSlug);
+        subMap.set(canonical, { ...item, slug: canonical });
       });
 
       // 2. Fusionner immédiatement avec le cache local de l'admin (localStorage)
@@ -206,21 +227,22 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
             rawSubs
               .filter(
                 (s) =>
-                  (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}`) &&
+                  (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}` || s.rubricId.toLowerCase().includes(rubricSlug)) &&
                   s.status === "Publié" &&
                   s.showPublicly !== false &&
                   !s.isDormant &&
                   !s.searchKeywords?.includes("__dormant__")
               )
               .forEach((s) => {
-                const key = s.slug || slugify(s.name);
-                const existing = subMap.get(s.id) || subMap.get(key) || subMap.get(`${rubricSlug}-${key}`);
-                const photo = s.photo || s.image || existing?.photo;
+                const canonical = getCanonicalSubrubricSlug(s.slug || s.name || s.id, rubricSlug);
+                const existing = subMap.get(canonical);
+                const photo = (s.photo || s.image || existing?.photo || "").trim();
                 const updated: SubrubricPreview = {
-                  id: s.id,
-                  rubricId: s.rubricId,
-                  slug: key,
-                  name: s.name,
+                  ...existing,
+                  id: s.id || existing?.id || canonical,
+                  rubricId: rubricSlug,
+                  slug: canonical,
+                  name: s.name || existing?.name || canonical,
                   description: s.description ?? existing?.description ?? "",
                   icon: s.icon ?? existing?.icon,
                   photo,
@@ -230,9 +252,7 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
                   order: s.order ?? existing?.order ?? 1,
                   status: "Publié" as const,
                 };
-                subMap.set(s.id, updated);
-                subMap.set(key, updated);
-                subMap.set(`${rubricSlug}-${key}`, updated);
+                subMap.set(canonical, updated);
               });
           }
         } catch {
@@ -245,18 +265,18 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
         const remote = await listPublishedSubrubrics(rubricSlug);
         if (mounted && remote && remote.length > 0) {
           remote.forEach((item) => {
-            const norm = normalizeSubrubric(item);
-            const key = norm.slug ?? slugify(norm.name);
-            const existing = subMap.get(norm.id) || subMap.get(key) || subMap.get(`${rubricSlug}-${key}`);
-            const photo = norm.photo || existing?.photo;
+            const canonical = getCanonicalSubrubricSlug(item.slug || item.name || item.id, rubricSlug);
+            const existing = subMap.get(canonical);
+            const photo = (item.photo || existing?.photo || "").trim();
             const updated: SubrubricPreview = {
               ...existing,
-              ...norm,
+              ...normalizeSubrubric(item),
+              id: item.id || existing?.id || canonical,
+              rubricId: rubricSlug,
+              slug: canonical,
               photo,
             };
-            subMap.set(norm.id, updated);
-            subMap.set(key, updated);
-            subMap.set(`${rubricSlug}-${key}`, updated);
+            subMap.set(canonical, updated);
           });
         }
       } catch {
@@ -402,12 +422,15 @@ function countLabel(count: number) {
 }
 
 function imageForSubrubric(rubricSlug: string, item: SubrubricPreview, fallbackCards?: StaticSubrubricCard[]) {
+  if (item.photo && item.photo.trim().length > 0) {
+    return item.photo.trim();
+  }
   const slug = item.slug ?? slugify(item.name);
   const fallbackCard = fallbackCards?.find((card) => {
     const cardSlug = slugify(card.label);
     return cardSlug === slug || (slug.startsWith("patisserie") && cardSlug.startsWith("patisserie")) || (slug.startsWith("traiteur") && cardSlug.startsWith("traiteur")) || (slug.startsWith("fast") && cardSlug.startsWith("fast")) || (slug.startsWith("restauration-rapide") && cardSlug.startsWith("fast")) || (slug.startsWith("boulangerie") && cardSlug.startsWith("boulangerie")) || (slug.startsWith("glacier") && cardSlug.startsWith("glacier"));
   });
-  return item.photo || fallbackCard?.image || categories.find((category) => category.slug === rubricSlug)?.image || "/images/food/restaurants-khan.jpg";
+  return fallbackCard?.image || categories.find((category) => category.slug === rubricSlug)?.image || "/images/food/restaurants-khan.jpg";
 }
 
 function descriptionForSubrubric(item: SubrubricPreview, fallbackCards?: StaticSubrubricCard[]) {

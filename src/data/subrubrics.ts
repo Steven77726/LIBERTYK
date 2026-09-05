@@ -222,8 +222,21 @@ export const subrubricSlugAliases: Record<string, string> = {
   "sorties-degustation": "evenements",
   "sorties-concert": "concerts",
   "sorties-soirees-celibataire": "soirees-celibataires",
+  "sorties-soirees-celibataires": "soirees-celibataires",
+  "sorties-soiree-celibataire": "soirees-celibataires",
+  "sorties-soiree-celibataires": "soirees-celibataires",
   "sorties-celibataire": "soirees-celibataires",
   "sorties-celibataires": "soirees-celibataires",
+  "sorties-soirees-celibatiare": "soirees-celibataires",
+  "sorties-celibatiare": "soirees-celibataires",
+  "soirees-celibataire": "soirees-celibataires",
+  "soiree-celibataire": "soirees-celibataires",
+  "soiree-celibataires": "soirees-celibataires",
+  "soirees-celibatiare": "soirees-celibataires",
+  "soiree-celibatiare": "soirees-celibataires",
+  "celibataire": "soirees-celibataires",
+  "celibataires": "soirees-celibataires",
+  "celibatiare": "soirees-celibataires",
 };
 
 export function findLocalSubrubric(rubricSlug: string, subrubricSlug: string): LocalSubrubric | undefined {

@@ -18,12 +18,43 @@ import { InteractiveMap, type MapEstablishment } from "@/components/map/interact
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 
-const cuisineFilters = ["Burgers", "Japonais", "Italien", "Grillades", "Israélien", "Français", "Africain", "Oriental", "Tunisien", "Marocain", "Asiatique", "Indien", "Pizzeria", "Sandwicherie", "Salon de thé", "Brunch", "Pâtisserie", "Bar à vin", "Cocktails"];
+const cuisineFilters = [
+  "Français",
+  "Israélien",
+  "Japonais",
+  "Chinois",
+  "Thaïlandais",
+  "Africain",
+  "Italien",
+  "Libanais",
+  "Américain",
+  "Marocain",
+  "Tunisien",
+  "Ashkénaze",
+];
 const typeFilters = ["Viande", "Lait", "Parvé"];
 const serviceFilters = ["Sur place", "À emporter", "Livraison", "Click & Collect", "Réservation en ligne"];
 const availabilityFilters = ["Ouvert maintenant", "Ouvert le midi", "Ouvert le soir", "Ouvert le dimanche", "Ouvert tard"];
 const comfortFilters = ["Adapté aux familles", "Terrasse", "Wifi", "Menu enfant", "Privatisation"];
 const locationFilters = ["À moins de 2 km", "À moins de 5 km", "À moins de 10 km", "Les plus proches"];
+
+const excludedCuisineKeywords = new Set([
+  "food", "restaurants", "brunch", "salons-de-the", "patisseries", "traiteurs",
+  "traiteur-chabbat", "fast-food", "street-food", "boulangeries", "glaciers",
+  "boucherie", "boucheries", "boulangerie", "patisserie", "salon de the", "traiteur",
+  "sorties", "evenements", "concerts", "soirees-celibataires", "terrasse-festive",
+  "shopping", "vetement-masculin", "vetement-feminin", "objet-utile", "soins-feminin",
+  "mariage", "location-de-salle", "vin-spiritueux", "mikve", "voyages", "calendrier",
+  "bar", "club", "terrasse festive", "soirees", "celibataires", "peniche", "rencontres",
+  "coiffure", "maquillage", "lissage", "decoration", "scenographie", "fleurs", "houppa",
+  "salle de reception", "evenementiel"
+]);
+
+export function isNonCuisineRubric(val: string): boolean {
+  const norm = val.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const slug = norm.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return excludedCuisineKeywords.has(norm) || excludedCuisineKeywords.has(slug);
+}
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const slugify = (value: string) => normalize(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -339,13 +370,13 @@ export function getEstablishmentCuisineTypes(item: { cuisineTypes?: string[]; cu
     return item.cuisineTypes
       .flatMap((c) => (typeof c === "string" ? c.split(",") : []))
       .map((c) => c.trim())
-      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher");
+      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher" && !isNonCuisineRubric(c));
   }
   if (typeof item.cuisine === "string" && item.cuisine.trim()) {
     return item.cuisine
       .split(",")
       .map((c) => c.trim())
-      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher");
+      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher" && !isNonCuisineRubric(c));
   }
   return [];
 }

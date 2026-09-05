@@ -1965,17 +1965,37 @@ export function AdminDashboard() {
 
   const allAvailableCuisineTypes = useMemo(() => {
     const set = new Set<string>([
-      "Africain", "Américain", "Ashkénaze", "Asiatique", "Boucherie", "Boulangerie",
-      "Brunch", "Burgers", "Chinois", "Français", "Glacier", "Grillades", "Indien",
-      "Israélien", "Italien", "Japonais", "Libanais", "Marocain", "Oriental",
-      "Pâtisserie", "Pizzeria", "Salon de thé", "Sandwicherie", "Street food",
-      "Thaïlandais", "Traiteur", "Tunisien",
+      "Français",
+      "Israélien",
+      "Japonais",
+      "Chinois",
+      "Thaïlandais",
+      "Africain",
+      "Italien",
+      "Libanais",
+      "Américain",
+      "Marocain",
+      "Tunisien",
+      "Ashkénaze",
+    ]);
+    const excluded = new Set([
+      "food", "restaurants", "brunch", "salons-de-the", "patisseries", "traiteurs",
+      "traiteur-chabbat", "fast-food", "street-food", "boulangeries", "glaciers",
+      "boucherie", "boucheries", "boulangerie", "patisserie", "salon de the", "traiteur",
+      "sorties", "evenements", "concerts", "soirees-celibataires", "terrasse-festive",
+      "shopping", "vetement-masculin", "vetement-feminin", "objet-utile", "soins-feminin",
+      "mariage", "location-de-salle", "vin-spiritueux", "mikve", "voyages", "calendrier"
     ]);
     state.establishments.forEach((est) => {
-      (est.cuisineTypes ?? []).forEach((c) => {
-        const trimmed = c.trim();
-        if (trimmed) set.add(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
-      });
+      if (est.rubricId === "food" || !est.rubricId) {
+        (est.cuisineTypes ?? []).forEach((c) => {
+          const trimmed = c.trim();
+          const norm = trimmed.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          if (trimmed && !excluded.has(norm)) {
+            set.add(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+          }
+        });
+      }
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
   }, [state.establishments]);

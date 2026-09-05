@@ -104,11 +104,18 @@ const cleanTextList = (value: string) =>
     .filter(Boolean);
 
 const defaultCuisineOptions = [
-  "Africain", "Américain", "Ashkénaze", "Asiatique", "Boucherie", "Boulangerie",
-  "Brunch", "Burgers", "Chinois", "Français", "Glacier", "Grillades", "Indien",
-  "Israélien", "Italien", "Japonais", "Libanais", "Marocain", "Oriental",
-  "Pâtisserie", "Pizzeria", "Salon de thé", "Sandwicherie", "Street food",
-  "Thaïlandais", "Traiteur", "Tunisien"
+  "Français",
+  "Israélien",
+  "Japonais",
+  "Chinois",
+  "Thaïlandais",
+  "Africain",
+  "Italien",
+  "Libanais",
+  "Américain",
+  "Marocain",
+  "Tunisien",
+  "Ashkénaze",
 ];
 
 const visibilityLabels: Array<{ key: string; label: string; description?: string }> = [

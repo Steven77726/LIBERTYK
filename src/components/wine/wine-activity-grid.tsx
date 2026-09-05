@@ -47,7 +47,7 @@ const activityToEstablishmentRecord = (activity: WineActivity, index: number): E
   sponsorPlacement: "",
   sponsorNotes: "",
   reservationTarget: activity.website ?? "",
-  cuisineTypes: ["Vin & Spiritueux", activity.type, ...activity.tags],
+  cuisineTypes: [],
   order: index + 1,
   customerSearches: [],
   visibleTagIds: activity.tags,

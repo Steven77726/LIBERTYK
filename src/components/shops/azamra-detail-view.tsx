@@ -67,7 +67,7 @@ const azamraDefaultRecord = (): EstablishmentRecord => ({
   sponsorPlacement: "",
   sponsorNotes: "",
   reservationTarget: "",
-  cuisineTypes: azamra.tags,
+  cuisineTypes: [],
   order: 1,
   customerSearches: ["azamra", "vêtements", "mode", "homme", "femme", "enfant"],
   visibleTagIds: azamra.tags,

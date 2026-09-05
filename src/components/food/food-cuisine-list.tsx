@@ -8,8 +8,24 @@ import type { EstablishmentRecord } from "@/lib/supabase/establishments-reposito
 import type { Restaurant } from "@/types/restaurant";
 import {
   generateCuisineFilterOptions,
+  isNonCuisineRubric,
   matchesStrictCuisineFilter,
 } from "@/components/restaurants/restaurant-explorer";
+
+export const officialCuisines = [
+  { label: "Français", detail: "Élégance & tradition" },
+  { label: "Israélien", detail: "Solaire & généreux" },
+  { label: "Japonais", detail: "Précis & raffiné" },
+  { label: "Chinois", detail: "Parfumé & authentique" },
+  { label: "Thaïlandais", detail: "Vibrant & épicé" },
+  { label: "Africain", detail: "Intense & convivial" },
+  { label: "Italien", detail: "Simple & passionné" },
+  { label: "Libanais", detail: "Frais & généreux" },
+  { label: "Américain", detail: "Gourmand & iconique" },
+  { label: "Marocain", detail: "Chaleureux & parfumé" },
+  { label: "Tunisien", detail: "Solaire & relevé" },
+  { label: "Ashkénaze", detail: "Mémoire & transmission" },
+];
 
 const defaultDetails: Record<string, string> = {
   Français: "Élégance & tradition",
@@ -28,23 +44,18 @@ const defaultDetails: Record<string, string> = {
   Tunisien: "Solaire & relevé",
   Tunisienne: "Solaire & relevé",
   Ashkénaze: "Mémoire & transmission",
-  Burgers: "Gourmands & généreux",
-  Grillades: "Cuisson braisée & viandes nobles",
-  Brunch: "Pancakes, œufs & douceurs",
-  Pâtisserie: "Créations sucrées & fines",
-  Sandwicherie: "Sur le pouce & savoureux",
-  "Salon de thé": "Douceurs & conversations",
-  Pizzeria: "Pizzas au feu de bois & pâtes",
-  Traiteur: "Réceptions & chabbat",
-  Boulangerie: "Pains & viennoiseries",
-  Boucherie: "Viandes sélectionnées & rôtisserie",
 };
 
-function slugify(value: string) {
+function normalize(value: string) {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    .trim();
+}
+
+function slugify(value: string) {
+  return normalize(value)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -66,37 +77,41 @@ export function FoodCuisineList() {
             const parsed = JSON.parse(raw);
             const rawEsts = (parsed?.establishments as EstablishmentRecord[]) ?? [];
             rawEsts.forEach((est) => {
-              const types = Array.isArray(est.cuisineTypes) ? est.cuisineTypes : [];
-              if (types.length > 0) {
-                mergedMap.set(est.id, {
-                  id: est.id,
-                  name: est.name,
-                  fullAddress: est.address || "",
-                  postalCode: est.postalCode || "",
-                  arrondissement: 0,
-                  phone: est.phone || "",
-                  specialty: est.shortDescription || est.description || "",
-                  cuisine: types.join(", "),
-                  cuisineTypes: types,
-                  type: "Viande",
-                  certification: est.certification || "",
-                  services: { dineIn: true, takeaway: null, delivery: null, clickAndCollect: null, reservation: null },
-                  amenities: { familyFriendly: null, accessible: null, parking: null, terrace: null, wifi: null, kidsMenu: null, privateHire: null, metroNearby: null },
-                  hours: {},
-                  price: "€€",
-                  rating: 4.8,
-                  reviewCount: 100,
-                  distanceKm: 0,
-                  isOpenNow: null,
-                  openLunch: null,
-                  openDinner: null,
-                  openSunday: null,
-                  openLate: null,
-                  image: est.mainPhoto || "/images/food/restaurants-khan.jpg",
-                  latitude: 48.8566,
-                  longitude: 2.3522,
-                  importedAt: "",
-                });
+              if (est.rubricId === "food" || !est.rubricId) {
+                const types = Array.isArray(est.cuisineTypes)
+                  ? est.cuisineTypes.filter((t) => !isNonCuisineRubric(t))
+                  : [];
+                if (types.length > 0) {
+                  mergedMap.set(est.id, {
+                    id: est.id,
+                    name: est.name,
+                    fullAddress: est.address || "",
+                    postalCode: est.postalCode || "",
+                    arrondissement: 0,
+                    phone: est.phone || "",
+                    specialty: est.shortDescription || est.description || "",
+                    cuisine: types.join(", "),
+                    cuisineTypes: types,
+                    type: "Viande",
+                    certification: est.certification || "",
+                    services: { dineIn: true, takeaway: null, delivery: null, clickAndCollect: null, reservation: null },
+                    amenities: { familyFriendly: null, accessible: null, parking: null, terrace: null, wifi: null, kidsMenu: null, privateHire: null, metroNearby: null },
+                    hours: {},
+                    price: "€€",
+                    rating: 4.8,
+                    reviewCount: 100,
+                    distanceKm: 0,
+                    isOpenNow: null,
+                    openLunch: null,
+                    openDinner: null,
+                    openSunday: null,
+                    openLate: null,
+                    image: est.mainPhoto || "/images/food/restaurants-khan.jpg",
+                    latitude: 48.8566,
+                    longitude: 2.3522,
+                    importedAt: "",
+                  });
+                }
               }
             });
           }
@@ -121,14 +136,31 @@ export function FoodCuisineList() {
   }, []);
 
   const items = useMemo(() => {
-    const cuisineOptions = generateCuisineFilterOptions(restaurantsList);
-    return cuisineOptions
-      .map((label) => {
-        const count = restaurantsList.filter((r) => matchesStrictCuisineFilter(r, label)).length;
-        const detail = defaultDetails[label] || "Saveurs & spécialités sélectionnées";
-        return { label, detail, count };
-      })
-      .filter((item) => item.count > 0);
+    // 12 cuisines officielles dans leur ordre strict
+    const list = officialCuisines.map(({ label, detail }) => {
+      const count = restaurantsList.filter((r) => matchesStrictCuisineFilter(r, label)).length;
+      return { label, detail, count };
+    });
+
+    // Ajout dynamique de toute nouvelle catégorie de cuisine personnalisée créée dans le dashboard
+    const allExtracted = generateCuisineFilterOptions(restaurantsList);
+    const existingNorms = new Set(officialCuisines.map((c) => normalize(c.label)));
+
+    allExtracted.forEach((extraLabel) => {
+      const norm = normalize(extraLabel);
+      if (!existingNorms.has(norm) && !isNonCuisineRubric(extraLabel)) {
+        const count = restaurantsList.filter((r) => matchesStrictCuisineFilter(r, extraLabel)).length;
+        if (count > 0) {
+          list.push({
+            label: extraLabel,
+            detail: defaultDetails[extraLabel] || "Saveurs & spécialités sélectionnées",
+            count,
+          });
+        }
+      }
+    });
+
+    return list;
   }, [restaurantsList]);
 
   return (

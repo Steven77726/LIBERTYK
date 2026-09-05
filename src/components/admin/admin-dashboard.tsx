@@ -4176,8 +4176,25 @@ export function AdminDashboard() {
       deletedBy: auth.user?.email ?? "admin local",
       payload,
     };
-    setState((current) => ({ ...apply(current), trash: [trashItem, ...current.trash] }));
+    setState((current) => {
+      const next = normalizeAdminState({ ...apply(current), trash: [trashItem, ...current.trash] });
+      persistAdminStateSnapshot(next);
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
     audit("suppression_corbeille", entityType, payload.id, label, { trashItem });
+  };
+
+  const deleteTrashItemPermanently = (id: string) => {
+    setState((current) => {
+      const next = normalizeAdminState({ ...current, trash: current.trash.filter((trash) => trash.id !== id) });
+      persistAdminStateSnapshot(next);
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
+      return next;
+    });
+    setAdminMessage("Élément définitivement supprimé.");
   };
 
   const restoreTrashItem = async (trashItem: TrashItem) => {
@@ -4204,9 +4221,12 @@ export function AdminDashboard() {
         if (trashItem.entityType === "tag") next.tags = [trashItem.payload as AdminTag, ...next.tags];
         if (trashItem.entityType === "certification") next.certifications = [trashItem.payload as AdminCertification, ...next.certifications];
         if (trashItem.entityType === "notification") next.notifications = [trashItem.payload as AdminNotification, ...next.notifications];
-        return normalizeAdminState(next);
+        const normalized = normalizeAdminState(next);
+        persistAdminStateSnapshot(normalized);
+        return normalized;
       });
-      window.dispatchEvent(new Event("liberty-admin-published"));
+      window.dispatchEvent(new CustomEvent("liberty-admin-published", { detail: { timestamp: Date.now() } }));
+      window.dispatchEvent(new Event("storage"));
       setAdminMessage("Élément restauré.");
       audit("restauration", trashItem.entityType, trashItem.id, trashItem.label);
     } catch (error) {
@@ -6107,7 +6127,7 @@ export function AdminDashboard() {
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => restoreTrashItem(item)} className="rounded-full bg-white px-3 py-2 text-xs font-semibold">Restaurer</button>
-                            <button onClick={() => setState((current) => ({ ...current, trash: current.trash.filter((trash) => trash.id !== item.id) }))} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Supprimer</button>
+                            <button onClick={() => deleteTrashItemPermanently(item.id)} className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-500">Supprimer</button>
                           </div>
                         </div>
                       )) : <p className="rounded-2xl bg-cream p-4 text-sm text-ink/45">Corbeille vide.</p>}

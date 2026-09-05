@@ -123,37 +123,7 @@
     "url_google_maps": "https://maps.google.com/?cid=3847293847291",
     "statut": "actif"
   },
-  {
-    "id_externe": "ChIJ_pitzman_paris04",
-    "nom": "Pitzman",
-    "slug": "pitzman-paris-04",
-    "categorie": "Pizzeria / Snack",
-    "type_cacherout": "Halavi - Lait Chamour",
-    "hekhsher": "Beth Din de Paris",
-    "specialite": "Pizzas au feu de bois & Spécialités Italiennes",
-    "adresse": "8 Rue Pavée",
-    "code_postal": "75004",
-    "ville": "Paris",
-    "zone": "Paris (75)",
-    "telephone": "+33142718018",
-    "note_google": 4.5,
-    "nb_avis": 820,
-    "horaires": {
-      "lundi": "11:30-23:00",
-      "mardi": "11:30-23:00",
-      "mercredi": "11:30-23:00",
-      "jeudi": "11:30-23:00",
-      "vendredi": "11:30-15:00",
-      "samedi": "Fermé",
-      "dimanche": "11:30-23:00"
-    },
-    "gps": {
-      "latitude": 48.8568,
-      "longitude": 2.3601
-    },
-    "url_google_maps": "https://maps.google.com/?cid=8374928374928",
-    "statut": "actif"
-  },
+
   {
     "id_externe": "ChIJ_marceau_cafe_paris06",
     "nom": "Marceau Café",

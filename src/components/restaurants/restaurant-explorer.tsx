@@ -648,9 +648,51 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         try {
           const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
           if (raw) {
-            const parsed = JSON.parse(raw);
-            const rawEsts = (parsed?.establishments as EstablishmentRecord[]) ?? [];
+            const parsed = JSON.parse(raw) as { establishments?: EstablishmentRecord[]; trash?: Array<{ entityType?: string; label?: string; payload?: { id?: string; name?: string; slug?: string } }> };
+            const rawEsts = parsed?.establishments ?? [];
+            const trashList = Array.isArray(parsed?.trash) ? parsed.trash : [];
+
+            // Supprimer explicitement les éléments mis à la corbeille
+            trashList.forEach((trash) => {
+              if (trash && (trash.entityType === "fiche" || trash.entityType === "etablissement" || trash.entityType === "establishment")) {
+                const payload = trash.payload;
+                if (payload) {
+                  const matchKey = findMatchingKey(payload as Restaurant);
+                  if (matchKey) mergedMap.delete(matchKey);
+                  for (const [key, existing] of mergedMap.entries()) {
+                    if (
+                      existing.id === payload.id ||
+                      normalize(existing.id) === normalize(payload.id || "") ||
+                      normalize(existing.name) === normalize(payload.name || trash.label || "")
+                    ) {
+                      mergedMap.delete(key);
+                    }
+                  }
+                }
+              }
+            });
+
+            // Supprimer explicitement les fiches masquées
+            rawEsts.forEach((est) => {
+              const showPublicly = (est as { showPublicly?: boolean }).showPublicly;
+              if (est.status === "Masqué" || est.visible === false || showPublicly === false) {
+                const matchKey = findMatchingKey(est as unknown as Restaurant);
+                if (matchKey) mergedMap.delete(matchKey);
+                for (const [key, existing] of mergedMap.entries()) {
+                  if (
+                    existing.id === est.id ||
+                    normalize(existing.id) === normalize(est.id) ||
+                    normalize(existing.name) === normalize(est.name)
+                  ) {
+                    mergedMap.delete(key);
+                  }
+                }
+              }
+            });
+
             const localFood = rawEsts.filter((est) => {
+              const showPublicly = (est as { showPublicly?: boolean }).showPublicly;
+              if (est.status === "Masqué" || est.visible === false || showPublicly === false) return false;
               const rubric = (est.rubricId || "").toLowerCase();
               return (
                 rubric === "food" ||
@@ -695,6 +737,35 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         // ignore
       }
 
+      // 4. Re-vérifier les suppressions locales pour garantir que les fiches supprimées ne réapparaissent jamais
+      if (typeof window !== "undefined") {
+        try {
+          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+          if (raw) {
+            const parsed = JSON.parse(raw) as { trash?: Array<{ entityType?: string; label?: string; payload?: { id?: string; name?: string; slug?: string } }> };
+            const trashList = Array.isArray(parsed?.trash) ? parsed.trash : [];
+            trashList.forEach((trash) => {
+              if (trash && (trash.entityType === "fiche" || trash.entityType === "etablissement" || trash.entityType === "establishment")) {
+                const payload = trash.payload;
+                if (payload) {
+                  for (const [key, existing] of mergedMap.entries()) {
+                    if (
+                      existing.id === payload.id ||
+                      normalize(existing.id) === normalize(payload.id || "") ||
+                      normalize(existing.name) === normalize(payload.name || trash.label || "")
+                    ) {
+                      mergedMap.delete(key);
+                    }
+                  }
+                }
+              }
+            });
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       if (mounted) {
         setRestaurantData(Array.from(mergedMap.values()));
       }
@@ -709,7 +780,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       window.removeEventListener("storage", refresh);
       window.removeEventListener("liberty-admin-published", refresh);
     };
-  }, [initialRestaurants]);
+  }, [initialMerged]);
 
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(({ coords }) => {

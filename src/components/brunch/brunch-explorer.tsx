@@ -2,7 +2,7 @@
 
 import {
   ArrowRight, CalendarDays, Car, ChevronDown, Filter, List,
-  Map, MapPin, Package, Phone, Search, ShoppingBag, Store, X,
+  Map as MapIcon, MapPin, Package, Phone, Search, ShoppingBag, Store, X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Brunch } from "@/types/brunch";
@@ -225,15 +225,87 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const supabaseBrunches = await listPublishedEstablishments({ rubricSlug: "food", subrubricSlug: "brunch" }).catch(() => null);
-      if (!mounted) return;
-      setBrunchData(supabaseBrunches?.length ? recordsToBrunches(supabaseBrunches) : initialBrunches);
+      const mergedMap = new Map<string, Brunch>();
+      initialBrunches.forEach((b) => mergedMap.set(b.slug, b));
+
+      const findMatchingKey = (candidate: { slug?: string; name: string }) => {
+        const cNorm = candidate.name.toLowerCase().trim();
+        for (const [key, existing] of mergedMap.entries()) {
+          if (key === candidate.slug || existing.slug === candidate.slug || existing.name.toLowerCase().trim() === cNorm) {
+            return key;
+          }
+        }
+        return null;
+      };
+
+      if (typeof window !== "undefined") {
+        try {
+          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+          if (raw) {
+            const parsed = JSON.parse(raw) as { establishments?: EstablishmentRecord[]; trash?: Array<{ entityType?: string; label?: string; payload?: { id?: string; name?: string; slug?: string } }> };
+            const rawEsts = parsed?.establishments ?? [];
+            const trashList = Array.isArray(parsed?.trash) ? parsed.trash : [];
+
+            trashList.forEach((trash) => {
+              if (trash && (trash.entityType === "fiche" || trash.entityType === "etablissement" || trash.entityType === "establishment")) {
+                const payload = trash.payload;
+                if (payload) {
+                  const matchKey = findMatchingKey(payload as { slug?: string; name: string });
+                  if (matchKey) mergedMap.delete(matchKey);
+                }
+              }
+            });
+
+            rawEsts.forEach((est) => {
+              const showPublicly = (est as { showPublicly?: boolean }).showPublicly;
+              if (est.status === "Masqué" || est.visible === false || showPublicly === false) {
+                const matchKey = findMatchingKey(est);
+                if (matchKey) mergedMap.delete(matchKey);
+              }
+            });
+
+            const localBrunches = rawEsts.filter((est) => {
+              const showPublicly = (est as { showPublicly?: boolean }).showPublicly;
+              if (est.status === "Masqué" || est.visible === false || showPublicly === false) return false;
+              const sub = (est.subrubricId || "").toLowerCase();
+              return sub === "brunch" || sub === "food-brunch" || sub.includes("brunch");
+            });
+
+            if (localBrunches.length > 0) {
+              const converted = recordsToBrunches(localBrunches);
+              converted.forEach((c) => {
+                const matchKey = findMatchingKey(c);
+                if (matchKey) mergedMap.set(matchKey, { ...mergedMap.get(matchKey)!, ...c });
+                else mergedMap.set(c.slug, c);
+              });
+            }
+          }
+        } catch {}
+      }
+
+      try {
+        const supabaseBrunches = await listPublishedEstablishments({ rubricSlug: "food", subrubricSlug: "brunch" }).catch(() => null);
+        if (supabaseBrunches && supabaseBrunches.length > 0) {
+          const converted = recordsToBrunches(supabaseBrunches);
+          converted.forEach((c) => {
+            const matchKey = findMatchingKey(c);
+            if (matchKey) mergedMap.set(matchKey, { ...mergedMap.get(matchKey)!, ...c });
+            else mergedMap.set(c.slug, c);
+          });
+        }
+      } catch {}
+
+      if (mounted) {
+        setBrunchData(Array.from(mergedMap.values()));
+      }
     };
     void load();
     const refresh = () => void load();
+    window.addEventListener("storage", refresh);
     window.addEventListener("liberty-admin-published", refresh);
     return () => {
       mounted = false;
+      window.removeEventListener("storage", refresh);
       window.removeEventListener("liberty-admin-published", refresh);
     };
   }, [initialBrunches]);
@@ -342,7 +414,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
                 <List size={14} /> Liste
               </button>
               <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${view === "map" ? "bg-ink text-white" : "text-ink/60"}`}>
-                <Map size={14} /> Carte
+                <MapIcon size={14} /> Carte
               </button>
             </div>
           </div>

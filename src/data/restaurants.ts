@@ -7,7 +7,6 @@ const importedRows = [
   ["Chez Isaac", "52 Rue Volta, Paris", "75003", 3, "01 42 71 19 09", "Cuisine israélienne", "Israélien", "Viande", "Beth Din de Paris", 4.7, 290, 48.8652, 2.3589, "12:00–15:00, 19:00–22:30"],
   ["L'As du Fallafel", "34 Rue des Rosiers, Paris", "75004", 4, "01 48 87 63 60", "Falafel, Shawarma, Pita", "Israélien", "Viande", "Beth Din de Paris", 4.6, 14500, 48.8574, 2.3592, "11:00–23:00"],
   ["Pâtisserie Korcarz", "29 Rue des Rosiers, Paris", "75004", 4, "01 42 77 39 43", "Pâtisserie d'Europe de l'Est, Bagel", "Ashkénaze", "Parvé", "Beth Din de Paris", 4.7, 750, 48.8576, 2.3595, "08:00–19:30"],
-  ["Pitzman", "8 Rue Pavée, Paris", "75004", 4, "01 42 71 80 18", "Pizzas au feu de bois, Pâtes", "Italien", "Lait", "Beth Din de Paris", 4.5, 820, 48.8568, 2.3601, "11:30–23:00"],
   ["Maison Sacha Finkelsztajn", "27 Rue des Rosiers, Paris", "75004", 4, "01 42 72 78 91", "Boulangerie yiddish, Vatrouchka", "Ashkénaze", "Parvé", "Beth Din de Paris", 4.6, 1200, 48.8577, 2.3594, "10:00–19:00"],
   ["Marceau Café", "66 Rue de Vaugirard, Paris", "75006", 6, "01 45 48 32 14", "Café, Brunch, Viennoiseries", "Français", "Lait", "Beth Din de Paris", 4.8, 340, 48.8488, 2.3305, "08:30–18:30"],
   ["Douieb", "11 bis Rue Geoffroy-Marie, Paris", "75009", 9, "01 47 70 86 09", "Sandwicherie tunisienne, Casse-croûte", "Tunisien", "Viande", "Beth Din de Paris", 4.7, 480, 48.8741, 2.3442, "11:30–15:30, 18:30–21:30"],

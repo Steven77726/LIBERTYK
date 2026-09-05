@@ -91,14 +91,57 @@ export function ShoppingExplorer() {
         try {
           const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
           if (raw) {
-            const parsed = JSON.parse(raw);
-            const rawEsts = (parsed?.establishments as EstablishmentRecord[]) ?? [];
+            const parsed = JSON.parse(raw) as { establishments?: EstablishmentRecord[]; trash?: Array<{ entityType?: string; label?: string; payload?: { id?: string; name?: string; slug?: string } }> };
+            const rawEsts = parsed?.establishments ?? [];
+            const trashList = Array.isArray(parsed?.trash) ? parsed.trash : [];
+
+            // Supprimer explicitement les éléments mis à la corbeille
+            trashList.forEach((trash) => {
+              if (trash && (trash.entityType === "fiche" || trash.entityType === "etablissement" || trash.entityType === "establishment")) {
+                const payload = trash.payload;
+                if (payload) {
+                  for (const [key, existing] of itemMap.entries()) {
+                    if (
+                      key === payload.id ||
+                      existing.id === payload.id ||
+                      (existing.slug && payload.slug && existing.slug === payload.slug) ||
+                      (existing.name && payload.name && existing.name.toLowerCase() === payload.name.toLowerCase())
+                    ) {
+                      itemMap.delete(key);
+                    }
+                  }
+                }
+              }
+            });
+
+            // Supprimer explicitement les fiches masquées
+            rawEsts.forEach((est) => {
+              const showPublicly = (est as { showPublicly?: boolean }).showPublicly;
+              if (est.status === "Masqué" || est.visible === false || showPublicly === false) {
+                for (const [key, existing] of itemMap.entries()) {
+                  if (
+                    key === est.id ||
+                    existing.id === est.id ||
+                    (existing.slug && est.slug && existing.slug === est.slug) ||
+                    (existing.name && est.name && existing.name.toLowerCase() === est.name.toLowerCase())
+                  ) {
+                    itemMap.delete(key);
+                  }
+                }
+              }
+            });
+
             rawEsts
               .filter(
-                (est) =>
-                  (est.rubricId === "shopping" || est.rubricId === "rubric-shopping") &&
-                  est.status === "Publié" &&
-                  est.visible !== false
+                (est) => {
+                  const showPublicly = (est as { showPublicly?: boolean }).showPublicly;
+                  return (
+                    (est.rubricId === "shopping" || est.rubricId === "rubric-shopping") &&
+                    est.status === "Publié" &&
+                    est.visible !== false &&
+                    showPublicly !== false
+                  );
+                }
               )
               .forEach((est) => {
                 let subrubricId = est.subrubricId;
@@ -157,6 +200,36 @@ export function ShoppingExplorer() {
         }
       } catch {
         // Fallback local intact
+      }
+
+      // 4. Re-vérifier les suppressions locales
+      if (typeof window !== "undefined") {
+        try {
+          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+          if (raw) {
+            const parsed = JSON.parse(raw) as { trash?: Array<{ entityType?: string; label?: string; payload?: { id?: string; name?: string; slug?: string } }> };
+            const trashList = Array.isArray(parsed?.trash) ? parsed.trash : [];
+            trashList.forEach((trash) => {
+              if (trash && (trash.entityType === "fiche" || trash.entityType === "etablissement" || trash.entityType === "establishment")) {
+                const payload = trash.payload;
+                if (payload) {
+                  for (const [key, existing] of itemMap.entries()) {
+                    if (
+                      key === payload.id ||
+                      existing.id === payload.id ||
+                      (existing.slug && payload.slug && existing.slug === payload.slug) ||
+                      (existing.name && payload.name && existing.name.toLowerCase() === payload.name.toLowerCase())
+                    ) {
+                      itemMap.delete(key);
+                    }
+                  }
+                }
+              }
+            });
+          }
+        } catch {
+          // ignore
+        }
       }
 
       if (mounted) {

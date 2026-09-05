@@ -98,26 +98,7 @@
     "longitude": 2.3595,
     "url_maps": "https://maps.google.com/?cid=1029384756105",
     "statut_activite": "OPERATIONAL"
-  },
-  {
-    "place_id": "ChIJPitzmanParis4e006",
-    "nom": "Pitzman",
-    "categorie_libertyk": "Pizzeria / Snack",
-    "type_cacherout": "Halavi - Lait Chamour",
-    "hekhsher": "Beth Din de Paris",
-    "specialite": "Pizza & Pâtes",
-    "adresse_rue": "8 Rue Pavée",
-    "code_postal": "75004",
-    "ville": "Paris",
-    "region": "Île-de-France",
-    "telephone": "+33 1 42 71 80 18",
-    "note_google": 4.5,
-    "nombre_avis": 820,
-    "horaires": "Dimanche-Jeudi: 11:30–23:00; Vendredi: 11:30–15:00; Samedi: Fermé",
-    "latitude": 48.8568,
-    "longitude": 2.3601,
-    "url_maps": "https://maps.google.com/?cid=1029384756106",
-    "statut_activite": "OPERATIONAL"
+
   },
   {
     "place_id": "ChIJFinkelsztajnParis4e007",

@@ -31,6 +31,10 @@ import { assetPath } from "@/lib/assets";
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { uploadLibertyImage } from "@/lib/supabase/storage";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
+import {
+  isNonCuisineRubric,
+  toCanonicalCuisineName,
+} from "@/components/restaurants/restaurant-explorer";
 import type {
   AdminCertification,
   AdminEstablishment,
@@ -151,84 +155,140 @@ function CuisineTypesSelector({
 }) {
   const [newTagInput, setNewTagInput] = useState("");
 
+  const normalizedValue = useMemo(() => {
+    return value
+      .map(toCanonicalCuisineName)
+      .filter((c) => Boolean(c) && !isNonCuisineRubric(c));
+  }, [value]);
+
   const allKnownOptions = useMemo(() => {
-    const set = new Set<string>(availableOptions);
-    value.forEach((v) => {
-      const trimmed = v.trim();
-      if (trimmed) set.add(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+    const set = new Set<string>();
+    defaultCuisineOptions.forEach((c) => set.add(toCanonicalCuisineName(c)));
+    availableOptions.forEach((c) => {
+      const canon = toCanonicalCuisineName(c);
+      if (canon && !isNonCuisineRubric(canon)) set.add(canon);
+    });
+    normalizedValue.forEach((c) => {
+      const canon = toCanonicalCuisineName(c);
+      if (canon && !isNonCuisineRubric(canon)) set.add(canon);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
-  }, [availableOptions, value]);
+  }, [availableOptions, normalizedValue]);
 
-  const handleToggle = (tag: string) => {
-    const trimmed = tag.trim();
-    if (!trimmed) return;
-    const exists = value.some((v) => v.trim().toLowerCase() === trimmed.toLowerCase());
-    if (exists) {
-      onChange(value.filter((v) => v.trim().toLowerCase() !== trimmed.toLowerCase()));
-    } else {
-      onChange([...value, trimmed]);
+  const handleAdd = (tag: string) => {
+    const canon = toCanonicalCuisineName(tag);
+    if (!canon || isNonCuisineRubric(canon)) return;
+    const norm = canon.toLowerCase();
+    if (!normalizedValue.some((v) => v.toLowerCase() === norm)) {
+      onChange([...normalizedValue, canon]);
     }
   };
 
-  const handleAddNew = () => {
+  const handleRemove = (tag: string) => {
+    const norm = tag.toLowerCase();
+    onChange(normalizedValue.filter((v) => v.toLowerCase() !== norm));
+  };
+
+  const handleToggle = (tag: string) => {
+    const canon = toCanonicalCuisineName(tag);
+    if (!canon || isNonCuisineRubric(canon)) return;
+    const norm = canon.toLowerCase();
+    const exists = normalizedValue.some((v) => v.toLowerCase() === norm);
+    if (exists) {
+      handleRemove(canon);
+    } else {
+      handleAdd(canon);
+    }
+  };
+
+  const handleAddNewCustom = () => {
     const trimmed = newTagInput.trim();
     if (!trimmed) return;
-    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-    if (!value.some((v) => v.trim().toLowerCase() === formatted.toLowerCase())) {
-      onChange([...value, formatted]);
-    }
+    handleAdd(trimmed);
     setNewTagInput("");
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3 rounded-2xl border border-black/10 bg-white p-3.5 shadow-2xs">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-bold text-ink/70">Types de cuisine / Spécialités</label>
-        <span className="text-[11px] font-semibold text-ink/40">{value.length} sélectionné{value.length > 1 ? "s" : ""}</span>
+        <label className="text-xs font-bold text-ink/80 flex items-center gap-1.5">
+          <UtensilsCrossed size={14} className="text-moss" />
+          Types de cuisine / Spécialités
+        </label>
+        <span className="rounded-full bg-cream px-2.5 py-0.5 text-[11px] font-bold text-moss">
+          {normalizedValue.length} sélectionné{normalizedValue.length > 1 ? "s" : ""}
+        </span>
       </div>
 
-      {/* Badges des tags sélectionnés */}
-      <div className="flex flex-wrap gap-1.5 min-h-[42px] p-2 rounded-2xl border border-black/10 bg-cream/40 items-center">
-        {value.length === 0 ? (
-          <span className="text-xs text-ink/35 italic px-1">Aucun type de cuisine assigné (choisissez ci-dessous)</span>
+      {/* Badges sélectionnés */}
+      <div className="flex flex-wrap gap-1.5 min-h-[38px] p-2 rounded-xl border border-black/5 bg-cream/50 items-center">
+        {normalizedValue.length === 0 ? (
+          <span className="text-xs text-ink/40 italic px-1">
+            Aucun type de cuisine assigné (cliquez sur un tag ci-dessous ou ajoutez-en un)
+          </span>
         ) : (
-          value.map((tag) => (
+          normalizedValue.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-bold text-white shadow-xs"
             >
-              {tag}
+              <span>{tag}</span>
               <button
                 type="button"
-                onClick={() => handleToggle(tag)}
-                className="hover:text-red-300 transition cursor-pointer"
+                onClick={() => handleRemove(tag)}
+                className="grid size-4 place-items-center rounded-full bg-white/20 hover:bg-rose-500 hover:text-white transition cursor-pointer"
                 title={`Retirer ${tag}`}
               >
-                <X size={12} />
+                <X size={10} />
               </button>
             </span>
           ))
         )}
       </div>
 
-      {/* Menu déroulant de sélection + Champ d'ajout rapide de nouveau tag */}
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+      {/* Grille de sélection rapide des tags disponibles (Chips cliquables) */}
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-ink/40">
+          Sélection rapide en 1 clic :
+        </p>
+        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-0.5">
+          {allKnownOptions.map((opt) => {
+            const isSelected = normalizedValue.some((v) => v.toLowerCase() === opt.toLowerCase());
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => handleToggle(opt)}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition cursor-pointer ${
+                  isSelected
+                    ? "bg-moss text-white font-bold shadow-2xs"
+                    : "bg-[#f4f0e8] text-ink/70 hover:bg-sage hover:text-moss"
+                }`}
+              >
+                {isSelected ? `✓ ${opt}` : `+ ${opt}`}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Menu déroulant + Ajout nouveau tag */}
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto] pt-2 border-t border-black/5">
         <select
           value=""
           onChange={(e) => {
             if (e.target.value) {
-              handleToggle(e.target.value);
+              handleAdd(e.target.value);
             }
           }}
-          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-xs font-semibold outline-hidden focus:border-moss cursor-pointer"
+          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-semibold outline-hidden focus:border-moss cursor-pointer"
         >
-          <option value="">+ Choisir parmi les tags de cuisine ({allKnownOptions.length})...</option>
+          <option value="">+ Ajouter depuis la liste ({allKnownOptions.length} cuisines)...</option>
           {allKnownOptions.map((opt) => {
-            const isSelected = value.some((v) => v.trim().toLowerCase() === opt.toLowerCase());
+            const isSelected = normalizedValue.some((v) => v.toLowerCase() === opt.toLowerCase());
             return (
-              <option key={opt} value={opt}>
-                {isSelected ? `✓ ${opt} (sélectionné)` : `+ ${opt}`}
+              <option key={opt} value={opt} disabled={isSelected}>
+                {isSelected ? `✓ ${opt} (déjà ajouté)` : `+ ${opt}`}
               </option>
             );
           })}
@@ -242,17 +302,17 @@ function CuisineTypesSelector({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                handleAddNew();
+                handleAddNewCustom();
               }
             }}
-            placeholder="Nouveau tag..."
-            className="w-32 sm:w-36 rounded-2xl border border-black/10 bg-white px-3 py-2 text-xs font-medium outline-hidden focus:border-moss"
+            placeholder="Nouveau tag personnalisé..."
+            className="w-36 sm:w-44 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-medium outline-hidden focus:border-moss"
           />
           <button
             type="button"
-            onClick={handleAddNew}
+            onClick={handleAddNewCustom}
             disabled={!newTagInput.trim()}
-            className="rounded-2xl bg-moss px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-moss/90 disabled:opacity-40 transition cursor-pointer"
+            className="rounded-xl bg-moss px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-moss/90 disabled:opacity-40 transition cursor-pointer"
           >
             Ajouter
           </button>

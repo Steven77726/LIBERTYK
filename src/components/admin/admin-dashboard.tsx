@@ -114,6 +114,10 @@ import {
   upsertBeautyService,
 } from "@/lib/supabase/beauty-repository";
 import type { BeautyCategory, BeautyProfessionalService, BeautyService } from "@/lib/beauty/types";
+import {
+  isNonCuisineRubric,
+  toCanonicalCuisineName,
+} from "@/components/restaurants/restaurant-explorer";
 export type { BeautyCategory, BeautyProfessionalService, BeautyService };
 
 export type AdminStatus = "Publié" | "En sommeil" | "Brouillon" | "Masqué";
@@ -697,7 +701,9 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
         sponsorPlacement: saved.sponsorPlacement ?? seedEst.sponsorPlacement ?? "",
         sponsorNotes: saved.sponsorNotes ?? seedEst.sponsorNotes ?? "",
         reservationTarget: saved.reservationTarget ?? seedEst.reservationTarget ?? "",
-        cuisineTypes: saved.cuisineTypes ?? seedEst.cuisineTypes ?? [],
+        cuisineTypes: (saved.cuisineTypes !== undefined ? (saved.cuisineTypes as string[]) : (seedEst.cuisineTypes ?? []))
+          .map(toCanonicalCuisineName)
+          .filter((c) => Boolean(c) && !isNonCuisineRubric(c)),
         sponsorshipLevel: saved.sponsorshipLevel ?? seedEst.sponsorshipLevel ?? (saved.sponsored ? "Sponsorisé" : "Standard"),
         visible: saved.visible ?? seedEst.visible ?? true,
         fieldVisibility: { ...defaultFieldVisibility, ...(seedEst.fieldVisibility ?? {}), ...(saved.fieldVisibility ?? {}) },
@@ -727,7 +733,9 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
         sponsorPlacement: customEst.sponsorPlacement ?? "",
         sponsorNotes: customEst.sponsorNotes ?? "",
         reservationTarget: customEst.reservationTarget ?? "",
-        cuisineTypes: customEst.cuisineTypes ?? [],
+        cuisineTypes: (customEst.cuisineTypes ?? [])
+          .map(toCanonicalCuisineName)
+          .filter((c) => Boolean(c) && !isNonCuisineRubric(c)),
         sponsorshipLevel: customEst.sponsorshipLevel ?? (customEst.sponsored ? "Sponsorisé" : "Standard"),
         visible: customEst.visible ?? true,
         fieldVisibility: { ...defaultFieldVisibility, ...(customEst.fieldVisibility ?? {}) },
@@ -1983,21 +1991,12 @@ export function AdminDashboard() {
       "Tunisien",
       "Ashkénaze",
     ]);
-    const excluded = new Set([
-      "food", "restaurants", "brunch", "salons-de-the", "patisseries", "traiteurs",
-      "traiteur-chabbat", "fast-food", "street-food", "boulangeries", "glaciers",
-      "boucherie", "boucheries", "boulangerie", "patisserie", "salon de the", "traiteur",
-      "sorties", "evenements", "concerts", "soirees-celibataires", "terrasse-festive",
-      "shopping", "vetement-masculin", "vetement-feminin", "objet-utile", "soins-feminin",
-      "mariage", "location-de-salle", "vin-spiritueux", "mikve", "voyages", "calendrier"
-    ]);
     state.establishments.forEach((est) => {
       if (est.rubricId === "food" || !est.rubricId) {
         (est.cuisineTypes ?? []).forEach((c) => {
-          const trimmed = c.trim();
-          const norm = trimmed.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-          if (trimmed && !excluded.has(norm)) {
-            set.add(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+          const canon = toCanonicalCuisineName(c);
+          if (canon && !isNonCuisineRubric(canon)) {
+            set.add(canon);
           }
         });
       }

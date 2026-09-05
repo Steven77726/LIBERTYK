@@ -1,7 +1,7 @@
 export const azamra = {
   slug: "azamra",
   name: "Azamra",
-  type: "Vêtements",
+  type: "Vêtement masculin",
   image: "/images/shopping/azamra.jpg",
   photos: [
     "/images/shopping/azamra.jpg",
@@ -9,10 +9,10 @@ export const azamra = {
     "/images/shopping/azamra-mode-2.jpg",
     "/images/shopping/azamra-mode-3.jpg",
   ],
-  tags: ["Homme", "Femme", "Enfant", "Mode", "Boutique"],
+  tags: ["Homme", "Mode", "Boutique", "Vêtement masculin"],
   rating: 4.9 as number | null,
   reviewCount: 198,
-  description: "Azamra Spiritual Studio propose un vestiaire contemporain pour homme, femme et enfant au cœur du 17e arrondissement de Paris.",
+  description: "Azamra Spiritual Studio propose un vestiaire contemporain pour homme et mode masculine au cœur du 17e arrondissement de Paris.",
   address: "124 Avenue de Villiers",
   city: "Paris",
   arrondissement: "17e",
@@ -25,4 +25,30 @@ export const azamra = {
   instagram: "@azamra_paris",
   website: "https://azamra.fr",
   hours: "lundi: 10:30-19:30\nmardi: 10:30-19:30\nmercredi: 10:30-19:30\njeudi: 10:30-19:30\nvendredi: 10:30-15:30\nsamedi: Fermé\ndimanche: 11:00-19:00",
+};
+
+export const naor = {
+  slug: "naor",
+  name: "Naor",
+  type: "Vêtement féminin",
+  image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/f5898d18-04d9-4f92-b8a0-1dd8637a8d12.png?v=1787657099897",
+  photos: [
+    "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/subrubrics/f5898d18-04d9-4f92-b8a0-1dd8637a8d12.png?v=1787657099897",
+  ],
+  tags: ["Femme", "Prêt-à-porter", "Boutique", "Vêtement féminin"],
+  rating: 4.9 as number | null,
+  reviewCount: 42,
+  description: "Naor propose une collection élégante et raffinée de prêt-à-porter féminin, robes et créations exclusives pour femme.",
+  address: "Paris",
+  city: "Paris",
+  arrondissement: "17e",
+  postalCode: "75017",
+  country: "France",
+  nearestMetroName: "Courcelles",
+  nearestMetroLine: "2",
+  phone: "01 40 00 00 00",
+  whatsapp: "",
+  instagram: "https://www.instagram.com/naorparis/",
+  website: "https://naorparis.com",
+  hours: "lundi au jeudi: 10:30-19:30\nvendredi: 10:30-15:00\ndimanche: 11:00-19:00",
 };

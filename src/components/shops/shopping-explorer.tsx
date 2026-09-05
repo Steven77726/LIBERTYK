@@ -23,18 +23,14 @@ function normalizeSubId(subId?: string): string {
 
 function matchesCategoryFilter(est: EstablishmentRecord, filterId: string): boolean {
   if (filterId === "all") return true;
-  const sub = normalizeSubId(est.subrubricId);
-  if (filterId === "vetement-feminin") {
-    return (
-      sub === "vetement-feminin" ||
-      sub === "vetements-feminin" ||
-      sub === "mode" ||
-      sub === "vetements" ||
-      sub.includes("feminin") ||
-      (est.visibleTagIds || []).some((t) => t.toLowerCase().includes("femme") || t.toLowerCase().includes("féminin"))
-    );
-  }
+  const name = (est.name || "").toLowerCase();
+  const isAzamra = est.id === "azamra" || est.slug === "azamra" || name.includes("azamra");
+  const isNaor = est.id === "naor" || est.slug === "naor" || name.includes("naor");
+
   if (filterId === "vetement-masculin") {
+    if (isNaor) return false;
+    if (isAzamra) return true;
+    const sub = normalizeSubId(est.subrubricId);
     return (
       sub === "vetement-masculin" ||
       sub === "vetements-masculin" ||
@@ -42,7 +38,22 @@ function matchesCategoryFilter(est: EstablishmentRecord, filterId: string): bool
       (est.visibleTagIds || []).some((t) => t.toLowerCase().includes("homme") || t.toLowerCase().includes("masculin"))
     );
   }
+
+  if (filterId === "vetement-feminin") {
+    if (isAzamra) return false;
+    if (isNaor) return true;
+    const sub = normalizeSubId(est.subrubricId);
+    return (
+      sub === "vetement-feminin" ||
+      sub === "vetements-feminin" ||
+      sub.includes("feminin") ||
+      (est.visibleTagIds || []).some((t) => t.toLowerCase().includes("femme") || t.toLowerCase().includes("féminin"))
+    );
+  }
+
   if (filterId === "objet-utile") {
+    if (isAzamra || isNaor) return false;
+    const sub = normalizeSubId(est.subrubricId);
     return (
       sub === "objet-utile" ||
       sub === "objets" ||
@@ -52,6 +63,8 @@ function matchesCategoryFilter(est: EstablishmentRecord, filterId: string): bool
       sub.includes("utile")
     );
   }
+
+  const sub = normalizeSubId(est.subrubricId);
   return sub === filterId;
 }
 
@@ -88,6 +101,13 @@ export function ShoppingExplorer() {
                   est.visible !== false
               )
               .forEach((est) => {
+                let subrubricId = est.subrubricId;
+                const name = (est.name || "").toLowerCase();
+                if (est.id === "azamra" || est.slug === "azamra" || name.includes("azamra")) {
+                  subrubricId = "vetement-masculin";
+                } else if (est.id === "naor" || est.slug === "naor" || name.includes("naor")) {
+                  subrubricId = "vetement-feminin";
+                }
                 const matchKey = Array.from(itemMap.keys()).find((k) => {
                   const existing = itemMap.get(k);
                   return (
@@ -97,9 +117,9 @@ export function ShoppingExplorer() {
                   );
                 });
                 if (matchKey) {
-                  itemMap.set(matchKey, { ...itemMap.get(matchKey)!, ...est });
+                  itemMap.set(matchKey, { ...itemMap.get(matchKey)!, ...est, subrubricId });
                 } else {
-                  itemMap.set(est.id, est);
+                  itemMap.set(est.id, { ...est, subrubricId });
                 }
               });
           }
@@ -113,6 +133,13 @@ export function ShoppingExplorer() {
         const remoteEsts = await listPublishedEstablishments({ rubricSlug: "shopping" });
         if (mounted && remoteEsts && remoteEsts.length > 0) {
           remoteEsts.forEach((est) => {
+            let subrubricId = est.subrubricId;
+            const name = (est.name || "").toLowerCase();
+            if (est.id === "azamra" || est.slug === "azamra" || name.includes("azamra")) {
+              subrubricId = "vetement-masculin";
+            } else if (est.id === "naor" || est.slug === "naor" || name.includes("naor")) {
+              subrubricId = "vetement-feminin";
+            }
             const matchKey = Array.from(itemMap.keys()).find((k) => {
               const existing = itemMap.get(k);
               return (
@@ -122,9 +149,9 @@ export function ShoppingExplorer() {
               );
             });
             if (matchKey) {
-              itemMap.set(matchKey, { ...itemMap.get(matchKey)!, ...est });
+              itemMap.set(matchKey, { ...itemMap.get(matchKey)!, ...est, subrubricId });
             } else {
-              itemMap.set(est.id, est);
+              itemMap.set(est.id, { ...est, subrubricId });
             }
           });
         }

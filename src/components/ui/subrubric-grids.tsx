@@ -301,7 +301,14 @@ function computeLocalEstablishmentCounts(rubricSlug: string): Record<string, num
         adminEsts.forEach((est) => {
           if (est.rubricId === rubricSlug || est.rubricId === `rubric-${rubricSlug}`) {
             if (est.status === "Publié" && est.visible !== false) {
-              estMap.set(est.id, est);
+              let subrubricId = est.subrubricId;
+              const name = ((est as { name?: string }).name || "").toLowerCase();
+              if (est.id === "azamra" || name.includes("azamra")) {
+                subrubricId = "vetement-masculin";
+              } else if (est.id === "naor" || name.includes("naor")) {
+                subrubricId = "vetement-feminin";
+              }
+              estMap.set(est.id, { ...est, subrubricId });
             } else if (est.status === "Masqué" || est.visible === false) {
               estMap.delete(est.id);
             }

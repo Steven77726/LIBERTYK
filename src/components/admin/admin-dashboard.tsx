@@ -679,6 +679,14 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
       savedSlugMap.get(seedEst.slug ?? slugify(seedEst.name)) ||
       savedNameMap.get(slugify(seedEst.name));
     if (saved) {
+      let finalSubrubricId = saved.subrubricId || seedEst.subrubricId;
+      const lowerName = (seedEst.name || saved.name || "").toLowerCase();
+      if (seedEst.id === "azamra" || seedEst.slug === "azamra" || lowerName.includes("azamra")) {
+        finalSubrubricId = "vetement-masculin";
+      } else if (seedEst.id === "naor" || seedEst.slug === "naor" || lowerName.includes("naor")) {
+        finalSubrubricId = "vetement-feminin";
+      }
+
       return {
         ...seedEst,
         ...saved,
@@ -691,7 +699,7 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
         phone: saved.phone || seedEst.phone,
         hours: saved.hours || seedEst.hours,
         certification: saved.certification || seedEst.certification,
-        subrubricId: saved.subrubricId || seedEst.subrubricId,
+        subrubricId: finalSubrubricId,
         rubricId: saved.rubricId || seedEst.rubricId,
         postalCode: saved.postalCode ?? seedEst.postalCode ?? "",
         country: saved.country ?? seedEst.country ?? "France",
@@ -718,9 +726,18 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
   const seedNames = new Set(seed.establishments.map((s) => slugify(s.name)));
   for (const customEst of savedEsts) {
     if (!seedIds.has(customEst.id) && !seedSlugs.has(customEst.slug ?? slugify(customEst.name)) && !seedNames.has(slugify(customEst.name))) {
+      let finalSubrubricId = customEst.subrubricId;
+      const lowerName = (customEst.name || "").toLowerCase();
+      if (customEst.id === "azamra" || customEst.slug === "azamra" || lowerName.includes("azamra")) {
+        finalSubrubricId = "vetement-masculin";
+      } else if (customEst.id === "naor" || customEst.slug === "naor" || lowerName.includes("naor")) {
+        finalSubrubricId = "vetement-feminin";
+      }
+
       mergedEstablishments.push({
         ...customEst,
         slug: customEst.slug ?? slugify(customEst.name),
+        subrubricId: finalSubrubricId,
         mainPhoto: safeImageUrl(customEst.mainPhoto),
         shortDescription: customEst.shortDescription ?? customEst.description?.slice(0, 120) ?? "",
         photos: normalizePhotoSlots(customEst.mainPhoto, customEst.photos, 4),

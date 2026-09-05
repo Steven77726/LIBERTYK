@@ -666,10 +666,14 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
   const savedEsts = state.establishments ?? [];
   const savedMap = new Map(savedEsts.map((e) => [e.id, e]));
   const savedSlugMap = new Map(savedEsts.map((e) => [e.slug ?? slugify(e.name), e]));
+  const savedNameMap = new Map(savedEsts.map((e) => [slugify(e.name), e]));
 
   // Ensure ALL establishments from localEstablishments (including Korcarz, Shana, Boaz, Azamra, Kinor Decor, Chichi Paris, etc.) are present
   const mergedEstablishments = seed.establishments.map((seedEst) => {
-    const saved = savedMap.get(seedEst.id) || savedSlugMap.get(seedEst.slug ?? slugify(seedEst.name));
+    const saved =
+      savedMap.get(seedEst.id) ||
+      savedSlugMap.get(seedEst.slug ?? slugify(seedEst.name)) ||
+      savedNameMap.get(slugify(seedEst.name));
     if (saved) {
       return {
         ...seedEst,
@@ -705,8 +709,9 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
   // Also include user-created custom establishments not present in seed
   const seedIds = new Set(seed.establishments.map((s) => s.id));
   const seedSlugs = new Set(seed.establishments.map((s) => s.slug ?? slugify(s.name)));
+  const seedNames = new Set(seed.establishments.map((s) => slugify(s.name)));
   for (const customEst of savedEsts) {
-    if (!seedIds.has(customEst.id) && !seedSlugs.has(customEst.slug ?? slugify(customEst.name))) {
+    if (!seedIds.has(customEst.id) && !seedSlugs.has(customEst.slug ?? slugify(customEst.name)) && !seedNames.has(slugify(customEst.name))) {
       mergedEstablishments.push({
         ...customEst,
         slug: customEst.slug ?? slugify(customEst.name),

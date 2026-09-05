@@ -10,6 +10,7 @@ import {
   generateCuisineFilterOptions,
   isNonCuisineRubric,
   matchesStrictCuisineFilter,
+  toCanonicalCuisineName,
 } from "@/components/restaurants/restaurant-explorer";
 
 export const officialCuisines = [
@@ -79,36 +80,45 @@ export function FoodCuisineList() {
             rawEsts.forEach((est) => {
               if (est.rubricId === "food" || !est.rubricId) {
                 const types = Array.isArray(est.cuisineTypes)
-                  ? est.cuisineTypes.filter((t) => !isNonCuisineRubric(t))
+                  ? est.cuisineTypes.map((t) => toCanonicalCuisineName(t)).filter((t) => !isNonCuisineRubric(t))
                   : [];
                 if (types.length > 0) {
-                  mergedMap.set(est.id, {
-                    id: est.id,
+                  let matchKey = est.id;
+                  const estNorm = normalize(est.name);
+                  for (const [key, existing] of mergedMap.entries()) {
+                    if (key === est.id || normalize(existing.name) === estNorm || normalize(existing.id) === normalize(est.id)) {
+                      matchKey = key;
+                      break;
+                    }
+                  }
+                  const existing = mergedMap.get(matchKey);
+                  mergedMap.set(matchKey, {
+                    id: matchKey,
                     name: est.name,
-                    fullAddress: est.address || "",
-                    postalCode: est.postalCode || "",
-                    arrondissement: 0,
-                    phone: est.phone || "",
-                    specialty: est.shortDescription || est.description || "",
+                    fullAddress: est.address || existing?.fullAddress || "",
+                    postalCode: est.postalCode || existing?.postalCode || "",
+                    arrondissement: existing?.arrondissement || 0,
+                    phone: est.phone || existing?.phone || "",
+                    specialty: est.shortDescription || est.description || existing?.specialty || "",
                     cuisine: types.join(", "),
                     cuisineTypes: types,
                     type: "Viande",
-                    certification: est.certification || "",
-                    services: { dineIn: true, takeaway: null, delivery: null, clickAndCollect: null, reservation: null },
-                    amenities: { familyFriendly: null, accessible: null, parking: null, terrace: null, wifi: null, kidsMenu: null, privateHire: null, metroNearby: null },
-                    hours: {},
-                    price: "€€",
-                    rating: 4.8,
-                    reviewCount: 100,
-                    distanceKm: 0,
+                    certification: est.certification || existing?.certification || "",
+                    services: existing?.services ?? { dineIn: true, takeaway: null, delivery: null, clickAndCollect: null, reservation: null },
+                    amenities: existing?.amenities ?? { familyFriendly: null, accessible: null, parking: null, terrace: null, wifi: null, kidsMenu: null, privateHire: null, metroNearby: null },
+                    hours: existing?.hours ?? {},
+                    price: est.averagePrice as Restaurant["price"] || existing?.price || "€€",
+                    rating: existing?.rating || 4.8,
+                    reviewCount: existing?.reviewCount || 100,
+                    distanceKm: existing?.distanceKm || 0,
                     isOpenNow: null,
                     openLunch: null,
                     openDinner: null,
                     openSunday: null,
                     openLate: null,
-                    image: est.mainPhoto || "/images/food/restaurants-khan.jpg",
-                    latitude: 48.8566,
-                    longitude: 2.3522,
+                    image: est.mainPhoto || existing?.image || "/images/food/restaurants-khan.jpg",
+                    latitude: Number(est.latitude) || existing?.latitude || 48.8566,
+                    longitude: Number(est.longitude) || existing?.longitude || 2.3522,
                     importedAt: "",
                   });
                 }

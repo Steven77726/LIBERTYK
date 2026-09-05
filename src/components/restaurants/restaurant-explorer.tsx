@@ -56,8 +56,99 @@ export function isNonCuisineRubric(val: string): boolean {
   return excludedCuisineKeywords.has(norm) || excludedCuisineKeywords.has(slug);
 }
 
-const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 const slugify = (value: string) => normalize(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+const CANONICAL_CUISINES: Record<string, string> = {
+  francais: "Français",
+  francaise: "Français",
+  francaises: "Français",
+  french: "Français",
+  israelien: "Israélien",
+  israeliens: "Israélien",
+  israelienne: "Israélien",
+  israeliennes: "Israélien",
+  israeli: "Israélien",
+  japonais: "Japonais",
+  japonaise: "Japonais",
+  japonaises: "Japonais",
+  japanese: "Japonais",
+  chinois: "Chinois",
+  chinoise: "Chinois",
+  chinoises: "Chinois",
+  chinese: "Chinois",
+  thailandais: "Thaïlandais",
+  thailandaise: "Thaïlandais",
+  thailandaises: "Thaïlandais",
+  thai: "Thaïlandais",
+  africain: "Africain",
+  africains: "Africain",
+  africaine: "Africain",
+  africaines: "Africain",
+  african: "Africain",
+  italien: "Italien",
+  italiens: "Italien",
+  italienne: "Italien",
+  italiennes: "Italien",
+  italian: "Italien",
+  libanais: "Libanais",
+  libanaise: "Libanais",
+  libanaises: "Libanais",
+  lebanese: "Libanais",
+  americain: "Américain",
+  americains: "Américain",
+  americaine: "Américain",
+  americaines: "Américain",
+  american: "Américain",
+  marocain: "Marocain",
+  marocains: "Marocain",
+  marocaine: "Marocain",
+  marocaines: "Marocain",
+  moroccan: "Marocain",
+  tunisien: "Tunisien",
+  tunisiens: "Tunisien",
+  tunisienne: "Tunisien",
+  tunisiennes: "Tunisien",
+  tunisian: "Tunisien",
+  ashkenaze: "Ashkénaze",
+  ashkenazes: "Ashkénaze",
+  ashkenazi: "Ashkénaze",
+  ashkenazic: "Ashkénaze",
+  yemenite: "Yéménite",
+  yemenites: "Yéménite",
+  indien: "Indien",
+  indiens: "Indien",
+  indienne: "Indien",
+  indiennes: "Indien",
+  indian: "Indien",
+  oriental: "Oriental",
+  orientale: "Oriental",
+  orientales: "Oriental",
+  orientaux: "Oriental",
+  mediterraneen: "Méditerranéen",
+  mediterraneenne: "Méditerranéen",
+  mediterraneennes: "Méditerranéen",
+  mediterraneens: "Méditerranéen",
+  mediterranean: "Méditerranéen",
+  algerien: "Algérien",
+  algerienne: "Algérien",
+  algeriennes: "Algérien",
+  algeriens: "Algérien",
+  mexicain: "Mexicain",
+  mexicaine: "Mexicain",
+  mexicaines: "Mexicain",
+  mexicains: "Mexicain",
+};
+
+export function toCanonicalCuisineName(raw: string): string {
+  const norm = normalize(raw);
+  if (CANONICAL_CUISINES[norm]) {
+    return CANONICAL_CUISINES[norm];
+  }
+  const clean = raw.trim();
+  if (!clean) return "";
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
 const days = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
 const dayIndex = () => (new Date().getDay() + 6) % 7;
 const hasMeaningfulAddress = (restaurant: Restaurant) => restaurant.fullAddress.trim() && restaurant.fullAddress !== "Adresse à compléter";
@@ -366,19 +457,31 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
  * (cuisineTypes ou cuisine) sans chercher dans les descriptions, tags ou métadonnées.
  */
 export function getEstablishmentCuisineTypes(item: { cuisineTypes?: string[]; cuisine?: string }): string[] {
+  const result = new Set<string>();
+
   if (Array.isArray(item.cuisineTypes) && item.cuisineTypes.length > 0) {
-    return item.cuisineTypes
+    item.cuisineTypes
       .flatMap((c) => (typeof c === "string" ? c.split(",") : []))
       .map((c) => c.trim())
-      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher" && !isNonCuisineRubric(c));
+      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher" && !isNonCuisineRubric(c))
+      .forEach((c) => {
+        const canon = toCanonicalCuisineName(c);
+        if (canon && !isNonCuisineRubric(canon)) result.add(canon);
+      });
   }
-  if (typeof item.cuisine === "string" && item.cuisine.trim()) {
-    return item.cuisine
+
+  if (result.size === 0 && typeof item.cuisine === "string" && item.cuisine.trim()) {
+    item.cuisine
       .split(",")
       .map((c) => c.trim())
-      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher" && !isNonCuisineRubric(c));
+      .filter((c) => Boolean(c) && c !== "À compléter" && c !== "Restaurant casher" && !isNonCuisineRubric(c))
+      .forEach((c) => {
+        const canon = toCanonicalCuisineName(c);
+        if (canon && !isNonCuisineRubric(canon)) result.add(canon);
+      });
   }
-  return [];
+
+  return Array.from(result);
 }
 
 /**
@@ -390,12 +493,11 @@ export function generateCuisineFilterOptions(restaurants: Restaurant[]): string[
   restaurants.forEach((restaurant) => {
     const types = getEstablishmentCuisineTypes(restaurant);
     types.forEach((type) => {
-      const clean = type.trim();
-      if (clean) {
-        const norm = normalize(clean);
+      const canon = toCanonicalCuisineName(type);
+      if (canon && !isNonCuisineRubric(canon)) {
+        const norm = normalize(canon);
         if (!uniqueMap.has(norm)) {
-          const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
-          uniqueMap.set(norm, formatted);
+          uniqueMap.set(norm, canon);
         }
       }
     });
@@ -414,11 +516,12 @@ export function matchesStrictCuisineFilter(
   restaurant: Restaurant,
   selectedCuisineFilter: string
 ): boolean {
-  const normFilter = normalize(selectedCuisineFilter.trim());
+  const canonFilter = toCanonicalCuisineName(selectedCuisineFilter);
+  const normFilter = normalize(canonFilter);
   if (!normFilter) return true;
 
   const rawCuisines = getEstablishmentCuisineTypes(restaurant);
-  const normalizedCuisines = rawCuisines.map((c) => normalize(c.trim())).filter(Boolean);
+  const normalizedCuisines = rawCuisines.map((c) => normalize(toCanonicalCuisineName(c))).filter(Boolean);
 
   if (!normalizedCuisines.length) return false;
 
@@ -622,12 +725,13 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     const params = new URLSearchParams(window.location.search);
     const cuisineParam = params.get("cuisine");
     if (cuisineParam) {
-      const normParam = normalize(cuisineParam.replace(/-/g, " "));
+      const canonParam = toCanonicalCuisineName(cuisineParam.replace(/-/g, " "));
+      const normParam = normalize(canonParam);
       const allOpts = generateCuisineFilterOptions(restaurantData);
       const matched =
-        allOpts.find((opt) => normalize(opt) === normParam || slugify(opt) === slugify(cuisineParam)) ||
+        allOpts.find((opt) => normalize(opt) === normParam || slugify(opt) === slugify(cuisineParam) || slugify(opt) === slugify(canonParam)) ||
         allOpts.find((opt) => normalize(opt).startsWith(normParam) || normParam.startsWith(normalize(opt))) ||
-        (cuisineParam.charAt(0).toUpperCase() + cuisineParam.slice(1));
+        canonParam;
       setFilters((prev) => (prev.includes(matched) ? prev : [...prev, matched]));
     }
     const qParam = params.get("q") || params.get("search");
@@ -653,8 +757,17 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     const filtered = restaurantData.filter((restaurant) => {
       const corpus = normalize(`${restaurant.name} ${restaurant.fullAddress} ${restaurant.arrondissement} ${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
       if (search && !corpus.includes(search)) return false;
-      const cuisineSelected = filters.filter((filter) => dynamicCuisineFilters.includes(filter));
+
+      const cuisineSelected = filters.filter((filter) => {
+        const norm = normalize(filter);
+        const canonNorm = normalize(toCanonicalCuisineName(filter));
+        return dynamicCuisineFilters.some((cf) => {
+          const cfNorm = normalize(cf);
+          return cfNorm === norm || cfNorm === canonNorm;
+        });
+      });
       if (cuisineSelected.length && !cuisineSelected.some((filter) => matchesStrictCuisineFilter(restaurant, filter))) return false;
+
       const typesSelected = filters.filter((filter) => typeFilters.includes(filter));
       if (typesSelected.length && !typesSelected.includes(restaurant.type)) return false;
       const services: Record<string, boolean | null> = {
@@ -704,8 +817,20 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       if (filters.includes("À moins de 5 km") && restaurant.distanceKm >= 5) return false;
       if (filters.includes("À moins de 10 km") && restaurant.distanceKm >= 10) return false;
 
-      const knownFilters = new Set([...dynamicCuisineFilters, ...typeFilters, ...serviceFilters, ...availabilityFilters, ...comfortFilters, ...locationFilters]);
-      const smartFilters = filters.filter((filter) => !knownFilters.has(filter));
+      const knownFilterNorms = new Set([
+        ...dynamicCuisineFilters.map(normalize),
+        ...dynamicCuisineFilters.map((c) => normalize(toCanonicalCuisineName(c))),
+        ...typeFilters.map(normalize),
+        ...serviceFilters.map(normalize),
+        ...availabilityFilters.map(normalize),
+        ...comfortFilters.map(normalize),
+        ...locationFilters.map(normalize),
+      ]);
+      const smartFilters = filters.filter((filter) => {
+        const norm = normalize(filter);
+        const canonNorm = normalize(toCanonicalCuisineName(filter));
+        return !knownFilterNorms.has(norm) && !knownFilterNorms.has(canonNorm);
+      });
       if (smartFilters.length && !smartFilters.every((filter) => matchesSmartFilter(restaurant, filter))) return false;
       return true;
     });

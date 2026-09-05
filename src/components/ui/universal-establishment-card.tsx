@@ -236,6 +236,7 @@ function normalizeCardData(raw: UniversalCardEstablishment): NormalizedCardData 
   const tags = uniqueList([
     ...(record?.visibleTagIds ?? []),
     ...(record?.cuisineTypes ?? []),
+    ...(restaurant?.cuisineTypes ?? []),
     ...(restaurant?.tags ?? []),
     ...(brunch?.tags ?? []),
     ...(wine?.tags ?? []),

@@ -2,16 +2,86 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Search, UserRound, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Menu, Search, Store, UserRound, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { categories } from "@/data/categories";
+import type { Category } from "@/types/category";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
+
+type AdminRubricRecord = {
+  id: string;
+  slug?: string;
+  name?: string;
+  status?: Category["status"];
+  isDormant?: boolean;
+  searchKeywords?: string[];
+  order?: number;
+};
+
+function resolveActiveCategories(adminRubrics?: AdminRubricRecord[] | null): Category[] {
+  const activeList: Category[] = [];
+
+  categories.forEach((baseCategory) => {
+    let currentStatus: Category["status"] = baseCategory.status ?? "Publié";
+    let isDormant = baseCategory.isDormant === true || baseCategory.status === "En sommeil" || baseCategory.status === "Masqué" || baseCategory.status === "Brouillon";
+    let order = baseCategory.order ?? 99;
+
+    if (adminRubrics && adminRubrics.length > 0) {
+      const adminMatch = adminRubrics.find(
+        (r) => r.slug === baseCategory.slug || r.id === baseCategory.slug || r.name?.toLowerCase() === baseCategory.label?.toLowerCase()
+      );
+      if (adminMatch) {
+        currentStatus = (adminMatch.status as Category["status"]) ?? currentStatus;
+        isDormant = adminMatch.isDormant === true || adminMatch.status === "En sommeil" || adminMatch.status === "Masqué" || adminMatch.status === "Brouillon" || Boolean(adminMatch.searchKeywords?.includes("__dormant__"));
+        if (adminMatch.order !== undefined) order = adminMatch.order;
+      }
+    }
+
+    if (!isDormant && currentStatus === "Publié") {
+      activeList.push({
+        ...baseCategory,
+        order,
+        status: currentStatus,
+        isDormant: false,
+      });
+    }
+  });
+
+  if (adminRubrics && adminRubrics.length > 0) {
+    adminRubrics.forEach((r) => {
+      const slug = r.slug || r.id;
+      const alreadyIncluded = activeList.some((c) => c.slug === slug);
+      const isDormant = r.isDormant === true || r.status === "En sommeil" || r.status === "Masqué" || r.status === "Brouillon" || Boolean(r.searchKeywords?.includes("__dormant__"));
+      if (!alreadyIncluded && r.status === "Publié" && !isDormant) {
+        activeList.push({
+          slug,
+          label: r.name || slug,
+          shortLabel: r.name || slug,
+          eyebrow: "Découvrir",
+          description: "",
+          icon: Store,
+          color: "#1f4d3b",
+          softColor: "#e2eae4",
+          image: "",
+          featured: [],
+          format: "Carré standard",
+          subrubricCount: 0,
+          status: "Publié",
+          order: r.order ?? 99,
+        });
+      }
+    });
+  }
+
+  return activeList.sort((a, b) => (a.order || 0) - (b.order || 0));
+}
 
 export function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeCategories, setActiveCategories] = useState<Category[]>(() => resolveActiveCategories(null));
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -20,6 +90,44 @@ export function Header() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    const syncActiveCategories = () => {
+      if (typeof window === "undefined") return;
+      try {
+        const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed?.rubrics)) {
+            setActiveCategories(resolveActiveCategories(parsed.rubrics));
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      setActiveCategories(resolveActiveCategories(null));
+    };
+
+    syncActiveCategories();
+    window.addEventListener("storage", syncActiveCategories);
+    window.addEventListener("liberty-admin-published", syncActiveCategories);
+
+    return () => {
+      window.removeEventListener("storage", syncActiveCategories);
+      window.removeEventListener("liberty-admin-published", syncActiveCategories);
+    };
+  }, []);
+
+  const desktopNavItems = useMemo(() => {
+    return activeCategories
+      .filter((item) => item.slug !== "calendrier-juif")
+      .slice(0, 7);
+  }, [activeCategories]);
+
+  const isCalendarActive = useMemo(() => {
+    return activeCategories.some((item) => item.slug === "calendrier-juif");
+  }, [activeCategories]);
 
   return (
     <>
@@ -33,7 +141,7 @@ export function Header() {
           )}>
           <Logo />
           <nav className="hidden items-center gap-1 lg:flex">
-            {categories.slice(0, 7).map((item) => (
+            {desktopNavItems.map((item) => (
               <Link
                 key={item.slug}
                 href={`/${item.slug}`}
@@ -46,17 +154,19 @@ export function Header() {
                 {pathname === `/${item.slug}` && <span className="absolute inset-x-4 -bottom-px h-px rounded-full bg-gradient-to-r from-transparent via-[#c99b42] to-transparent" />}
               </Link>
             ))}
-            <Link
-              href="/calendrier-juif"
-              className={cn(
-                "relative rounded-full px-3 py-2 text-[13px] font-semibold text-ink/56 transition duration-300 hover:bg-white/70 hover:text-ink",
-                (pathname === "/calendrier-juif" || pathname === "/calendrier") && "bg-white text-ink shadow-[0_10px_28px_rgba(27,35,30,.08)]",
-              )}
-            >
-              Calendrier
-              {(pathname === "/calendrier-juif" || pathname === "/calendrier") && <span className="absolute inset-x-4 -bottom-px h-px rounded-full bg-gradient-to-r from-transparent via-[#c99b42] to-transparent" />}
-            </Link>
-            <button onClick={() => setOpen(true)} className="rounded-full px-3 py-2 text-[13px] font-semibold text-ink/56 transition duration-300 hover:bg-white/70 hover:text-ink">Plus</button>
+            {isCalendarActive && (
+              <Link
+                href="/calendrier-juif"
+                className={cn(
+                  "relative rounded-full px-3 py-2 text-[13px] font-semibold text-ink/56 transition duration-300 hover:bg-white/70 hover:text-ink",
+                  (pathname === "/calendrier-juif" || pathname === "/calendrier") && "bg-white text-ink shadow-[0_10px_28px_rgba(27,35,30,.08)]",
+                )}
+              >
+                Calendrier
+                {(pathname === "/calendrier-juif" || pathname === "/calendrier") && <span className="absolute inset-x-4 -bottom-px h-px rounded-full bg-gradient-to-r from-transparent via-[#c99b42] to-transparent" />}
+              </Link>
+            )}
+            <button onClick={() => setOpen(true)} className="rounded-full px-3 py-2 text-[13px] font-semibold text-ink/56 transition duration-300 hover:bg-white/70 hover:text-ink cursor-pointer">Plus</button>
           </nav>
           <div className="flex items-center gap-2">
             <Link
@@ -82,12 +192,12 @@ export function Header() {
       <div className={cn("fixed inset-0 z-[60] transition", open ? "visible" : "invisible")}>
         <button onClick={() => setOpen(false)} className={cn("absolute inset-0 bg-ink/30 backdrop-blur-sm transition-opacity", open ? "opacity-100" : "opacity-0")} aria-label="Fermer le menu" />
         <aside className={cn("absolute right-0 top-0 h-full w-full max-w-lg overflow-y-auto bg-cream p-6 transition-transform duration-300 sm:p-10", open ? "translate-x-0" : "translate-x-full")}>
-          <div className="mb-10 flex items-center justify-between"><Logo /><button onClick={() => setOpen(false)} className="grid size-11 place-items-center rounded-full bg-white shadow-sm"><X size={20} /></button></div>
+          <div className="mb-10 flex items-center justify-between"><Logo /><button onClick={() => setOpen(false)} className="grid size-11 place-items-center rounded-full bg-white shadow-sm cursor-pointer"><X size={20} /></button></div>
           <p className="mb-5 text-xs font-semibold uppercase tracking-[.2em] text-ink/40">Explorer les univers</p>
           <div className="grid grid-cols-2 gap-2">
-            {categories.map(({ slug, label, icon: Icon, softColor, color }) => (
+            {activeCategories.map(({ slug, label, icon: Icon, softColor, color }) => (
               <Link key={slug} href={`/${slug}`} className="group flex items-center gap-3 rounded-2xl border border-black/5 bg-white p-3.5 transition hover:-translate-y-0.5 hover:shadow-soft">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ background: softColor, color }}><Icon size={17} /></span>
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ background: softColor, color }}>{Icon && <Icon size={17} />}</span>
                 <span className="text-sm font-medium">{label}</span>
               </Link>
             ))}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Shirt, Sparkles, Store } from "lucide-react";
 import { CardSubrubricGrid } from "@/components/ui/subrubric-grids";
+import { ShoppingExplorer } from "@/components/shops/shopping-explorer";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -51,7 +52,13 @@ export default function ShoppingPage() {
           <span className="w-fit rounded-full bg-cream px-3 py-1.5 text-[11px] font-semibold text-ink/45">Rubrique</span>
         </div>
       </section>
-      <section className="page-shell py-10 sm:py-14"><p className="eyebrow">Explorer</p><h2 className="section-title">Tous les univers shopping</h2><CardSubrubricGrid rubricSlug="shopping" fallbackCards={sections.map(({ title, description, href, image }) => ({ label: title, description, href, image }))} /></section>
+      <section className="page-shell py-10 sm:py-14">
+        <p className="eyebrow">Explorer</p>
+        <h2 className="section-title">Tous les univers shopping</h2>
+        <CardSubrubricGrid rubricSlug="shopping" fallbackCards={sections.map(({ title, description, href, image }) => ({ label: title, description, href, image }))} />
+      </section>
+
+      <ShoppingExplorer />
     </>
   );
 }

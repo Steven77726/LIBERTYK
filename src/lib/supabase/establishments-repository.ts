@@ -2,6 +2,8 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { LocalEstablishment, LocalEstablishmentStatus, LocalKosherType, LocalSponsorshipLevel } from "@/data/establishments";
+import { categories } from "@/data/categories";
+import { localSubrubrics, subrubricSlugAliases } from "@/data/subrubrics";
 import { listProfessionalServices } from "@/lib/supabase/beauty-repository";
 
 export type EstablishmentRecord = LocalEstablishment & {
@@ -258,8 +260,16 @@ async function getLookup(table: "rubrics" | "subrubrics") {
   const map = new Map<string, string>();
   (data ?? []).forEach((item) => {
     map.set(item.id, item.id);
-    if (item.external_id) map.set(item.external_id, item.id);
-    map.set(item.slug, item.id);
+    if (item.external_id) {
+      map.set(item.external_id, item.id);
+      map.set(item.external_id.toLowerCase(), item.id);
+      map.set(item.external_id.toLowerCase().replace(/^(rubric|subrubric)-/, ""), item.id);
+    }
+    if (item.slug) {
+      map.set(item.slug, item.id);
+      map.set(item.slug.toLowerCase(), item.id);
+      map.set(item.slug.toLowerCase().replace(/^[^-]+-/, ""), item.id);
+    }
   });
   return map;
 }
@@ -459,10 +469,117 @@ async function attachBeautyServices(rows: EstablishmentRow[], establishments: Es
 
 async function establishmentToPayload(establishment: EstablishmentRecord, statusOverride?: StatusDb) {
   const [rubricLookup, subrubricLookup] = await Promise.all([getLookup("rubrics"), getLookup("subrubrics")]);
-  const rubricId = rubricLookup.get(establishment.rubricId);
-  const subrubricId = subrubricLookup.get(establishment.subrubricId);
-  if (!rubricId) throw new Error(`Rubrique introuvable pour ${establishment.name}.`);
-  if (!subrubricId) throw new Error(`Sous-rubrique introuvable pour ${establishment.name}.`);
+
+  // 1. Résolution souple de la rubrique
+  const rawRubric = (establishment.rubricId || "").trim();
+  const cleanRubric = rawRubric.toLowerCase();
+  const rubricWithoutPrefix = cleanRubric.replace(/^rubric-/, "");
+  let rubricId =
+    rubricLookup.get(rawRubric) ||
+    rubricLookup.get(cleanRubric) ||
+    rubricLookup.get(rubricWithoutPrefix) ||
+    rubricLookup.get(`rubric-${rubricWithoutPrefix}`);
+
+  // Fallback si la rubrique n'est pas encore enregistrée dans Supabase
+  if (!rubricId) {
+    const matchedCategory = categories.find((c) => c.slug === rubricWithoutPrefix || c.slug === cleanRubric);
+    if (matchedCategory) {
+      try {
+        const supabase = getClientOrThrow();
+        const { data: createdRubric } = await supabase
+          .from("rubrics")
+          .upsert(
+            {
+              external_id: matchedCategory.slug,
+              slug: matchedCategory.slug,
+              name: matchedCategory.label,
+              description: matchedCategory.description || "",
+              status: "published",
+              show_on_home: true,
+            },
+            { onConflict: "external_id" }
+          )
+          .select("id")
+          .maybeSingle<{ id: string }>();
+        if (createdRubric?.id) {
+          rubricId = createdRubric.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // 2. Résolution souple de la sous-rubrique
+  const rawSub = (establishment.subrubricId || "").trim();
+  const cleanSub = rawSub.toLowerCase();
+  const subWithoutPrefix = cleanSub.replace(new RegExp(`^(${rubricWithoutPrefix}|subrubric)-`), "");
+  const aliasedSub = subrubricSlugAliases[cleanSub] || subrubricSlugAliases[subWithoutPrefix] || subWithoutPrefix;
+
+  let subrubricId =
+    subrubricLookup.get(rawSub) ||
+    subrubricLookup.get(cleanSub) ||
+    subrubricLookup.get(subWithoutPrefix) ||
+    subrubricLookup.get(aliasedSub) ||
+    subrubricLookup.get(`${rubricWithoutPrefix}-${aliasedSub}`) ||
+    subrubricLookup.get(`${rubricWithoutPrefix}-${subWithoutPrefix}`);
+
+  // Fallback si la sous-rubrique n'est pas encore dans Supabase
+  if (!subrubricId && rubricId) {
+    const matchedLocalSub = localSubrubrics.find(
+      (s) =>
+        (s.rubricId === rubricWithoutPrefix || s.rubricId === cleanRubric) &&
+        (s.slug === aliasedSub || s.slug === subWithoutPrefix || s.id === rawSub || s.id === cleanSub)
+    );
+    if (matchedLocalSub) {
+      try {
+        const supabase = getClientOrThrow();
+        const { data: createdSub } = await supabase
+          .from("subrubrics")
+          .upsert(
+            {
+              external_id: matchedLocalSub.id,
+              rubric_id: rubricId,
+              slug: matchedLocalSub.slug,
+              name: matchedLocalSub.name,
+              description: matchedLocalSub.description || "",
+              status: "published",
+              show_publicly: true,
+            },
+            { onConflict: "external_id" }
+          )
+          .select("id")
+          .maybeSingle<{ id: string }>();
+        if (createdSub?.id) {
+          subrubricId = createdSub.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // Si toujours introuvable mais qu'on a rubricId, chercher la première sous-rubrique disponible pour cette rubrique
+  if (!subrubricId && rubricId) {
+    try {
+      const supabase = getClientOrThrow();
+      const { data: firstAvailableSub } = await supabase
+        .from("subrubrics")
+        .select("id")
+        .eq("rubric_id", rubricId)
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle<{ id: string }>();
+      if (firstAvailableSub?.id) {
+        subrubricId = firstAvailableSub.id;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!rubricId) throw new Error(`Rubrique introuvable pour « ${establishment.name} ».`);
+  if (!subrubricId) throw new Error(`Sous-rubrique introuvable pour « ${establishment.name} ».`);
   const slug = normalizeSlug(establishment.slug || establishment.name || establishment.id);
   return {
     external_id: establishment.id,

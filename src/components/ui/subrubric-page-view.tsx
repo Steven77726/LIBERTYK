@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { categoryBySlug } from "@/data/categories";
 import { localEstablishments } from "@/data/establishments";
+import { subrubricSlugAliases } from "@/data/subrubrics";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
@@ -25,6 +26,37 @@ function readableTitle(value: string) {
     .join(" ");
 }
 
+function checkSubrubricMatch(estSubId: string | undefined, rubricSlug: string, targetSlug: string): boolean {
+  if (!estSubId) return false;
+  const cleanSub = estSubId.toLowerCase().trim();
+  const target = targetSlug.toLowerCase().trim();
+  const withoutPrefix = cleanSub.replace(new RegExp(`^${rubricSlug}-`), "");
+  const aliased = subrubricSlugAliases[cleanSub] || subrubricSlugAliases[withoutPrefix] || withoutPrefix;
+  const targetAliased = subrubricSlugAliases[target] || subrubricSlugAliases[`${rubricSlug}-${target}`] || target;
+
+  if (cleanSub === target || withoutPrefix === target || aliased === target || aliased === targetAliased) return true;
+  if (cleanSub === `${rubricSlug}-${target}` || cleanSub.endsWith(`-${target}`)) return true;
+
+  if (target.startsWith("patisserie") && cleanSub.includes("patisserie")) return true;
+  if (target.startsWith("boulangerie") && cleanSub.includes("boulangerie")) return true;
+  if (target.startsWith("traiteur") && cleanSub.includes("traiteur")) return true;
+  if (target.startsWith("salon") && (cleanSub.includes("salon") || cleanSub.includes("the"))) return true;
+  if (target.startsWith("glacier") && cleanSub.includes("glacier")) return true;
+  if ((target.startsWith("rapide") || target.startsWith("restauration-rapide")) && cleanSub.includes("rapide")) return true;
+  if (target.startsWith("even") && (cleanSub.includes("even") || cleanSub.includes("event"))) return true;
+  if (target.startsWith("soiree") && (cleanSub.includes("soiree") || cleanSub.includes("celibat"))) return true;
+  if (target.startsWith("concert") && cleanSub.includes("concert")) return true;
+  if (target.startsWith("degust") && cleanSub.includes("degust")) return true;
+  if ((target.startsWith("deco") || target.startsWith("decor")) && (cleanSub.includes("deco") || cleanSub.includes("decor"))) return true;
+  if (target === "mode" && (cleanSub.includes("mode") || cleanSub.includes("vetement"))) return true;
+  if (target === "vetements" && (cleanSub.includes("mode") || cleanSub.includes("vetement"))) return true;
+  if (target.includes("feminin") && (cleanSub.includes("feminin") || cleanSub === "vetements" || cleanSub === "mode")) return true;
+  if (target.includes("masculin") && cleanSub.includes("masculin")) return true;
+  if ((target.includes("objet") || target.includes("utile")) && (cleanSub.includes("objet") || cleanSub.includes("utile") || cleanSub.includes("maison"))) return true;
+
+  return false;
+}
+
 export function SubrubricPageView({
   rubricSlug,
   subrubricSlug,
@@ -39,27 +71,7 @@ export function SubrubricPageView({
     return (localEstablishments as EstablishmentRecord[]).filter((est) => {
       if (est.rubricId !== rubricSlug && est.rubricId !== `${rubricSlug}`) return false;
       if (est.status === "Masqué") return false;
-      const subId = (est.subrubricId || "").toLowerCase();
-      return (
-        subId === target ||
-        subId === `${rubricSlug}-${target}` ||
-        subId.endsWith(`-${target}`) ||
-        (target.startsWith("patisserie") && subId.includes("patisserie")) ||
-        (target.startsWith("boulangerie") && subId.includes("boulangerie")) ||
-        (target.startsWith("traiteur") && subId.includes("traiteur")) ||
-        (target.startsWith("salon") && (subId.includes("salon") || subId.includes("the"))) ||
-        (target.startsWith("glacier") && subId.includes("glacier")) ||
-        (target.startsWith("rapide") && subId.includes("rapide")) ||
-        (target.startsWith("restauration-rapide") && subId.includes("rapide")) ||
-        (target.startsWith("even") && (subId.includes("even") || subId.includes("event"))) ||
-        (target.startsWith("soiree") && (subId.includes("soiree") || subId.includes("celibat"))) ||
-        (target.startsWith("concert") && subId.includes("concert")) ||
-        (target.startsWith("degust") && subId.includes("degust")) ||
-        (target.startsWith("deco") && subId.includes("deco")) ||
-        (target.startsWith("decor") && subId.includes("decor")) ||
-        (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
-        (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
-      );
+      return checkSubrubricMatch(est.subrubricId, rubricSlug, target);
     });
   });
   const [loading, setLoading] = useState(false);
@@ -121,27 +133,7 @@ export function SubrubricPageView({
         const matchesSubrubric = (est: EstablishmentRecord) => {
           if (est.rubricId !== rubricSlug && est.rubricId !== `${rubricSlug}`) return false;
           if (est.status === "Masqué") return false;
-          const subId = (est.subrubricId || "").toLowerCase();
-          return (
-            subId === target ||
-            subId === `${rubricSlug}-${target}` ||
-            subId.endsWith(`-${target}`) ||
-            (target.startsWith("patisserie") && subId.includes("patisserie")) ||
-            (target.startsWith("boulangerie") && subId.includes("boulangerie")) ||
-            (target.startsWith("traiteur") && subId.includes("traiteur")) ||
-            (target.startsWith("salon") && (subId.includes("salon") || subId.includes("the"))) ||
-            (target.startsWith("glacier") && subId.includes("glacier")) ||
-            (target.startsWith("rapide") && subId.includes("rapide")) ||
-            (target.startsWith("restauration-rapide") && subId.includes("rapide")) ||
-            (target.startsWith("even") && (subId.includes("even") || subId.includes("event"))) ||
-            (target.startsWith("soiree") && (subId.includes("soiree") || subId.includes("celibat"))) ||
-            (target.startsWith("concert") && subId.includes("concert")) ||
-            (target.startsWith("degust") && subId.includes("degust")) ||
-            (target.startsWith("deco") && subId.includes("deco")) ||
-            (target.startsWith("decor") && subId.includes("decor")) ||
-            (target === "mode" && (subId.includes("mode") || subId.includes("vetement"))) ||
-            (target === "vetements" && (subId.includes("mode") || subId.includes("vetement")))
-          );
+          return checkSubrubricMatch(est.subrubricId, rubricSlug, target);
         };
 
         const itemMap = new Map<string, EstablishmentRecord>();

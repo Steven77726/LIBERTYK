@@ -35,7 +35,7 @@ import {
   X,
 } from "lucide-react";
 import { categories } from "@/data/categories";
-import { localSubrubrics } from "@/data/subrubrics";
+import { localSubrubrics, subrubricSlugAliases } from "@/data/subrubrics";
 import { restaurants } from "@/data/restaurants";
 import { brunches } from "@/data/brunches";
 import { wineActivities } from "@/data/wine-activities";
@@ -1897,12 +1897,21 @@ function matchesEstablishmentToSubrubric(
 
   const itemSubId = String(item.subrubricId || "").toLowerCase();
   const itemSubSlug = slugify(itemSubId);
+  const itemWithoutPrefix = itemSubId.replace(/^[^-]+-/, "");
+  const targetWithoutPrefix = targetSlug.replace(/^[^-]+-/, "");
 
-  // 1. Direct match on subrubricId
+  const aliasedItem = subrubricSlugAliases[itemSubId] || subrubricSlugAliases[itemSubSlug] || subrubricSlugAliases[itemWithoutPrefix] || itemWithoutPrefix;
+  const aliasedTarget = subrubricSlugAliases[targetId] || subrubricSlugAliases[targetSlug] || subrubricSlugAliases[targetWithoutPrefix] || targetWithoutPrefix;
+
+  // 1. Direct match or alias match
   if (
     itemSubId === targetId ||
     itemSubId === targetSlug ||
     itemSubSlug === targetSlug ||
+    itemWithoutPrefix === targetWithoutPrefix ||
+    aliasedItem === aliasedTarget ||
+    aliasedItem === targetWithoutPrefix ||
+    itemWithoutPrefix === aliasedTarget ||
     (targetNameSlug && itemSubSlug === targetNameSlug)
   ) {
     return true;
@@ -3725,6 +3734,12 @@ export function AdminDashboard() {
     setRubricsOperation(`establishment-draft-${establishment.id}`);
     setSavingAction("Sauvegarde brouillon...");
     const draft = { ...establishment, slug, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
+    
+    // 1. Enregistrement local immédiat
+    applyEstablishmentLocally(draft, "Fiche enregistrée en brouillon.");
+    audit("brouillon", "fiche", establishment.id, establishment.name);
+
+    // 2. Synchronisation Supabase en arrière-plan si configuré
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await createEstablishmentInSupabase(draft as EstablishmentRecord);
@@ -3738,16 +3753,11 @@ export function AdminDashboard() {
           const savedServices = await replaceProfessionalServices(saved.databaseId, draft.beautyServices ?? []);
           nextSaved = { ...nextSaved, beautyServices: savedServices };
         }
-        applyEstablishmentLocally(nextSaved, "Fiche enregistrée en brouillon.");
-      } else {
-        commitState((current) => ({
-          ...current,
-          establishments: current.establishments.map((item) => (item.id === establishment.id ? draft : item)),
-        }), "Fiche enregistrée en brouillon.", "Sauvegarde");
+        applyEstablishmentLocally(nextSaved, "Fiche enregistrée en brouillon et synchronisée.");
       }
-      audit("brouillon", "fiche", establishment.id, establishment.name);
     } catch (error) {
-      setAdminMessage(`Échec de sauvegarde fiche : ${(error as Error).message}`);
+      console.warn("Erreur de synchronisation Supabase brouillon :", error);
+      setAdminMessage(`Fiche enregistrée localement (Sync Supabase : ${(error as Error).message})`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");
@@ -3764,6 +3774,12 @@ export function AdminDashboard() {
     setRubricsOperation(`establishment-publish-${establishment.id}`);
     setSavingAction("Publication de la fiche...");
     const published = { ...establishment, slug, status: "Publié" as AdminStatus, visible: true, updatedAt: new Date().toISOString() };
+    
+    // 1. Enregistrement local immédiat
+    applyEstablishmentLocally(published, "Fiche publiée avec succès.");
+    audit("publication", "fiche", establishment.id, establishment.name);
+
+    // 2. Synchronisation Supabase en arrière-plan si configuré
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await publishEstablishmentInSupabase(published as EstablishmentRecord);
@@ -3777,16 +3793,11 @@ export function AdminDashboard() {
           const savedServices = await replaceProfessionalServices(saved.databaseId, published.beautyServices ?? []);
           nextSaved = { ...nextSaved, beautyServices: savedServices };
         }
-        applyEstablishmentLocally(nextSaved, "Fiche publiée avec succès.");
-      } else {
-        commitState((current) => ({
-          ...current,
-          establishments: current.establishments.map((item) => (item.id === establishment.id ? published : item)),
-        }), "Fiche publiée avec succès.", "Publication");
+        applyEstablishmentLocally(nextSaved, "Fiche publiée et synchronisée avec succès.");
       }
-      audit("publication", "fiche", establishment.id, establishment.name);
     } catch (error) {
-      setAdminMessage(`Échec de publication fiche : ${(error as Error).message}`);
+      console.warn("Erreur de synchronisation Supabase publication :", error);
+      setAdminMessage(`Fiche enregistrée localement (Sync Supabase : ${(error as Error).message})`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");
@@ -3827,16 +3838,20 @@ export function AdminDashboard() {
     setRubricsOperation(`establishment-hide-${establishment.id}`);
     setSavingAction("Masquage fiche");
     const hidden = { ...establishment, status: "Masqué" as AdminStatus, visible: false, updatedAt: new Date().toISOString() };
+    
+    // 1. Enregistrement local immédiat
+    applyEstablishmentLocally(hidden, "Fiche masquée.");
+    audit("masquage", "fiche", establishment.id, establishment.name);
+
+    // 2. Synchronisation Supabase en arrière-plan
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await hideEstablishmentInSupabase(hidden as EstablishmentRecord);
-        applyEstablishmentLocally(saved as AdminEstablishment, "Fiche masquée.");
-      } else {
-        commitState((current) => ({ ...current, establishments: current.establishments.map((item) => item.id === establishment.id ? hidden : item) }), "Fiche masquée avec succès.", "Masquage");
+        applyEstablishmentLocally(saved as AdminEstablishment, "Fiche masquée et synchronisée.");
       }
-      audit("masquage", "fiche", establishment.id, establishment.name);
     } catch (error) {
-      setAdminMessage(`Échec de masquage fiche : ${(error as Error).message}`);
+      console.warn("Erreur de synchronisation Supabase masquage :", error);
+      setAdminMessage(`Fiche masquée localement (Sync Supabase : ${(error as Error).message})`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");

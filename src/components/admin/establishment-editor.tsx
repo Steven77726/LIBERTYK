@@ -472,9 +472,33 @@ export function EstablishmentEditor({
   };
 
   // Liste des sous-rubriques filtrées par rubrique sélectionnée
-  const availableSubrubrics = subrubrics.filter(
-    (s) => s.rubricId === establishment.rubricId
-  );
+  const availableSubrubrics = useMemo(() => {
+    const rawRubric = (establishment.rubricId || "").trim();
+    const cleanRubric = rawRubric.toLowerCase();
+    const rubricWithoutPrefix = cleanRubric.replace(/^rubric-/, "");
+    return subrubrics.filter(
+      (s) =>
+        s.rubricId === rawRubric ||
+        s.rubricId === cleanRubric ||
+        s.rubricId === rubricWithoutPrefix ||
+        s.rubricId === `rubric-${rubricWithoutPrefix}` ||
+        s.rubricId?.toLowerCase() === cleanRubric
+    );
+  }, [subrubrics, establishment.rubricId]);
+
+  const selectedSubrubricValue = useMemo(() => {
+    const rawSub = (establishment.subrubricId || "").trim();
+    if (!rawSub) return availableSubrubrics[0]?.id ?? "";
+    const direct = availableSubrubrics.find((s) => s.id === rawSub);
+    if (direct) return direct.id;
+    const cleanSub = rawSub.toLowerCase();
+    const withoutPrefix = cleanSub.replace(/^[^-]+-/, "");
+    const matchSlug = availableSubrubrics.find((s) => s.slug === rawSub || s.slug === cleanSub || s.slug === withoutPrefix);
+    if (matchSlug) return matchSlug.id;
+    const matchId = availableSubrubrics.find((s) => s.id.endsWith(`-${rawSub}`) || s.id.endsWith(`-${withoutPrefix}`));
+    if (matchId) return matchId.id;
+    return availableSubrubrics[0]?.id ?? rawSub;
+  }, [availableSubrubrics, establishment.subrubricId]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -649,7 +673,7 @@ export function EstablishmentEditor({
                   )}
                 </div>
                 <select
-                  value={establishment.subrubricId}
+                  value={selectedSubrubricValue}
                   onChange={(e) => onUpdate({ subrubricId: e.target.value })}
                   className="w-full rounded-2xl border border-black/10 bg-cream/30 px-4 py-3 text-sm font-semibold outline-hidden focus:border-moss focus:bg-white focus:ring-2 focus:ring-moss/20"
                 >

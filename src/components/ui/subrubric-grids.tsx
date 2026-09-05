@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { categories } from "@/data/categories";
-import { localSubrubrics } from "@/data/subrubrics";
+import { localSubrubrics, subrubricSlugAliases } from "@/data/subrubrics";
+import { localEstablishments } from "@/data/establishments";
 import { assetPath } from "@/lib/assets";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { listPublishedEstablishmentCountsBySubrubric } from "@/lib/supabase/establishments-repository";
@@ -277,17 +278,77 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
   return items ?? fallback;
 }
 
+function computeLocalEstablishmentCounts(rubricSlug: string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const estMap = new Map<string, { id: string; rubricId: string; subrubricId?: string; status?: string; visible?: boolean }>();
+
+  // 1. Initial from localEstablishments
+  (localEstablishments ?? []).forEach((est) => {
+    if (est.rubricId === rubricSlug || est.rubricId === `rubric-${rubricSlug}`) {
+      if (est.status !== "Masqué") {
+        estMap.set(est.id, est);
+      }
+    }
+  });
+
+  // 2. Merge from localStorage
+  if (typeof window !== "undefined") {
+    try {
+      const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const adminEsts = (parsed?.establishments ?? []) as Array<{ id: string; rubricId: string; subrubricId?: string; status?: string; visible?: boolean }>;
+        adminEsts.forEach((est) => {
+          if (est.rubricId === rubricSlug || est.rubricId === `rubric-${rubricSlug}`) {
+            if (est.status === "Publié" && est.visible !== false) {
+              estMap.set(est.id, est);
+            } else if (est.status === "Masqué" || est.visible === false) {
+              estMap.delete(est.id);
+            }
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Count per subrubricId
+  estMap.forEach((est) => {
+    const rawSub = (est.subrubricId || "").trim();
+    if (!rawSub) return;
+    const cleanSub = rawSub.toLowerCase();
+    const withoutPrefix = cleanSub.replace(new RegExp(`^${rubricSlug}-`), "");
+    const aliased = subrubricSlugAliases[cleanSub] || subrubricSlugAliases[withoutPrefix] || withoutPrefix;
+
+    [rawSub, cleanSub, withoutPrefix, aliased, `${rubricSlug}-${aliased}`].forEach((key) => {
+      counts[key] = (counts[key] ?? 0) + 1;
+    });
+  });
+
+  return counts;
+}
+
 function usePublishedEstablishmentCounts(rubricSlug: string) {
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [counts, setCounts] = useState<Record<string, number>>(() => computeLocalEstablishmentCounts(rubricSlug));
 
   useEffect(() => {
     let mounted = true;
     async function load() {
+      const localCounts = computeLocalEstablishmentCounts(rubricSlug);
       try {
         const remoteCounts = await listPublishedEstablishmentCountsBySubrubric(rubricSlug);
-        if (mounted) setCounts(remoteCounts ?? {});
+        if (mounted) {
+          const merged = { ...localCounts };
+          if (remoteCounts) {
+            Object.entries(remoteCounts).forEach(([k, v]) => {
+              merged[k] = Math.max(merged[k] ?? 0, v);
+            });
+          }
+          setCounts(merged);
+        }
       } catch {
-        if (mounted) setCounts({});
+        if (mounted) setCounts(localCounts);
       }
     }
     void load();
@@ -308,7 +369,17 @@ function usePublishedEstablishmentCounts(rubricSlug: string) {
 }
 
 function countForSubrubric(counts: Record<string, number>, item: SubrubricPreview) {
-  return counts[item.id] ?? counts[item.slug ?? ""] ?? 0;
+  const rawId = item.id;
+  const slug = item.slug ?? slugify(item.name);
+  const alias = subrubricSlugAliases[rawId] || subrubricSlugAliases[slug] || subrubricSlugAliases[`${item.rubricId}-${slug}`];
+  
+  return (
+    counts[rawId] ??
+    counts[slug] ??
+    counts[`${item.rubricId}-${slug}`] ??
+    (alias ? counts[alias] ?? counts[`${item.rubricId}-${alias}`] : undefined) ??
+    0
+  );
 }
 
 function countLabel(count: number) {

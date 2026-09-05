@@ -248,17 +248,16 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
             };
             const rawSubs = (parsed?.subrubrics as StoredSubrubric[]) ?? [];
             rawSubs
-              .filter(
-                (s) =>
-                  (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}` || s.rubricId.toLowerCase().includes(rubricSlug)) &&
-                  s.status === "Publié" &&
-                  s.showPublicly !== false &&
-                  !s.isDormant &&
-                  !s.searchKeywords?.includes("__dormant__")
-              )
+              .filter((s) => {
+                const rId = (s.rubricId || "").toLowerCase();
+                const target = rubricSlug.toLowerCase();
+                const matchRubric = rId === target || rId === `rubric-${target}` || rId.includes(target);
+                return matchRubric && s.status !== "Masqué" && s.showPublicly !== false;
+              })
               .forEach((s) => {
                 const canonical = getCanonicalSubrubricSlug(s.slug || s.name || s.id, rubricSlug);
                 const existing = subMap.get(canonical);
+                const isDormant = s.status === "En sommeil" || s.isDormant === true || (s.searchKeywords || []).includes("__dormant__");
                 const photo = (s.photo || s.image || existing?.photo || "").trim();
                 const updated: SubrubricPreview = {
                   ...existing,
@@ -272,8 +271,9 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
                   imageAlt: s.imageAlt ?? existing?.imageAlt ?? s.name,
                   visible: true,
                   showPublicly: true,
+                  isDormant,
                   order: s.order ?? existing?.order ?? 1,
-                  status: "Publié" as const,
+                  status: (s.status as "Publié" | "En sommeil") ?? (isDormant ? "En sommeil" : "Publié"),
                 };
                 subMap.set(canonical, updated);
               });

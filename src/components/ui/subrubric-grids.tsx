@@ -169,109 +169,117 @@ function usePublishedSubrubrics(rubricSlug: string, fallback: SubrubricPreview[]
 
   useEffect(() => {
     let mounted = true;
+
     async function load() {
-      try {
-        const remote = await listPublishedSubrubrics(rubricSlug);
-        if (mounted && remote?.length) {
-          const fallbackMap = new Map<string, SubrubricPreview>();
-          fallback.forEach((f) => {
-            const key = f.slug ?? slugify(f.name);
-            fallbackMap.set(key, f);
-            fallbackMap.set(`${rubricSlug}-${key}`, f);
-          });
+      // 1. Initialiser depuis les données locales de secours
+      const subMap = new Map<string, SubrubricPreview>();
+      applyWhitelists(fallback, rubricSlug).forEach((item) => {
+        const key = item.slug ?? slugify(item.name);
+        subMap.set(item.id, item);
+        subMap.set(key, item);
+        subMap.set(`${rubricSlug}-${key}`, item);
+      });
 
-          const merged: SubrubricPreview[] = remote
-            .map((item) => {
-              const norm = normalizeSubrubric(item);
-              const key = norm.slug ?? slugify(norm.name);
-              const fb = fallbackMap.get(key) || fallbackMap.get(`${rubricSlug}-${key}`);
-              const isLocalCurated = fb?.photo && fb.photo.startsWith("/images/");
-              const isRemoteThirdParty = norm.photo && !norm.photo.startsWith("/") && !norm.photo.includes("supabase.co");
-              const finalPhoto = (isLocalCurated && isRemoteThirdParty ? fb.photo : norm.photo) || fb?.photo || norm.photo;
-              return {
-                ...fb,
-                ...norm,
-                photo: finalPhoto,
-              };
-            });
-
-          // Ensure any missing subrubric from fallback is retained
-          fallback.forEach((f) => {
-            const key = f.slug ?? slugify(f.name);
-            const exists = merged.some((m) => {
-              const mKey = m.slug ?? slugify(m.name);
-              return mKey === key || mKey.includes(key) || key.includes(mKey);
-            });
-            if (!exists) {
-              merged.push(f);
-            }
-          });
-
-          setItems(applyWhitelists(dedupe(merged), rubricSlug));
-          return;
-        }
-        // Lecture depuis le cache de l'administrateur
-        if (typeof window !== "undefined") {
+      // 2. Fusionner immédiatement avec le cache local de l'admin (localStorage)
+      if (typeof window !== "undefined") {
+        try {
           const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
           if (raw) {
             const parsed = JSON.parse(raw);
-              type StoredSubrubric = {
-                id: string;
-                rubricId: string;
-                slug?: string;
-                name: string;
-                description?: string;
-                icon?: string;
-                photo?: string;
-                image?: string;
-                imageAlt?: string;
-                isDormant?: boolean;
-                searchKeywords?: string[];
-                status?: string;
-                showPublicly?: boolean;
-                order?: number;
-              };
-              const rawSubs = (parsed?.subrubrics as StoredSubrubric[]) ?? [];
-              const matched = rawSubs.filter(
-                (s) => (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}`) && s.status === "Publié" && s.showPublicly !== false && !s.isDormant && !s.searchKeywords?.includes("__dormant__")
-              );
-              if (matched.length > 0) {
-                const combined = dedupe([
-                  ...fallback,
-                  ...matched.map((s) => ({
-                    id: s.id,
-                    rubricId: s.rubricId,
-                    slug: s.slug || slugify(s.name),
-                    name: s.name,
-                    description: s.description,
-                    icon: s.icon,
-                    photo: s.photo || s.image,
-                    imageAlt: s.imageAlt || s.name,
-                    visible: true,
-                    showPublicly: true,
-                    order: s.order || 1,
-                    status: "Publié" as const,
-                  })),
-                ]);
-                setItems(applyWhitelists(combined, rubricSlug));
-                return;
-              }
+            type StoredSubrubric = {
+              id: string;
+              rubricId: string;
+              slug?: string;
+              name: string;
+              description?: string;
+              icon?: string;
+              photo?: string;
+              image?: string;
+              imageAlt?: string;
+              isDormant?: boolean;
+              searchKeywords?: string[];
+              status?: string;
+              showPublicly?: boolean;
+              order?: number;
+            };
+            const rawSubs = (parsed?.subrubrics as StoredSubrubric[]) ?? [];
+            rawSubs
+              .filter(
+                (s) =>
+                  (s.rubricId === rubricSlug || s.rubricId === `rubric-${rubricSlug}`) &&
+                  s.status === "Publié" &&
+                  s.showPublicly !== false &&
+                  !s.isDormant &&
+                  !s.searchKeywords?.includes("__dormant__")
+              )
+              .forEach((s) => {
+                const key = s.slug || slugify(s.name);
+                const existing = subMap.get(s.id) || subMap.get(key) || subMap.get(`${rubricSlug}-${key}`);
+                const photo = s.photo || s.image || existing?.photo;
+                const updated: SubrubricPreview = {
+                  id: s.id,
+                  rubricId: s.rubricId,
+                  slug: key,
+                  name: s.name,
+                  description: s.description ?? existing?.description ?? "",
+                  icon: s.icon ?? existing?.icon,
+                  photo,
+                  imageAlt: s.imageAlt ?? existing?.imageAlt ?? s.name,
+                  visible: true,
+                  showPublicly: true,
+                  order: s.order ?? existing?.order ?? 1,
+                  status: "Publié" as const,
+                };
+                subMap.set(s.id, updated);
+                subMap.set(key, updated);
+                subMap.set(`${rubricSlug}-${key}`, updated);
+              });
           }
+        } catch {
+          // ignore
+        }
+      }
+
+      // 3. Fusionner avec Supabase en direct
+      try {
+        const remote = await listPublishedSubrubrics(rubricSlug);
+        if (mounted && remote && remote.length > 0) {
+          remote.forEach((item) => {
+            const norm = normalizeSubrubric(item);
+            const key = norm.slug ?? slugify(norm.name);
+            const existing = subMap.get(norm.id) || subMap.get(key) || subMap.get(`${rubricSlug}-${key}`);
+            const photo = norm.photo || existing?.photo;
+            const updated: SubrubricPreview = {
+              ...existing,
+              ...norm,
+              photo,
+            };
+            subMap.set(norm.id, updated);
+            subMap.set(key, updated);
+            subMap.set(`${rubricSlug}-${key}`, updated);
+          });
         }
       } catch {
-        // Fallback d'urgence lecture seule
+        // Fallback local intact
       }
-      if (mounted) setItems(applyWhitelists(fallback, rubricSlug));
+
+      if (mounted) {
+        const unique = Array.from(subMap.values());
+        setItems(applyWhitelists(dedupe(unique), rubricSlug));
+      }
     }
+
     void load();
 
     const refresh = () => void load();
     window.addEventListener("storage", refresh);
     window.addEventListener("liberty-admin-published", refresh);
+    window.addEventListener("focus", refresh);
     return () => {
       mounted = false;
       window.removeEventListener("storage", refresh);
       window.removeEventListener("liberty-admin-published", refresh);
+      window.removeEventListener("focus", refresh);
     };
   }, [fallback, rubricSlug]);
 

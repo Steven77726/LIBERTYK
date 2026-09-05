@@ -156,16 +156,66 @@ async function getRubricLookup() {
   const map = new Map<string, string>();
   (data ?? []).forEach((rubric) => {
     map.set(rubric.id, rubric.id);
-    if (rubric.external_id) map.set(rubric.external_id, rubric.id);
-    map.set(rubric.slug, rubric.id);
+    if (rubric.external_id) {
+      const ext = rubric.external_id.trim();
+      const extClean = ext.toLowerCase();
+      const extWithoutPrefix = extClean.replace(/^rubric-/, "");
+      map.set(ext, rubric.id);
+      map.set(extClean, rubric.id);
+      map.set(extWithoutPrefix, rubric.id);
+      map.set(`rubric-${extWithoutPrefix}`, rubric.id);
+    }
+    if (rubric.slug) {
+      const slug = rubric.slug.trim();
+      const slugClean = slug.toLowerCase();
+      const slugWithoutPrefix = slugClean.replace(/^rubric-/, "");
+      map.set(slug, rubric.id);
+      map.set(slugClean, rubric.id);
+      map.set(slugWithoutPrefix, rubric.id);
+      map.set(`rubric-${slugWithoutPrefix}`, rubric.id);
+    }
   });
   return map;
 }
 
 async function subrubricToPayload(subrubric: SubrubricRecord, statusOverride?: StatusDb) {
   const rubricLookup = await getRubricLookup();
-  const rubricId = rubricLookup.get(subrubric.rubricId);
-  if (!rubricId) throw new Error(`Rubrique parente introuvable pour ${subrubric.name}.`);
+  const rawRubric = (subrubric.rubricId || "").trim();
+  const cleanRubric = rawRubric.toLowerCase();
+  const rubricWithoutPrefix = cleanRubric.replace(/^rubric-/, "");
+  let rubricId =
+    rubricLookup.get(rawRubric) ||
+    rubricLookup.get(cleanRubric) ||
+    rubricLookup.get(rubricWithoutPrefix) ||
+    rubricLookup.get(`rubric-${rubricWithoutPrefix}`);
+
+  if (!rubricId) {
+    // Tenter de créer ou retrouver la rubrique dans Supabase
+    try {
+      const supabase = getClientOrThrow();
+      const { data: createdRubric } = await supabase
+        .from("rubrics")
+        .upsert(
+          {
+            external_id: rawRubric.startsWith("rubric-") ? rawRubric : `rubric-${rubricWithoutPrefix}`,
+            slug: rubricWithoutPrefix,
+            name: rubricWithoutPrefix.charAt(0).toUpperCase() + rubricWithoutPrefix.slice(1),
+            status: "published",
+            show_publicly: true,
+          },
+          { onConflict: "external_id" }
+        )
+        .select("id")
+        .maybeSingle<{ id: string }>();
+      if (createdRubric?.id) {
+        rubricId = createdRubric.id;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!rubricId) throw new Error(`Rubrique parente introuvable pour « ${subrubric.name} ».`);
   const slug = normalizeSlug(subrubric.slug || subrubric.name || subrubric.id);
   const showPublicly = subrubric.showPublicly ?? subrubric.visible ?? true;
   const isDormant = subrubric.status === "En sommeil" || subrubric.isDormant === true;
@@ -267,9 +317,21 @@ async function upsertSubrubric(subrubric: SubrubricRecord, statusOverride?: Stat
     .from("subrubrics")
     .upsert(payload, { onConflict: "external_id" })
     .select(selectColumns)
-    .single<SubrubricRow>();
-  if (error) throw new Error(readableError(error));
-  return rowToSubrubric(data);
+    .maybeSingle<SubrubricRow>();
+  if (error) {
+    // Tentative de mise à jour par rubric_id et slug
+    const { data: fallbackUpdated, error: fallbackError } = await supabase
+      .from("subrubrics")
+      .update(payload)
+      .eq("rubric_id", payload.rubric_id)
+      .eq("slug", payload.slug)
+      .select(selectColumns)
+      .maybeSingle<SubrubricRow>();
+    if (!fallbackError && fallbackUpdated) return rowToSubrubric(fallbackUpdated);
+    throw new Error(readableError(error));
+  }
+  if (data) return rowToSubrubric(data);
+  return subrubric;
 }
 
 export async function createSubrubric(subrubric: SubrubricRecord) {

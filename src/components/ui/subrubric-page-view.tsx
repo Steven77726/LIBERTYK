@@ -96,8 +96,8 @@ export function SubrubricPageView({
         if (!mounted) return;
         let foundSubrubric = (remoteSubrubrics ?? []).find((item) => item.slug === subrubricSlug) ?? null;
 
-        // Si non trouvée dans Supabase, chercher dans le cache local admin
-        if (!foundSubrubric && typeof window !== "undefined") {
+        // Fusionner avec le cache local admin (priorité à la dernière photo éditée)
+        if (typeof window !== "undefined") {
           try {
             const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
             if (raw) {
@@ -111,13 +111,13 @@ export function SubrubricPageView({
                 foundSubrubric = {
                   id: matched.id,
                   rubricId: rubricSlug,
-                  slug: matched.slug,
-                  name: matched.name,
-                  description: matched.description || "",
-                  photo: matched.photo || matched.image || fallbackImage || "",
-                  imageAlt: matched.imageAlt || matched.name,
+                  slug: matched.slug || subrubricSlug,
+                  name: matched.name || foundSubrubric?.name || fallbackTitle || "",
+                  description: matched.description || foundSubrubric?.description || fallbackDescription || "",
+                  photo: matched.photo || matched.image || foundSubrubric?.photo || fallbackImage || "",
+                  imageAlt: matched.imageAlt || matched.name || foundSubrubric?.imageAlt || "",
                   showPublicly: true,
-                  order: matched.order || 1,
+                  order: matched.order || foundSubrubric?.order || 1,
                   status: "Publié",
                 };
               }
@@ -202,11 +202,15 @@ export function SubrubricPageView({
 
     const refresh = () => void load();
     window.addEventListener("liberty-admin-published", refresh);
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
     return () => {
       mounted = false;
       window.removeEventListener("liberty-admin-published", refresh);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
     };
-  }, [rubricSlug, subrubricSlug, fallbackImage]);
+  }, [rubricSlug, subrubricSlug, fallbackImage, fallbackTitle, fallbackDescription]);
 
   const countLabel = useMemo(() => {
     if (loading) return "Chargement…";

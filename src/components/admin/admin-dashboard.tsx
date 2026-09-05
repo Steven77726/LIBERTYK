@@ -2130,7 +2130,23 @@ export function AdminDashboard() {
         if (!mounted) return;
         if (nextSubrubrics.length) {
           skipNextAdminStateSave.current = true;
-          setState((current) => normalizeAdminState({ ...current, subrubrics: nextSubrubrics }));
+          setState((current) => {
+            const mergedMap = new Map(current.subrubrics.map((s) => [s.id, s]));
+            const merged = nextSubrubrics.map((remoteSub) => {
+              const local = mergedMap.get(remoteSub.id) || mergedMap.get(remoteSub.slug ?? "") || mergedMap.get(slugify(remoteSub.name));
+              return {
+                ...local,
+                ...remoteSub,
+                photo: remoteSub.photo || local?.photo || "",
+              };
+            });
+            current.subrubrics.forEach((localSub) => {
+              if (!merged.some((m) => m.id === localSub.id || (localSub.slug && m.slug === localSub.slug))) {
+                merged.push(localSub);
+              }
+            });
+            return normalizeAdminState({ ...current, subrubrics: merged });
+          });
           window.dispatchEvent(new Event("liberty-admin-published"));
           setAdminMessage(remoteSubrubrics.length ? "Sous-rubriques chargées depuis Supabase." : "Sous-rubriques existantes importées dans Supabase.");
         } else {
@@ -3490,19 +3506,15 @@ export function AdminDashboard() {
     setRubricsOperation(`subdraft-${subrubric.id}`);
     setSavingAction("Sauvegarde sous-rubrique");
     const draft = { ...subrubric, slug, imageAlt: subrubric.imageAlt || subrubric.name, status: "Brouillon" as AdminStatus, updatedAt: new Date().toISOString() };
+    applySubrubricLocally(draft, "Sous-rubrique enregistrée en brouillon.");
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await createSubrubricInSupabase(draft);
         applySubrubricLocally(saved, "Sous-rubrique enregistrée en brouillon.");
-      } else {
-        commitState((current) => ({
-          ...current,
-          subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? draft : item)),
-        }), "Sous-rubrique enregistrée en brouillon.", "Sauvegarde");
       }
       audit("brouillon", "sous-rubrique", subrubric.id, subrubric.name);
     } catch (error) {
-      setAdminMessage(`Échec de sauvegarde sous-rubrique : ${(error as Error).message}`);
+      setAdminMessage(`Enregistré localement (Avertissement Supabase : ${(error as Error).message})`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");
@@ -3523,19 +3535,15 @@ export function AdminDashboard() {
     setRubricsOperation(`subpublish-${subrubric.id}`);
     setSavingAction("Publication sous-rubrique");
     const next = { ...subrubric, slug, status: "Publié" as AdminStatus, visible: true, showPublicly: true, updatedAt: new Date().toISOString() };
+    applySubrubricLocally(next, "Sous-rubrique publiée avec succès.");
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await publishSubrubricInSupabase(next);
         applySubrubricLocally(saved, "Sous-rubrique publiée avec succès.");
-      } else {
-        commitState((current) => ({
-          ...current,
-          subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? next : item)),
-        }), "Sous-rubrique publiée avec succès.", "Publication");
       }
       audit("publication", "sous-rubrique", subrubric.id, subrubric.name);
     } catch (error) {
-      setAdminMessage(`Échec de publication sous-rubrique : ${(error as Error).message}`);
+      setAdminMessage(`Publié localement (Avertissement Supabase : ${(error as Error).message})`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");
@@ -3574,16 +3582,15 @@ export function AdminDashboard() {
     setSavingAction("Mise en sommeil sous-rubrique");
     const slug = subrubric.slug || slugify(subrubric.name);
     const sleeping = { ...subrubric, slug, status: "En sommeil" as AdminStatus, visible: true, showPublicly: true, updatedAt: new Date().toISOString() };
+    applySubrubricLocally(sleeping, "Sous-rubrique mise en sommeil (Disponible bientôt).");
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await sleepSubrubricInSupabase(sleeping);
         applySubrubricLocally(saved, "Sous-rubrique mise en sommeil (Disponible bientôt).");
-      } else {
-        commitState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => (item.id === subrubric.id ? sleeping : item)) }), "Sous-rubrique mise en sommeil avec succès.", "En sommeil");
       }
       audit("sommeil", "sous-rubrique", subrubric.id, subrubric.name);
     } catch (error) {
-      setAdminMessage(`Échec de mise en sommeil sous-rubrique : ${(error as Error).message}`);
+      setAdminMessage(`Mise en sommeil locale active (Avertissement Supabase : ${(error as Error).message})`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");
@@ -3596,16 +3603,15 @@ export function AdminDashboard() {
     setRubricsOperation(`subhide-${subrubric.id}`);
     setSavingAction("Masquage sous-rubrique");
     const hidden = { ...subrubric, status: "Masqué" as AdminStatus, visible: false, showPublicly: false, updatedAt: new Date().toISOString() };
+    applySubrubricLocally(hidden, "Sous-rubrique masquée.");
     try {
       if (auth.configured && hasAdminAccess) {
         const saved = await hideSubrubricInSupabase(hidden);
         applySubrubricLocally(saved, "Sous-rubrique masquée.");
-      } else {
-        commitState((current) => ({ ...current, subrubrics: current.subrubrics.map((item) => item.id === subrubric.id ? hidden : item) }), "Sous-rubrique masquée avec succès.", "Masquage");
       }
       audit("masquage", "sous-rubrique", subrubric.id, subrubric.name);
     } catch (error) {
-      setAdminMessage(`Échec de masquage sous-rubrique : ${(error as Error).message}`);
+      setAdminMessage(`Masquage local actif (Avertissement Supabase : ${(error as Error).message})`);
     } finally {
       setRubricsOperation("");
       setSavingAction("");

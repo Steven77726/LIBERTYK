@@ -43,6 +43,13 @@ import { brunches } from "@/data/brunches";
 import { wineActivities } from "@/data/wine-activities";
 import { azamra } from "@/data/shops";
 import { localEstablishments, type LocalEstablishment } from "@/data/establishments";
+import {
+  addEstablishmentTombstone,
+  removeEstablishmentTombstone,
+  filterTombstonedEstablishments,
+  isEstablishmentTombstoned,
+  normalizeTombstoneKey,
+} from "@/lib/tombstones";
 import { assetPath } from "@/lib/assets";
 import { getAnalyticsEvents, getReviews } from "@/lib/client-store";
 import { useSupabaseAuth } from "@/components/providers/supabase-auth-provider";
@@ -800,7 +807,14 @@ function normalizeAdminState(state: Partial<AdminState>): AdminState {
     })),
     tags: deduplicateAdminTags((state.tags ?? seed.tags).map((item) => ({ ...item, kind: item.kind ?? "visible", color: item.color ?? "#1f4d3b", rubricIds: item.rubricIds ?? [], status: item.status ?? "Publié" }))),
     certifications: state.certifications ?? seed.certifications,
-    establishments: mergedEstablishments,
+    establishments: filterTombstonedEstablishments(mergedEstablishments).filter((est) => {
+      const trashedItems = state.trash ?? [];
+      return !trashedItems.some((t) => {
+        if (!t?.payload) return false;
+        const p = t.payload as { id?: string; name?: string; slug?: string };
+        return p.id === est.id || p.slug === est.slug || (p.name && normalizeTombstoneKey(p.name) === normalizeTombstoneKey(est.name));
+      });
+    }),
     banners: (state.banners ?? seed.banners).map((item) => ({ ...item, image: safeImageUrl(item.image), internalName: item.internalName ?? item.title, imageAlt: item.imageAlt ?? item.title, sponsored: item.sponsored ?? false })),
     notifications: (state.notifications ?? seed.notifications).map((item) => ({ ...item, image: safeImageUrl(item.image), status: ["Brouillon", "Programmée", "Envoyée", "Annulée"].includes(item.status) ? item.status : "Brouillon" })),
     pageSections: state.pageSections ?? [
@@ -4168,6 +4182,9 @@ export function AdminDashboard() {
   };
 
   const moveToTrash = <T extends { id: string }>(entityType: string, label: string, payload: T, apply: (current: AdminState) => AdminState) => {
+    if (entityType === "fiche" || entityType === "etablissement" || entityType === "establishment") {
+      addEstablishmentTombstone(payload as { id: string; name?: string; slug?: string });
+    }
     const trashItem: TrashItem = {
       id: newId("trash"),
       entityType,
@@ -4187,6 +4204,12 @@ export function AdminDashboard() {
   };
 
   const deleteTrashItemPermanently = (id: string) => {
+    const item = state.trash.find((t) => t.id === id);
+    if (item && (item.entityType === "fiche" || item.entityType === "etablissement" || item.entityType === "establishment")) {
+      if (item.payload) {
+        addEstablishmentTombstone(item.payload as { id: string; name?: string; slug?: string });
+      }
+    }
     setState((current) => {
       const next = normalizeAdminState({ ...current, trash: current.trash.filter((trash) => trash.id !== id) });
       persistAdminStateSnapshot(next);
@@ -4208,8 +4231,11 @@ export function AdminDashboard() {
       if (trashItem.entityType === "sous-rubrique" && auth.configured && hasAdminAccess) {
         restoredPayload = await restoreSubrubricInSupabase(trashItem.payload as AdminSubrubric);
       }
-      if (trashItem.entityType === "fiche" && auth.configured && hasAdminAccess) {
-        restoredPayload = await restoreEstablishmentInSupabase(trashItem.payload as EstablishmentRecord);
+      if (trashItem.entityType === "fiche") {
+        removeEstablishmentTombstone(trashItem.payload as { id: string; name?: string; slug?: string });
+        if (auth.configured && hasAdminAccess) {
+          restoredPayload = await restoreEstablishmentInSupabase(trashItem.payload as EstablishmentRecord);
+        }
       }
       if (trashItem.entityType === "rubrique" || trashItem.entityType === "sous-rubrique" || trashItem.entityType === "fiche") skipNextAdminStateSave.current = true;
       setState((current) => {

@@ -9,6 +9,7 @@ import { subrubricSlugAliases } from "@/data/subrubrics";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
+import { filterTombstonedEstablishments, TOMBSTONE_CHANGE_EVENT } from "@/lib/tombstones";
 
 type Props = {
   rubricSlug: string;
@@ -68,11 +69,11 @@ export function SubrubricPageView({
   const [subrubric, setSubrubric] = useState<SubrubricRecord | null>(null);
   const target = subrubricSlug.toLowerCase();
   const [items, setItems] = useState<EstablishmentRecord[]>(() => {
-    return (localEstablishments as EstablishmentRecord[]).filter((est) => {
+    return filterTombstonedEstablishments((localEstablishments as EstablishmentRecord[]).filter((est) => {
       if (est.rubricId !== rubricSlug && est.rubricId !== `${rubricSlug}`) return false;
       if (est.status === "Masqué") return false;
       return checkSubrubricMatch(est.subrubricId, rubricSlug, target);
-    });
+    }));
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -258,7 +259,7 @@ export function SubrubricPageView({
           }
         }
 
-        setItems(Array.from(itemMap.values()));
+        setItems(filterTombstonedEstablishments(Array.from(itemMap.values())));
       } catch (loadError) {
         if (!mounted) return;
         setItems([]);
@@ -272,11 +273,13 @@ export function SubrubricPageView({
 
     const refresh = () => void load();
     window.addEventListener("liberty-admin-published", refresh);
+    window.addEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
     return () => {
       mounted = false;
       window.removeEventListener("liberty-admin-published", refresh);
+      window.removeEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
     };

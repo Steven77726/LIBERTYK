@@ -13,6 +13,7 @@ import {
 } from "@/lib/concierge/intent-parser";
 import type { EstablishmentSearchResult } from "@/lib/search/search-service";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+import { filterTombstonedSearchItems, TOMBSTONE_CHANGE_EVENT } from "@/lib/tombstones";
 import { trackEvent } from "@/lib/client-store";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
@@ -129,15 +130,16 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
           signal: controller.signal,
           limit: 50,
         });
+        const activeResults = filterTombstonedSearchItems(nextResults);
 
         if (requestRef.current === requestId && !controller.signal.aborted) {
-          setResults(nextResults);
+          setResults(activeResults);
 
           // 4. Formulation de la réponse
-          const responseText = generateConciergeResponse(parsedCriteria, nextResults.length);
+          const responseText = generateConciergeResponse(parsedCriteria, activeResults.length);
           setConciergeMessage(responseText);
 
-          trackEvent("liberty_search_query", trimmed, `${nextResults.length}_results`);
+          trackEvent("liberty_search_query", trimmed, `${activeResults.length}_results`);
         }
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -233,6 +235,11 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
 
   useEffect(() => {
     setMounted(true);
+    const onTombstonesChanged = () => {
+      setResults((prev) => filterTombstonedSearchItems(prev));
+    };
+    window.addEventListener(TOMBSTONE_CHANGE_EVENT, onTombstonesChanged);
+    return () => window.removeEventListener(TOMBSTONE_CHANGE_EVENT, onTombstonesChanged);
   }, []);
 
   // Exécution instantanée (0ms) sur la frappe textuelle sans aucun délai artificiel

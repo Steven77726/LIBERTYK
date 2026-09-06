@@ -5,6 +5,7 @@
  */
 
 import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/search/search-service";
+import { filterTombstonedSearchItems, isEstablishmentTombstoned } from "@/lib/tombstones";
 
 export type ConciergeCriteria = {
   rawQuery: string;
@@ -458,7 +459,10 @@ export async function executeConciergeSearch(
   const rawQuery = criteria.rawQuery.trim();
   const rawResults = await searchEstablishments(rawQuery, { limit: options?.limit ?? 50, signal: options?.signal });
 
-  const filtered = rawResults.filter((item) => {
+  const filtered = filterTombstonedSearchItems(rawResults).filter((item) => {
+    if (isEstablishmentTombstoned({ id: item.id, name: item.title, title: item.title, href: item.href, address: item.subtitle })) {
+      return false;
+    }
     const categoryNorm = (item.establishment?.rubricId || item.category || "").toLowerCase();
 
     // 1. Filtrage Catégorie

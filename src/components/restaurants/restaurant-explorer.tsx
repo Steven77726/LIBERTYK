@@ -574,6 +574,7 @@ function FilterSection({ title, options, active, toggle }: { title: string; opti
 
 
 import { localEstablishments } from "@/data/establishments";
+import { isEstablishmentTombstoned, TOMBSTONE_CHANGE_EVENT } from "@/lib/tombstones";
 
 export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants: Restaurant[] }) {
   const [query, setQuery] = useState("");
@@ -586,8 +587,13 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
 
   const initialMerged = useMemo(() => {
     const mergedMap = new Map<string, Restaurant>();
-    initialRestaurants.forEach((r) => mergedMap.set(r.id, r));
+    initialRestaurants.forEach((r) => {
+      if (!isEstablishmentTombstoned({ id: r.id, name: r.name, fullAddress: r.fullAddress })) {
+        mergedMap.set(r.id, r);
+      }
+    });
     const localFood = (localEstablishments as EstablishmentRecord[]).filter((est) => {
+      if (isEstablishmentTombstoned(est)) return false;
       const rubric = (est.rubricId || "").toLowerCase();
       return (
         rubric === "food" ||
@@ -601,6 +607,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     if (localFood.length > 0) {
       const converted = establishmentRecordsToRestaurants(localFood);
       converted.forEach((c) => {
+        if (isEstablishmentTombstoned({ id: c.id, name: c.name, fullAddress: c.fullAddress })) return;
         const candidateNorm = normalize(c.name);
         let matchKey: string | null = null;
         for (const [key, existing] of mergedMap.entries()) {
@@ -616,7 +623,7 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         }
       });
     }
-    return Array.from(mergedMap.values());
+    return Array.from(mergedMap.values()).filter((r) => !isEstablishmentTombstoned({ id: r.id, name: r.name, fullAddress: r.fullAddress }));
   }, [initialRestaurants]);
 
   const [restaurantData, setRestaurantData] = useState(initialMerged);
@@ -766,8 +773,15 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
         }
       }
 
+      // 5. Purge universelle des fiches tombstonées
+      for (const [key, existing] of mergedMap.entries()) {
+        if (isEstablishmentTombstoned({ id: existing.id, name: existing.name, fullAddress: existing.fullAddress })) {
+          mergedMap.delete(key);
+        }
+      }
+
       if (mounted) {
-        setRestaurantData(Array.from(mergedMap.values()));
+        setRestaurantData(Array.from(mergedMap.values()).filter((r) => !isEstablishmentTombstoned({ id: r.id, name: r.name, fullAddress: r.fullAddress })));
       }
     };
 
@@ -775,10 +789,12 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
     const refresh = () => void loadAdminRestaurants();
     window.addEventListener("storage", refresh);
     window.addEventListener("liberty-admin-published", refresh);
+    window.addEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     return () => {
       mounted = false;
       window.removeEventListener("storage", refresh);
       window.removeEventListener("liberty-admin-published", refresh);
+      window.removeEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     };
   }, [initialMerged]);
 

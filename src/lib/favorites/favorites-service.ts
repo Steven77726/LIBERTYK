@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { localEstablishments } from "@/data/establishments";
 import { getCurrentUser } from "@/lib/auth/auth-service";
+import { isEstablishmentTombstoned } from "@/lib/tombstones";
 
 export type FavoriteRecord = {
   id: string;
@@ -192,8 +193,18 @@ async function listLocalFavoriteRecords(localIds = readLocalFavorites()) {
         .returns<FavoriteEstablishmentRow[]>();
 
       if (data && data.length > 0) {
-        const photos = await getPhotoMap(data.map((row) => row.id));
-        return data.map((row) => rowToFavorite(row, new Date().toISOString(), photos.get(row.id)));
+        const activeRows = data.filter(
+          (row) =>
+            !isEstablishmentTombstoned({
+              id: row.id,
+              externalId: row.external_id,
+              slug: row.slug,
+              name: row.name,
+              address: row.address,
+            })
+        );
+        const photos = await getPhotoMap(activeRows.map((row) => row.id));
+        return activeRows.map((row) => rowToFavorite(row, new Date().toISOString(), photos.get(row.id)));
       }
     }
   }
@@ -209,7 +220,7 @@ async function listLocalFavoriteRecords(localIds = readLocalFavorites()) {
       return eNorm === norm || eSlug === norm || eName === norm || eNorm.includes(norm) || norm.includes(eNorm);
     });
 
-    if (found) {
+    if (found && !isEstablishmentTombstoned(found)) {
       records.push({
         id: found.id,
         establishmentId: found.id,
@@ -232,7 +243,7 @@ export async function listFavorites(): Promise<FavoriteRecord[]> {
   const user = getCurrentUser();
   const supabase = getSupabaseBrowserClient();
   const userId = await getUserId();
-  if (!user || !supabase || !userId) return local;
+  if (!user || !supabase || !userId) return local.filter((item) => !isEstablishmentTombstoned({ id: item.establishmentId, name: item.title }));
 
   try {
     const { data, error } = await supabase
@@ -242,8 +253,10 @@ export async function listFavorites(): Promise<FavoriteRecord[]> {
       .order("created_at", { ascending: false })
       .returns<UserFavoriteRow[]>();
 
-    if (error || !data || data.length === 0) return local;
-    const rows = data.filter((item) => item.establishments).map((item) => ({ row: item.establishments!, createdAt: item.created_at }));
+    if (error || !data || data.length === 0) return local.filter((item) => !isEstablishmentTombstoned({ id: item.establishmentId, name: item.title }));
+    const rows = data
+      .filter((item) => item.establishments && !isEstablishmentTombstoned({ id: item.establishments.id, externalId: item.establishments.external_id, slug: item.establishments.slug, name: item.establishments.name, address: item.establishments.address }))
+      .map((item) => ({ row: item.establishments!, createdAt: item.created_at }));
     const photos = await getPhotoMap(rows.map((item) => item.row.id));
     const remote = rows.map((item) => rowToFavorite(item.row, item.createdAt, photos.get(item.row.id)));
 
@@ -252,9 +265,9 @@ export async function listFavorites(): Promise<FavoriteRecord[]> {
     local.forEach((l) => {
       if (!map.has(l.establishmentId || l.id)) map.set(l.establishmentId || l.id, l);
     });
-    return Array.from(map.values());
+    return Array.from(map.values()).filter((item) => !isEstablishmentTombstoned({ id: item.establishmentId, name: item.title }));
   } catch {
-    return local;
+    return local.filter((item) => !isEstablishmentTombstoned({ id: item.establishmentId, name: item.title }));
   }
 }
 

@@ -7,6 +7,7 @@ import { searchEstablishments, type EstablishmentSearchResult } from "@/lib/sear
 import { InteractiveMap, type MapEstablishment } from "@/components/map/interactive-map";
 import { quickSuggestions } from "@/components/search/ai-search";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+import { filterTombstonedSearchItems, TOMBSTONE_CHANGE_EVENT } from "@/lib/tombstones";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 
 export function SearchResultsPage() {
@@ -37,7 +38,7 @@ export function SearchResultsPage() {
       if (!activeQuery.trim()) {
         const defaultResults = await searchEstablishments("restaurant", { limit: 50 });
         if (active) {
-          setResults(defaultResults);
+          setResults(filterTombstonedSearchItems(defaultResults));
           setLoading(false);
         }
         return;
@@ -45,15 +46,21 @@ export function SearchResultsPage() {
 
       const found = await searchEstablishments(activeQuery, { limit: 100 });
       if (active) {
-        setResults(found);
+        setResults(filterTombstonedSearchItems(found));
         setLoading(false);
       }
     };
 
     void run();
 
+    const onTombstonesChanged = () => {
+      setResults((prev) => filterTombstonedSearchItems(prev));
+    };
+    window.addEventListener(TOMBSTONE_CHANGE_EVENT, onTombstonesChanged);
+
     return () => {
       active = false;
+      window.removeEventListener(TOMBSTONE_CHANGE_EVENT, onTombstonesChanged);
     };
   }, [activeQuery]);
 

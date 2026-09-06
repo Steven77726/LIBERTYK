@@ -1,3 +1,5 @@
+import { isEstablishmentTombstoned } from "@/lib/tombstones";
+
 export type SearchItem = {
   id: string;
   title: string;
@@ -202,7 +204,10 @@ export function searchItems(items: SearchItem[], query: string, options: SearchO
   if (!filters.arrondissement && analysis.arrondissement) filters.arrondissement = analysis.arrondissement;
   if (!filters.kosherType && analysis.kosherType) filters.kosherType = analysis.kosherType;
 
-  return items.filter((item) => matchesFilters(item, filters)).map((item) => {
+  return items
+    .filter((item) => !isEstablishmentTombstoned({ id: item.id, name: item.title, title: item.title, href: item.href }))
+    .filter((item) => matchesFilters(item, filters))
+    .map((item) => {
     const title = normalizeSearchText(item.title);
     const category = normalizeSearchText(item.category);
     const subcategory = normalizeSearchText(item.subcategory ?? "");
@@ -256,8 +261,8 @@ export function searchItems(items: SearchItem[], query: string, options: SearchO
     const favorites = Math.min(12, (item.ranking?.favorites ?? 0) / 8);
     const reviews = Math.min(10, (item.ranking?.reviewCount ?? 0) / 4);
     const score = relevance + sponsorBoost + popularity + favorites + reviews;
-    return { item, score };
-  }).filter(({ score }) => score > 18).sort((a, b) => b.score - a.score).slice(0, options.limit ?? 50).map(({ item }) => item);
+    return { item, score, relevance };
+  }).filter(({ score, relevance }) => relevance > 0 && score > 18).sort((a, b) => b.score - a.score).slice(0, options.limit ?? 50).map(({ item }) => item);
 }
 
 const suggestionPool = [
@@ -281,9 +286,11 @@ export function getSearchSuggestions(query: string) {
   const normalized = normalizeSearchText(query);
   if (normalized.length < 2) return [];
   const { tokens } = expandQuery(query);
-  const suggestions = suggestionPool.filter((suggestion) => {
-    const normalizedSuggestion = normalizeSearchText(suggestion);
-    return normalizedSuggestion.includes(normalized) || tokens.some((token) => normalizedSuggestion.includes(token));
-  });
+  const suggestions = suggestionPool
+    .filter((suggestion) => !isEstablishmentTombstoned(suggestion))
+    .filter((suggestion) => {
+      const normalizedSuggestion = normalizeSearchText(suggestion);
+      return normalizedSuggestion.includes(normalized) || tokens.some((token) => normalizedSuggestion.includes(token));
+    });
   return suggestions.slice(0, 5);
 }

@@ -4,6 +4,7 @@ import { searchIndex } from "@/data/search-index";
 import { normalizeSearchText, searchItems, type SearchItem } from "@/lib/search-engine";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
+import { filterTombstonedSearchItems } from "@/lib/tombstones";
 
 export type SearchMatch = {
   field: "name" | "alias" | "tag" | "rubric" | "subrubric" | "city" | "district" | "description";
@@ -711,7 +712,7 @@ function fallbackSearch(query: string): EstablishmentSearchResult[] {
     }
   });
 
-  return combined.map((item, index) => ({
+  return filterTombstonedSearchItems(combined).map((item, index) => ({
     ...item,
     score: 1_000 - index,
     matches: [],
@@ -824,5 +825,5 @@ export async function searchEstablishments(query: string, options: { signal?: Ab
       combined.push(fallback);
     }
   }
-  return combined.slice(0, options.limit ?? 50);
+  return filterTombstonedSearchItems(combined).slice(0, options.limit ?? 50);
 }

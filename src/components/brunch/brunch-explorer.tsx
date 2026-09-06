@@ -15,6 +15,7 @@ import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
 import { buildLocationFilterOptions, matchesAnyLocationFilter } from "@/lib/geo/location-filters";
+import { isEstablishmentTombstoned, filterTombstonedEstablishments, TOMBSTONE_CHANGE_EVENT } from "@/lib/tombstones";
 
 const baseGroups = [
   { title: "Type de brunch", values: ["Pancakes", "Avocado Toast", "Œufs Bénédicte", "Bagels", "Gaufres", "Viennoiseries", "Café de spécialité", "Brunch israélien", "Healthy", "Buffet", "Fromages", "Pâtisseries"] },
@@ -206,7 +207,7 @@ function BrunchCard({ brunch, onOpen }: { brunch: Brunch; onOpen: () => void }) 
 }
 
 export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] }) {
-  const [brunchData, setBrunchData] = useState(initialBrunches);
+  const [brunchData, setBrunchData] = useState(() => filterTombstonedEstablishments(initialBrunches));
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<string[]>([]);
   const [sort, setSort] = useState("Les plus proches");
@@ -226,7 +227,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
     let mounted = true;
     const load = async () => {
       const mergedMap = new Map<string, Brunch>();
-      initialBrunches.forEach((b) => mergedMap.set(b.slug, b));
+      filterTombstonedEstablishments(initialBrunches).forEach((b) => mergedMap.set(b.slug, b));
 
       const findMatchingKey = (candidate: { slug?: string; name: string }) => {
         const cNorm = candidate.name.toLowerCase().trim();
@@ -265,6 +266,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
             });
 
             const localBrunches = rawEsts.filter((est) => {
+              if (isEstablishmentTombstoned(est)) return false;
               const showPublicly = (est as { showPublicly?: boolean }).showPublicly;
               if (est.status === "Masqué" || est.visible === false || showPublicly === false) return false;
               const sub = (est.subrubricId || "").toLowerCase();
@@ -274,6 +276,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
             if (localBrunches.length > 0) {
               const converted = recordsToBrunches(localBrunches);
               converted.forEach((c) => {
+                if (isEstablishmentTombstoned(c)) return;
                 const matchKey = findMatchingKey(c);
                 if (matchKey) mergedMap.set(matchKey, { ...mergedMap.get(matchKey)!, ...c });
                 else mergedMap.set(c.slug, c);
@@ -288,6 +291,7 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
         if (supabaseBrunches && supabaseBrunches.length > 0) {
           const converted = recordsToBrunches(supabaseBrunches);
           converted.forEach((c) => {
+            if (isEstablishmentTombstoned(c)) return;
             const matchKey = findMatchingKey(c);
             if (matchKey) mergedMap.set(matchKey, { ...mergedMap.get(matchKey)!, ...c });
             else mergedMap.set(c.slug, c);
@@ -295,18 +299,26 @@ export function BrunchExplorer({ initialBrunches }: { initialBrunches: Brunch[] 
         }
       } catch {}
 
+      for (const [key, existing] of mergedMap.entries()) {
+        if (isEstablishmentTombstoned(existing)) {
+          mergedMap.delete(key);
+        }
+      }
+
       if (mounted) {
-        setBrunchData(Array.from(mergedMap.values()));
+        setBrunchData(filterTombstonedEstablishments(Array.from(mergedMap.values())));
       }
     };
     void load();
     const refresh = () => void load();
     window.addEventListener("storage", refresh);
     window.addEventListener("liberty-admin-published", refresh);
+    window.addEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     return () => {
       mounted = false;
       window.removeEventListener("storage", refresh);
       window.removeEventListener("liberty-admin-published", refresh);
+      window.removeEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     };
   }, [initialBrunches]);
 

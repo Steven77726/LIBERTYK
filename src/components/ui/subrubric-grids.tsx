@@ -21,6 +21,7 @@ import { localEstablishments } from "@/data/establishments";
 import { assetPath, withCacheBust } from "@/lib/assets";
 import { listPublishedSubrubrics, type SubrubricRecord } from "@/lib/supabase/subrubrics-repository";
 import { listPublishedEstablishmentCountsBySubrubric } from "@/lib/supabase/establishments-repository";
+import { isEstablishmentTombstoned, TOMBSTONE_CHANGE_EVENT } from "@/lib/tombstones";
 
 type SubrubricPreview = {
   id: string;
@@ -312,6 +313,7 @@ function computeLocalEstablishmentCounts(rubricSlug: string): Record<string, num
 
   // 1. Initial from localEstablishments
   (localEstablishments ?? []).forEach((est) => {
+    if (isEstablishmentTombstoned(est)) return;
     if (est.rubricId === rubricSlug || est.rubricId === `rubric-${rubricSlug}`) {
       if (est.status !== "Masqué") {
         estMap.set(est.id, est);
@@ -327,6 +329,7 @@ function computeLocalEstablishmentCounts(rubricSlug: string): Record<string, num
         const parsed = JSON.parse(raw);
         const adminEsts = (parsed?.establishments ?? []) as Array<{ id: string; rubricId: string; subrubricId?: string; status?: string; visible?: boolean }>;
         adminEsts.forEach((est) => {
+          if (isEstablishmentTombstoned(est as unknown as { id: string })) return;
           if (est.rubricId === rubricSlug || est.rubricId === `rubric-${rubricSlug}`) {
             if (est.status === "Publié" && est.visible !== false) {
               let subrubricId = est.subrubricId;
@@ -345,6 +348,13 @@ function computeLocalEstablishmentCounts(rubricSlug: string): Record<string, num
       }
     } catch {
       // ignore
+    }
+  }
+
+  // Purge any tombstoned entries
+  for (const [key, est] of estMap.entries()) {
+    if (isEstablishmentTombstoned(est as unknown as { id: string })) {
+      estMap.delete(key);
     }
   }
 
@@ -392,11 +402,13 @@ function usePublishedEstablishmentCounts(rubricSlug: string) {
     window.addEventListener("storage", refresh);
     window.addEventListener("liberty-admin-published", refresh);
     window.addEventListener("focus", refresh);
+    window.addEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     return () => {
       mounted = false;
       window.removeEventListener("storage", refresh);
       window.removeEventListener("liberty-admin-published", refresh);
       window.removeEventListener("focus", refresh);
+      window.removeEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     };
   }, [rubricSlug]);
 

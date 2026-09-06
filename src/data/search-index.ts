@@ -4,6 +4,7 @@ import { restaurants } from "@/data/restaurants";
 import { azamra } from "@/data/shops";
 import { wineActivities } from "@/data/wine-activities";
 import { buildInvisibleKeywords, type SearchItem } from "@/lib/search-engine";
+import { filterTombstonedSearchItems } from "@/lib/tombstones";
 
 const categoryIntentions: Record<string, string[]> = {
   food: ["restaurant", "brunch", "salon de thé", "pâtisserie", "fast-food", "traiteur", "boulangerie", "glacier", "manger", "casher"],
@@ -342,7 +343,7 @@ const salleItems: SearchItem[] = [
   }
 ];
 
-export const searchIndex: SearchItem[] = [
+const rawSearchIndex: SearchItem[] = [
   ...restaurantItems,
   ...brunchItems,
   ...wineItems,
@@ -354,3 +355,5 @@ export const searchIndex: SearchItem[] = [
   ...salleItems,
   ...categoryItems,
 ];
+
+export const searchIndex: SearchItem[] = filterTombstonedSearchItems(rawSearchIndex);

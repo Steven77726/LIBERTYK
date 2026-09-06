@@ -98,27 +98,6 @@
     "longitude": 2.3595,
     "url_maps": "https://maps.google.com/?cid=1029384756105",
     "statut_activite": "OPERATIONAL"
-
-  },
-  {
-    "place_id": "ChIJFinkelsztajnParis4e007",
-    "nom": "Maison Sacha Finkelsztajn",
-    "categorie_libertyk": "Pâtisserie / Boulangerie",
-    "type_cacherout": "Parve (Neutre)",
-    "hekhsher": "Beth Din de Paris",
-    "specialite": "Pâtisserie fine / Bagel / Viennoiserie",
-    "adresse_rue": "27 Rue des Rosiers",
-    "code_postal": "75004",
-    "ville": "Paris",
-    "region": "Île-de-France",
-    "telephone": "+33 1 42 72 78 91",
-    "note_google": 4.6,
-    "nombre_avis": 1200,
-    "horaires": "Mercredi-Dimanche: 10:00–19:00; Lundi-Mardi: Fermé",
-    "latitude": 48.8577,
-    "longitude": 2.3594,
-    "url_maps": "https://maps.google.com/?cid=1029384756107",
-    "statut_activite": "OPERATIONAL"
   },
   {
     "place_id": "ChIJMarceauCafeParis6e008",

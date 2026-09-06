@@ -6,6 +6,7 @@ import { localEstablishments } from "@/data/establishments";
 import { listPublishedEstablishments, type EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { UniversalEstablishmentCard } from "@/components/ui/universal-establishment-card";
 import { subrubricSlugAliases } from "@/data/subrubrics";
+import { isEstablishmentTombstoned, filterTombstonedEstablishments, TOMBSTONE_CHANGE_EVENT } from "@/lib/tombstones";
 
 const filterTabs = [
   { id: "all", label: "Toutes les boutiques" },
@@ -71,8 +72,10 @@ function matchesCategoryFilter(est: EstablishmentRecord, filterId: string): bool
 export function ShoppingExplorer() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [items, setItems] = useState<EstablishmentRecord[]>(() => {
-    return (localEstablishments as EstablishmentRecord[]).filter(
-      (est) => (est.rubricId === "shopping" || est.rubricId === "rubric-shopping") && est.status !== "Masqué"
+    return filterTombstonedEstablishments(
+      (localEstablishments as EstablishmentRecord[]).filter(
+        (est) => (est.rubricId === "shopping" || est.rubricId === "rubric-shopping") && est.status !== "Masqué"
+      )
     );
   });
 
@@ -82,9 +85,11 @@ export function ShoppingExplorer() {
     async function load() {
       // 1. Initialiser avec les données locales de secours
       const itemMap = new Map<string, EstablishmentRecord>();
-      (localEstablishments as EstablishmentRecord[])
-        .filter((est) => (est.rubricId === "shopping" || est.rubricId === "rubric-shopping") && est.status !== "Masqué")
-        .forEach((item) => itemMap.set(item.id, item));
+      filterTombstonedEstablishments(
+        (localEstablishments as EstablishmentRecord[]).filter(
+          (est) => (est.rubricId === "shopping" || est.rubricId === "rubric-shopping") && est.status !== "Masqué"
+        )
+      ).forEach((item) => itemMap.set(item.id, item));
 
       // 2. Fusionner avec le cache local de l'admin (localStorage)
       if (typeof window !== "undefined") {
@@ -144,6 +149,7 @@ export function ShoppingExplorer() {
                 }
               )
               .forEach((est) => {
+                if (isEstablishmentTombstoned(est)) return;
                 let subrubricId = est.subrubricId;
                 const name = (est.name || "").toLowerCase();
                 if (est.id === "azamra" || est.slug === "azamra" || name.includes("azamra")) {
@@ -176,6 +182,7 @@ export function ShoppingExplorer() {
         const remoteEsts = await listPublishedEstablishments({ rubricSlug: "shopping" });
         if (mounted && remoteEsts && remoteEsts.length > 0) {
           remoteEsts.forEach((est) => {
+            if (isEstablishmentTombstoned(est)) return;
             let subrubricId = est.subrubricId;
             const name = (est.name || "").toLowerCase();
             if (est.id === "azamra" || est.slug === "azamra" || name.includes("azamra")) {
@@ -202,38 +209,15 @@ export function ShoppingExplorer() {
         // Fallback local intact
       }
 
-      // 4. Re-vérifier les suppressions locales
-      if (typeof window !== "undefined") {
-        try {
-          const raw = window.localStorage.getItem("liberty-admin-dashboard-v1");
-          if (raw) {
-            const parsed = JSON.parse(raw) as { trash?: Array<{ entityType?: string; label?: string; payload?: { id?: string; name?: string; slug?: string } }> };
-            const trashList = Array.isArray(parsed?.trash) ? parsed.trash : [];
-            trashList.forEach((trash) => {
-              if (trash && (trash.entityType === "fiche" || trash.entityType === "etablissement" || trash.entityType === "establishment")) {
-                const payload = trash.payload;
-                if (payload) {
-                  for (const [key, existing] of itemMap.entries()) {
-                    if (
-                      key === payload.id ||
-                      existing.id === payload.id ||
-                      (existing.slug && payload.slug && existing.slug === payload.slug) ||
-                      (existing.name && payload.name && existing.name.toLowerCase() === payload.name.toLowerCase())
-                    ) {
-                      itemMap.delete(key);
-                    }
-                  }
-                }
-              }
-            });
-          }
-        } catch {
-          // ignore
+      // 4. Re-vérifier les suppressions et tombstones
+      for (const [key, existing] of itemMap.entries()) {
+        if (isEstablishmentTombstoned(existing)) {
+          itemMap.delete(key);
         }
       }
 
       if (mounted) {
-        setItems(Array.from(itemMap.values()));
+        setItems(filterTombstonedEstablishments(Array.from(itemMap.values())));
       }
     }
 
@@ -243,12 +227,14 @@ export function ShoppingExplorer() {
     window.addEventListener("liberty-admin-published", refresh);
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
+    window.addEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
 
     return () => {
       mounted = false;
       window.removeEventListener("liberty-admin-published", refresh);
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
+      window.removeEventListener(TOMBSTONE_CHANGE_EVENT, refresh);
     };
   }, []);
 

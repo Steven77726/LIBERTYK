@@ -5,6 +5,13 @@ import type { LocalEstablishment, LocalEstablishmentStatus, LocalKosherType, Loc
 import { categories } from "@/data/categories";
 import { localSubrubrics, subrubricSlugAliases } from "@/data/subrubrics";
 import { listProfessionalServices } from "@/lib/supabase/beauty-repository";
+import {
+  filterTombstonedEstablishments,
+  isEstablishmentTombstoned,
+  addEstablishmentTombstone,
+  removeEstablishmentTombstone,
+  type IdentifiableEstablishment,
+} from "@/lib/tombstones";
 
 export type EstablishmentRecord = LocalEstablishment & {
   createdAt?: string;
@@ -726,7 +733,8 @@ export async function listPublishedEstablishments(filters?: EstablishmentFilters
   const rows = data ?? [];
   const photos = await getPhotos(rows.map((row) => row.id));
   const tagMap = await getVisibleTagMap();
-  return attachBeautyServices(rows, rows.map((row) => rowToEstablishment(row, photos.get(row.id), tagMap)));
+  const rawList = await attachBeautyServices(rows, rows.map((row) => rowToEstablishment(row, photos.get(row.id), tagMap)));
+  return filterTombstonedEstablishments(rawList);
 }
 
 export async function listPublishedEstablishmentCountsBySubrubric(rubricSlug?: string) {
@@ -734,7 +742,7 @@ export async function listPublishedEstablishmentCountsBySubrubric(rubricSlug?: s
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("establishments")
-    .select("id,rubric_id,subrubric_id,rubrics(id,external_id,slug),subrubrics(id,external_id,slug)")
+    .select("id,external_id,slug,name,rubric_id,subrubric_id,rubrics(id,external_id,slug),subrubrics(id,external_id,slug)")
     .eq("status", "published")
     .eq("is_visible", true)
     .is("deleted_at", null)
@@ -743,6 +751,7 @@ export async function listPublishedEstablishmentCountsBySubrubric(rubricSlug?: s
 
   const counts: Record<string, number> = {};
   (data ?? [])
+    .filter((row) => !isEstablishmentTombstoned(row as unknown as IdentifiableEstablishment))
     .filter((row) => !rubricSlug || row.rubrics?.slug === rubricSlug || row.rubrics?.external_id === rubricSlug || row.rubric_id === rubricSlug)
     .forEach((row) => {
       [row.subrubric_id, row.subrubrics?.id, row.subrubrics?.external_id, row.subrubrics?.slug]
@@ -769,6 +778,7 @@ export async function listAllEstablishmentsForAdmin() {
 }
 
 export async function getEstablishmentById(id: string) {
+  if (isEstablishmentTombstoned(id)) return null;
   const supabase = getClientOrThrow();
   const column = isUuid(id) ? "id" : "external_id";
   const { data, error } = await supabase
@@ -778,12 +788,15 @@ export async function getEstablishmentById(id: string) {
     .maybeSingle<EstablishmentRow>();
   if (error) throw new Error(readableError(error));
   if (!data) return null;
+  if (isEstablishmentTombstoned(data as unknown as IdentifiableEstablishment)) return null;
   const photos = await getPhotos([data.id]);
   const [establishment] = await attachBeautyServices([data], [rowToEstablishment(data, photos.get(data.id))]);
-  return establishment ?? rowToEstablishment(data, photos.get(data.id));
+  const result = establishment ?? rowToEstablishment(data, photos.get(data.id));
+  return isEstablishmentTombstoned(result) ? null : result;
 }
 
 export async function createEstablishment(establishment: EstablishmentRecord) {
+  removeEstablishmentTombstone(establishment);
   return upsertEstablishment(establishment, "draft");
 }
 
@@ -792,6 +805,7 @@ export async function updateEstablishment(establishment: EstablishmentRecord) {
 }
 
 export async function publishEstablishment(establishment: EstablishmentRecord) {
+  removeEstablishmentTombstone(establishment);
   return upsertEstablishment({ ...establishment, status: "Publié", visible: true }, "published");
 }
 
@@ -815,6 +829,7 @@ export async function duplicateEstablishment(establishment: EstablishmentRecord)
 }
 
 export async function moveEstablishmentToTrash(establishment: EstablishmentRecord) {
+  addEstablishmentTombstone(establishment);
   const supabase = getClientOrThrow();
   const column = isUuid(establishment.id) ? "id" : "external_id";
   const { error } = await supabase
@@ -825,6 +840,7 @@ export async function moveEstablishmentToTrash(establishment: EstablishmentRecor
 }
 
 export async function restoreEstablishment(establishment: EstablishmentRecord) {
+  removeEstablishmentTombstone(establishment);
   return upsertEstablishment({ ...establishment, status: establishment.status === "Masqué" ? "Brouillon" : establishment.status, visible: establishment.visible ?? true });
 }
 

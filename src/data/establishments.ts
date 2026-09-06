@@ -3,6 +3,7 @@ import { restaurants } from "@/data/restaurants";
 import { azamra, naor } from "@/data/shops";
 import { wineActivities } from "@/data/wine-activities";
 import type { BeautyProfessionalService } from "@/lib/beauty/types";
+import { filterTombstonedEstablishments } from "@/lib/tombstones";
 
 export type LocalEstablishmentStatus = "Publié" | "En sommeil" | "Brouillon" | "Masqué";
 export type LocalKosherType = "Bassari" | "Halavi" | "Parvé" | "No Teouda / Friendly" | "À compléter";
@@ -694,7 +695,7 @@ const weddingEstablishments: LocalEstablishment[] = [
   }
 ];
 
-export const localEstablishments: LocalEstablishment[] = [
+const rawLocalEstablishments: LocalEstablishment[] = [
   ...specificFoodEstablishments,
   ...restaurantEstablishments,
   ...brunchEstablishments,
@@ -705,5 +706,7 @@ export const localEstablishments: LocalEstablishment[] = [
   ...beautyEstablishments,
   ...salleEstablishments,
 ];
+
+export const localEstablishments: LocalEstablishment[] = filterTombstonedEstablishments(rawLocalEstablishments);
 
 export const localEstablishmentBySlug = Object.fromEntries(localEstablishments.map((item) => [item.slug ?? slugify(item.name), item]));

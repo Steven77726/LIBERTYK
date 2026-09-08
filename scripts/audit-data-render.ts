@@ -51,10 +51,10 @@ const SORTIES_WHITELIST_SLUGS = new Set([
   "celibataires",
 ]);
 
-function applyWhitelists(items: any[], rubricSlug: string): any[] {
+function applyWhitelists<T extends { slug?: string; name?: string; id?: string }>(items: T[], rubricSlug: string): T[] {
   if (rubricSlug === "shopping" || rubricSlug === "rubric-shopping") {
     return items.filter((item) => {
-      const slug = getCanonicalSubrubricSlug(item.slug || item.name || item.id, "shopping");
+      const slug = getCanonicalSubrubricSlug(item.slug || item.name || item.id || "", "shopping");
       return (
         SHOPPING_WHITELIST_SLUGS.has(slug) ||
         slug.includes("masculin") ||
@@ -66,7 +66,7 @@ function applyWhitelists(items: any[], rubricSlug: string): any[] {
   }
   if (rubricSlug === "sorties" || rubricSlug === "rubric-sorties") {
     return items.filter((item) => {
-      const slug = getCanonicalSubrubricSlug(item.slug || item.name || item.id, "sorties");
+      const slug = getCanonicalSubrubricSlug(item.slug || item.name || item.id || "", "sorties");
       return (
         SORTIES_WHITELIST_SLUGS.has(slug) ||
         slug.includes("evenement") ||

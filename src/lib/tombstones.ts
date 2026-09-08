@@ -16,15 +16,7 @@ export const TOMBSTONE_CHANGE_EVENT = "liberty-tombstones-changed";
 export const PERMANENT_TOMBSTONES = [
   "pitzman",
   "pitzman-paris",
-  "8-rue-pavee",
-  "finkelsztajn",
-  "sacha-finkelsztajn",
-  "maison-sacha-finkelsztajn",
-  "sacha finkelsztajn",
-  "maison sacha finkelsztajn",
-  "chijfinkelsztajnparis4e007",
-  "27-rue-des-rosiers",
-  "27 rue des rosiers",
+  "pitzman-8-rue-pavee-paris",
 ];
 
 export function normalizeTombstoneKey(value: string | null | undefined): string {
@@ -165,9 +157,10 @@ export function isEstablishmentTombstoned(
   if (typeof candidate === "string") {
     const raw = candidate.toLowerCase().trim();
     const norm = normalizeTombstoneKey(candidate);
+    if (!raw || !norm) return false;
     if (tombstones.has(raw) || tombstones.has(norm)) return true;
     for (const tomb of tombstones) {
-      if (tomb && (raw.includes(tomb) || norm.includes(tomb) || tomb.includes(norm))) {
+      if (tomb && tomb.length >= 4 && (raw === tomb || norm === tomb || raw.includes(tomb) || norm.includes(tomb))) {
         return true;
       }
     }
@@ -182,8 +175,6 @@ export function isEstablishmentTombstoned(
     candidate.title,
     candidate.external_id ?? undefined,
     candidate.externalId ?? undefined,
-    candidate.address ?? undefined,
-    candidate.fullAddress ?? undefined,
   ].filter((v): v is string => Boolean(v && typeof v === "string" && v.trim()));
 
   for (const key of keysToTest) {
@@ -191,7 +182,7 @@ export function isEstablishmentTombstoned(
     const norm = normalizeTombstoneKey(key);
     if (tombstones.has(raw) || tombstones.has(norm)) return true;
     for (const tomb of tombstones) {
-      if (tomb && (raw.includes(tomb) || norm.includes(tomb) || tomb.includes(norm))) {
+      if (tomb && tomb.length >= 4 && (raw === tomb || norm === tomb || raw.includes(tomb) || norm.includes(tomb))) {
         return true;
       }
     }
@@ -200,7 +191,7 @@ export function isEstablishmentTombstoned(
   if (candidate.href) {
     const hrefNorm = normalizeTombstoneKey(candidate.href);
     for (const tomb of tombstones) {
-      if (tomb && (candidate.href.toLowerCase().includes(tomb) || hrefNorm.includes(tomb))) {
+      if (tomb && tomb.length >= 5 && (candidate.href.toLowerCase().includes(tomb) || hrefNorm.includes(tomb))) {
         return true;
       }
     }

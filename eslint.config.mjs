@@ -17,6 +17,8 @@ const eslintConfig = [
       "docs/**",
       "node_modules/**",
       "next-env.d.ts",
+      "peniche-restaurant/**",
+      "sapir/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

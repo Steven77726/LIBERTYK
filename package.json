@@ -8,8 +8,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --quiet",
-    "verify": "npx tsx scripts/verify-data-integrity.ts",
-    "report:email": "npx tsx scripts/send-daily-report-email.ts"
+    "verify": "node scripts/runner.js scripts/verify-data-integrity.ts",
+    "report:email": "node scripts/runner.js scripts/send-daily-report-email.ts",
+    "peniche:dev": "npm --prefix peniche-restaurant run dev",
+    "peniche:build": "npm --prefix peniche-restaurant run build",
+    "sapir:open": "open sapir/index.html"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",

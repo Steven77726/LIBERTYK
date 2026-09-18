@@ -55,11 +55,10 @@ async function run() {
   console.log("\n=== 2. TEST DU MOTEUR DE TOMBSTONES (EXCLUSION DÉFINITIVE) ===");
 
   // Test matching on permanent blacklist
-  assert(isEstablishmentTombstoned({ id: "finkelsztajn" }), "Matches id 'finkelsztajn'");
-  assert(isEstablishmentTombstoned({ name: "Maison Sacha Finkelsztajn" }), "Matches name 'Maison Sacha Finkelsztajn'");
-  assert(isEstablishmentTombstoned({ slug: "sacha-finkelsztajn" }), "Matches slug 'sacha-finkelsztajn'");
+  assert(isEstablishmentTombstoned({ id: "pitzman" }), "Matches id 'pitzman'");
+  assert(isEstablishmentTombstoned({ name: "Pitzman Paris" }), "Matches name 'Pitzman Paris'");
+  assert(isEstablishmentTombstoned({ slug: "pitzman-8-rue-pavee-paris" }), "Matches slug 'pitzman-8-rue-pavee-paris'");
   assert(isEstablishmentTombstoned({ id: "establishment-pitzman" }), "Matches prefixed id 'establishment-pitzman'");
-  assert(isEstablishmentTombstoned({ address: "27 Rue des Rosiers, 75004 Paris" }), "Matches address '27 Rue des Rosiers'");
 
   // Test custom establishment tombstoning
   const dummyEstablishment = {

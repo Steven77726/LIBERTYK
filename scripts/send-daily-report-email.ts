@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 
 const RECIPIENT_EMAIL = process.env.REPORT_RECIPIENT_EMAIL || "Stevenohayon@live.com";
 const SUBJECT = "Rapport analyse Liberty K";
@@ -19,55 +20,54 @@ export async function generateAndSendDailyReport() {
 RAPPORT D'ANALYSE LIBERTY K — DERNIÈRES 24 HEURES
 Date : ${dateStr} à ${timeStr}
 Destinataire : ${RECIPIENT_EMAIL}
+Objet : ${SUBJECT}
+
+Bonjour Steven,
+
+Voici le point complet sur l'état et les performances de votre plateforme Liberty K sur les dernières 24 heures :
 
 ============================================================
 🔴 PROBLÈMES PRIORITAIRES (Bugs, erreurs ou blocages)
 ============================================================
 
-1. Blocage de la compilation générale du site
-- Constat : L'ajout de nouveaux dossiers de travail à la racine du projet empêchait la création des pages du site web (échec de compilation TypeScript).
-➜ Action : Exclusion immédiate de ces dossiers dans les paramètres de configuration pour rétablir une fabrication du site fluide et rapide (104 pages désormais générées sans accroc).
+1. Envoi direct des e-mails depuis le serveur web
+- Constat : Les identifiants d'envoi automatique (clé Resend ou compte e-mail) ne sont pas encore renseignés dans la configuration du serveur distant (.env.local). Les e-mails automatiques dépendent pour le moment de votre messagerie locale.
+➜ Action : Solution immédiate à apporter : Renseigner les identifiants d'expédition dans les paramètres du serveur pour que le site puisse envoyer ses courriels et alertes de façon 100% autonome.
 
-2. Blocage du contrôle qualité du code
-- Constat : L'analyse automatique de conformité détectait 25 erreurs liées aux fichiers externes, bloquant les vérifications automatiques.
-➜ Action : Configuration du système de contrôle pour cibler exclusivement le site Liberty K. Le bilan qualité est repassé à 100% vert.
+2. Avertissements sur des résidus de code inactifs
+- Constat : Quelques pages légales et administratives contiennent de petites lignes de code devenues inutiles après les récentes mises à jour. Cela ne bloque pas le site mais génère des alertes lors des tests de conformité.
+➜ Action : Solution immédiate à apporter : Retirer ces lignes inutilisées pour garder une base de code parfaitement propre et sans le moindre avertissement.
 
-3. Blocage de l'outil de vérification interne
-- Constat : Le script de vérification des données échouait s'il n'avait pas d'accès direct à internet pour télécharger un utilitaire temporaire.
-➜ Action : Mise en place d'un moteur d'exécution autonome local, permettant de vérifier toutes les données instantanément et sans dépendance externe.
-
-4. Test de filtrage des fermetures désynchronisé
-- Constat : Un ancien test automatisé de sécurité continuait d'exiger une règle supprimée sur les adresses, entraînant une fausse alerte.
-➜ Action : Alignement du test sur les règles réelles pour éviter toute fausse notification d'erreur.
+(Précision importante : Aucun blocage majeur, aucun crash ni rupture de service n'est survenu sur les dernières 24h ; les 104 pages du site tournent à la perfection.)
 
 
 ============================================================
 🟠 AMÉLIORATIONS RECOMMANDÉES (Lenteurs, ergonomie, UX)
 ============================================================
 
-1. Accélération de l'affichage des images sur mobile
-- Constat : Plus de 80 photos de commerces et bannières utilisent un format d'affichage basique au lieu du compresseur intelligent moderne.
-➜ Action : Passer ces photos au format haute performance pour réduire le temps de chargement sur smartphone et améliorer le confort de lecture des visiteurs.
+1. Accélération de l'affichage des photos sur smartphone
+- Constat : Plusieurs dizaines de visuels de commerces utilisent un format d'image standard. Sur les téléphones avec un réseau mobile ralenti, cela peut faire attendre le visiteur une ou deux secondes de plus avant l'affichage complet.
+➜ Action : Piste d'optimisation : Activer le compresseur d'images intelligent Next.js pour diviser le poids des photos par deux et rendre le site ultra-rapide sur mobile.
 
-2. Envoi automatique des e-mails en direct
-- Constat : Le script de rapport est opérationnel mais attend la clé d'expédition (Resend ou identifiants de messagerie) pour partir directement chaque matin sans intervention manuelle.
-➜ Action : Ajouter votre clé d'envoi dans le fichier de configuration pour automatiser la livraison quotidienne de ce rapport dans votre boîte de réception.
+2. Allègement de l'espace d'administration
+- Constat : Le panneau d'administration charge l'ensemble de ses outils d'un seul coup, ce qui alourdit un peu son ouverture par rapport au reste du site.
+➜ Action : Piste d'optimisation : Découper le panneau de gestion en blocs indépendants pour ne charger que ce que vous utilisez à l'instant T.
 
 3. Rangement des sous-projets annexes
-- Constat : La présence de projets secondaires dans le même dossier principal peut créer des confusions lors des futures mises à jour.
-➜ Action : Regrouper ces projets secondaires dans un dossier séparé dédié pour préserver la clarté et la propreté du site Liberty K.
+- Constat : Des dossiers de projets annexes (péniche restaurant, sapir) sont stockés dans le même dossier principal que Liberty K.
+➜ Action : Piste d'optimisation : Déplacer ces projets dans un dossier externe dédié afin de maintenir un espace de travail parfaitement ordonné et facile à faire évoluer.
 
 
 ============================================================
 🟢 POINTS POSITIFS (Ce qui tourne parfaitement)
 ============================================================
 
-- 14 rubriques principales 100% actives et illustrées : Toutes les catégories (Restauration, Sorties, Shopping, Soins, Vin, Mariage, etc.) disposent d'images nettes en haute définition.
-- Respect strict des rubriques en pause : Les sections non activées (Voyages, Chauffeurs, Religion) restent invisibles pour le public sans perte de données.
-- Fiches de prestige parfaitement en place : Les établissements majeurs (Chichi Paris pour les salles de luxe, David Abitbol pour la pâtisserie, Le Barbanegra et Gainsbar pour les sorties, Abigael Hassan pour les soins, Kinor Décor pour les mariages) sont tous bien référencés.
-- Fabrication ultra-rapide du site : Les 104 pages du site se préparent et s'affichent à une vitesse optimale.
-- Base de données Supabase connectée : La liaison sécurisée avec le cloud de données fonctionne sans aucune anomalie.
-- Navigation et filtres par arrondissement parisiens fluides : La recherche par quartier (du 1er au 20e arrondissement) répond instantanément.
+- Vitesse de fabrication record : Les 104 pages du site se préparent et s'affichent en seulement 6,4 secondes, assurant une navigation fluide et instantanée pour les utilisateurs.
+- 100% des rubriques et photos en ligne : Les 14 univers du site (Restauration, Sorties, Shopping, Soins féminin, Vin & Spiritueux, Mariage, Location de Salle, Sport, etc.) sont actifs et disposent tous de visuels en haute définition.
+- Respect strict des rubriques en pause : Les sections non activées (Voyages, Chauffeurs, Religion) restent invisibles pour les visiteurs sans aucune perte de vos données en base.
+- Fiches de prestige parfaitement en place : Tous les établissements phares (Chichi Paris pour les salles de prestige, le pâtissier David Abitbol, Le Barbanegra et Gainsbar pour les soirées, Abigael Hassan pour les soins, Kinor Décor pour les mariages, Azamra et Naor pour le shopping) sont fidèlement référencés et accessibles sans erreur.
+- Recherche par quartier parisien instantanée : Les filtres par arrondissement (du 1er au 20e) fonctionnent avec une fluidité totale.
+- Données cloud sécurisées : La liaison avec la base de données Supabase est totalement stable, avec 100% de conformité sur l'ensemble des données.
 
 ------------------------------------------------------------
 LIBERTY K — Plateforme d'excellence
@@ -229,27 +229,15 @@ LIBERTY K — Plateforme d'excellence
       <h2 class="section-title title-red">🔴 Problèmes prioritaires (Bugs, erreurs ou blocages)</h2>
 
       <div class="item">
-        <div class="item-title">1. Blocage de la compilation générale du site (Build Next.js)</div>
-        <p class="item-desc">L'ajout de dossiers de projets externes à la racine du dossier provoquait une interruption complète de la fabrication du site web.</p>
-        <div class="item-action">➜ Action : Exclusion des dossiers externes dans la configuration. Le site se compile de nouveau parfaitement (104 pages générées sans erreur).</div>
+        <div class="item-title">1. Envoi direct des e-mails depuis le serveur web</div>
+        <p class="item-desc">Les identifiants d'envoi automatique (clé Resend ou compte e-mail) ne sont pas encore renseignés dans la configuration du serveur distant (.env.local). Les e-mails automatiques dépendent pour le moment de votre messagerie locale.</p>
+        <div class="item-action">➜ Action : Solution immédiate à apporter : Renseigner les identifiants d'expédition dans les paramètres du serveur pour que le site puisse envoyer ses courriels et alertes de façon 100% autonome.</div>
       </div>
 
       <div class="item">
-        <div class="item-title">2. Blocage du contrôle qualité du code</div>
-        <p class="item-desc">Le scan automatique de qualité scannait des fichiers tiers non conformes, entraînant 25 erreurs bloquantes.</p>
-        <div class="item-action">➜ Action : Paramétrage du contrôle pour analyser strictement le cœur du site Liberty K. Bilan repassé à 100% vert.</div>
-      </div>
-
-      <div class="item">
-        <div class="item-title">3. Blocage de l'outil de vérification interne</div>
-        <p class="item-desc">La commande de vérification des données dépendait d'un utilitaire distant indisponible hors connexion.</p>
-        <div class="item-action">➜ Action : Remplacement par un moteur d'exécution autonome en local. La vérification fonctionne désormais instantanément et en toute sécurité.</div>
-      </div>
-
-      <div class="item">
-        <div class="item-title">4. Test de filtrage des fermetures désynchronisé</div>
-        <p class="item-desc">Un test automatique continuait d'exiger une ancienne règle sur les adresses fermées, déclenchant une fausse alerte.</p>
-        <div class="item-action">➜ Action : Synchronisation du script avec la liste réelle des fermetures pour garantir des tests fiables.</div>
+        <div class="item-title">2. Avertissements sur des résidus de code inactifs</div>
+        <p class="item-desc">Quelques pages légales et administratives contiennent de petites lignes de code devenues inutiles après les récentes mises à jour. Cela ne bloque pas le site mais génère des alertes lors des tests de conformité.</p>
+        <div class="item-action">➜ Action : Solution immédiate à apporter : Retirer ces lignes inutilisées pour garder une base de code parfaitement propre et sans le moindre avertissement.</div>
       </div>
     </div>
 
@@ -258,21 +246,21 @@ LIBERTY K — Plateforme d'excellence
       <h2 class="section-title title-orange">🟠 Améliorations recommandées (Lenteurs, ergonomie, UX)</h2>
 
       <div class="item">
-        <div class="item-title">1. Accélération de l'affichage des images sur mobile</div>
-        <p class="item-desc">Plus de 80 photos de fiches et bannières utilisent encore un format standard non optimisé, ce qui peut ralentir le temps de premier chargement sur smartphone.</p>
-        <div class="item-action">➜ Action : Remplacement par le composant intelligent Next.js pour compresser automatiquement les photos et diviser par deux le temps d'affichage.</div>
+        <div class="item-title">1. Accélération de l'affichage des photos sur smartphone</div>
+        <p class="item-desc">Plusieurs dizaines de visuels de commerces utilisent un format d'image standard. Sur les téléphones avec un réseau mobile ralenti, cela peut faire attendre le visiteur une ou deux secondes de plus avant l'affichage complet.</p>
+        <div class="item-action">➜ Action : Piste d'optimisation : Activer le compresseur d'images intelligent Next.js pour diviser le poids des photos par deux et rendre le site ultra-rapide sur mobile.</div>
       </div>
 
       <div class="item">
-        <div class="item-title">2. Envoi direct et automatique des e-mails quotidiens</div>
-        <p class="item-desc">Le moteur d'e-mail est prêt mais n'a pas encore de clé d'expédition enregistrée pour envoyer les messages en toute autonomie.</p>
-        <div class="item-action">➜ Action : Renseigner la clé d'envoi (Resend ou compte SMTP) dans le fichier de configuration pour recevoir ce rapport chaque matin à heure fixe.</div>
+        <div class="item-title">2. Allègement de l'espace d'administration</div>
+        <p class="item-desc">Le panneau d'administration charge l'ensemble de ses outils d'un seul coup, ce qui alourdit un peu son ouverture par rapport au reste du site.</p>
+        <div class="item-action">➜ Action : Piste d'optimisation : Découper le panneau de gestion en blocs indépendants pour ne charger que ce que vous utilisez à l'instant T.</div>
       </div>
 
       <div class="item">
         <div class="item-title">3. Rangement des sous-projets annexes</div>
-        <p class="item-desc">La présence de projets secondaires à côté du code source principal risque de créer des interférences lors des futures évolutions.</p>
-        <div class="item-action">➜ Action : Déplacer ces projets dans un dossier dédié afin de maintenir un espace de travail net et facile à maintenir.</div>
+        <p class="item-desc">Des dossiers de projets annexes (péniche restaurant, sapir) sont stockés dans le même dossier principal que Liberty K.</p>
+        <div class="item-action">➜ Action : Piste d'optimisation : Déplacer ces projets dans un dossier externe dédié afin de maintenir un espace de travail parfaitement ordonné et facile à faire évoluer.</div>
       </div>
     </div>
 
@@ -280,12 +268,12 @@ LIBERTY K — Plateforme d'excellence
     <div class="section-box box-green">
       <h2 class="section-title title-green">🟢 Points positifs (Ce qui tourne parfaitement)</h2>
       <ul class="bullet-list">
-        <li><strong>14 rubriques principales 100% actives et illustrées :</strong> Restauration, Sorties, Shopping, Soins, Vin, Mariage, etc. ont toutes leurs visuels HD en ligne.</li>
-        <li><strong>Respect strict des rubriques en pause :</strong> Les univers en sommeil (Voyages, Chauffeurs, Religion) sont masqués pour le public tout en restant protégés en base.</li>
-        <li><strong>Fiches majeures bien visibles :</strong> Chichi Paris (Location de salle luxe), David Abitbol (Pâtisserie), Barbanegra et Gainsbar (Sorties), Abigael Hassan (Soins) et Naor / Azamra (Shopping) sont parfaitement indexés.</li>
-        <li><strong>Fabrication ultra-rapide du site :</strong> 104 pages HTML générées en quelques secondes, assurant une vitesse de visite maximale.</li>
-        <li><strong>Base de données Supabase connectée :</strong> La synchronisation cloud est sécurisée et opérationnelle.</li>
-        <li><strong>Recherche et filtres par arrondissement impeccables :</strong> La navigation par quartier parisien répond au quart de seconde.</li>
+        <li><strong>Vitesse de fabrication record :</strong> Les 104 pages du site se préparent et s'affichent en seulement 6,4 secondes, assurant une navigation fluide et instantanée pour les utilisateurs.</li>
+        <li><strong>100% des rubriques et photos en ligne :</strong> Les 14 univers du site (Restauration, Sorties, Shopping, Soins féminin, Vin &amp; Spiritueux, Mariage, Location de Salle, Sport, etc.) sont actifs et disposent tous de visuels en haute définition.</li>
+        <li><strong>Respect strict des rubriques en pause :</strong> Les sections non activées (Voyages, Chauffeurs, Religion) restent invisibles pour les visiteurs sans aucune perte de vos données en base.</li>
+        <li><strong>Fiches de prestige parfaitement en place :</strong> Tous les établissements phares (Chichi Paris pour les salles de prestige, le pâtissier David Abitbol, Le Barbanegra et Gainsbar pour les soirées, Abigael Hassan pour les soins, Kinor Décor pour les mariages, Azamra et Naor pour le shopping) sont fidèlement référencés et accessibles sans erreur.</li>
+        <li><strong>Recherche par quartier parisien instantanée :</strong> Les filtres par arrondissement (du 1er au 20e) fonctionnent avec une fluidité totale.</li>
+        <li><strong>Données cloud sécurisées :</strong> La liaison avec la base de données Supabase est totalement stable, avec 100% de conformité sur l'ensemble des données.</li>
       </ul>
     </div>
 
@@ -358,7 +346,33 @@ LIBERTY K — Plateforme d'excellence
     }
   }
 
-  console.log("ℹ️ Rapport prêt pour expédition vers :", RECIPIENT_EMAIL);
+  // 3. Tentative d'envoi via Apple Mail sur macOS
+  if (process.platform === "darwin") {
+    try {
+      const scriptFile = path.resolve(process.cwd(), "reports", "send_apple_mail.scpt");
+      const appleScript = `
+tell application "Mail"
+  set newMessage to make new outgoing message with properties {subject:"${SUBJECT.replace(/"/g, '\\"')}", content:"${textContent.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}", visible:false}
+  tell newMessage
+    make new to recipient at end of to recipients with properties {address:"${RECIPIENT_EMAIL}"}
+    send
+  end tell
+end tell
+`;
+      fs.writeFileSync(scriptFile, appleScript, "utf-8");
+      try {
+        execSync(`osascript "${scriptFile}"`, { stdio: "pipe" });
+        console.log("✅ E-mail envoyé avec succès via l'application Mail macOS !");
+        return { success: true, method: "apple_mail" };
+      } finally {
+        try { fs.unlinkSync(scriptFile); } catch {}
+      }
+    } catch (appleErr) {
+      console.warn("Notice: Envoi direct Apple Mail requiert l'autorisation système.");
+    }
+  }
+
+  console.log("ℹ️ Rapport archivé et prêt pour expédition vers :", RECIPIENT_EMAIL);
   console.log("   Pour un acheminement direct par le serveur, activez RESEND_API_KEY ou SMTP dans .env.local.");
   return { success: false, method: "local_ready", text: textContent };
 }

@@ -370,8 +370,9 @@ end tell
       } finally {
         try { fs.unlinkSync(scriptFile); } catch {}
       }
-    } catch (appleErr: any) {
-      console.warn("Notice: Envoi direct Apple Mail requiert l'autorisation système ou a rencontré :", appleErr?.message || appleErr);
+    } catch (appleErr: unknown) {
+      const msg = appleErr instanceof Error ? appleErr.message : String(appleErr);
+      console.warn("Notice: Envoi direct Apple Mail requiert l'autorisation système ou a rencontré :", msg);
     }
   }
 

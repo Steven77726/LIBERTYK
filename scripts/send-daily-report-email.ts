@@ -355,17 +355,28 @@ LIBERTY K — Plateforme d'excellence
 set txtPath to "${txtPath.replace(/"/g, '\\"')}"
 set mailBody to (read POSIX file txtPath as «class utf8»)
 tell application "Mail"
-  set newMessage to make new outgoing message with properties {subject:"${SUBJECT.replace(/"/g, '\\"')}", content:mailBody, visible:false}
+  if not running then
+    launch
+    delay 2
+  end if
+  set newMessage to make new outgoing message with properties {subject:"${SUBJECT.replace(/"/g, '\\"')}", content:mailBody, visible:true}
   tell newMessage
     make new to recipient at end of to recipients with properties {address:"${RECIPIENT_EMAIL}"}
   end tell
-  send newMessage
+  try
+    send newMessage
+    log "SENT_SUCCESSFULLY"
+  on error errMsg
+    set visible of newMessage to true
+    activate
+    log "DRAFT_OPENED: " & errMsg
+  end try
 end tell
 `;
       fs.writeFileSync(scriptFile, appleScript, "utf-8");
       try {
-        execSync(`osascript "${scriptFile}"`, { stdio: "pipe" });
-        console.log("✅ E-mail envoyé avec succès à " + RECIPIENT_EMAIL + " via l'application Mail macOS !");
+        const output = execSync(`osascript "${scriptFile}"`, { stdio: "pipe" }).toString();
+        console.log("✅ E-mail pris en charge par l'application Mail macOS ! Détails :", output.trim());
         return { success: true, method: "apple_mail" };
       } finally {
         try { fs.unlinkSync(scriptFile); } catch {}

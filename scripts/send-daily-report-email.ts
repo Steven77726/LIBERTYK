@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 
 const RECIPIENT_EMAIL = process.env.REPORT_RECIPIENT_EMAIL || "Stevenohayon@live.com";
 const SUBJECT = "Rapport analyse Liberty K";
@@ -350,34 +350,31 @@ LIBERTY K — Plateforme d'excellence
   if (process.platform === "darwin") {
     try {
       const scriptFile = path.resolve(process.cwd(), "reports", "send_apple_mail.scpt");
-      const txtPath = path.resolve(process.cwd(), "reports", "dernier-rapport-analyse.txt");
-      const appleScript = `
-set txtPath to "${txtPath.replace(/"/g, '\\"')}"
-set mailBody to (read POSIX file txtPath as «class utf8»)
-tell application "Mail"
-  if not running then
-    launch
-    delay 2
-  end if
-  set newMessage to make new outgoing message with properties {subject:"${SUBJECT.replace(/"/g, '\\"')}", content:mailBody, visible:true}
-  tell newMessage
-    make new to recipient at end of to recipients with properties {address:"${RECIPIENT_EMAIL}"}
+      const appleScript = `on run argv
+  set mailSubject to item 1 of argv
+  set mailTo to item 2 of argv
+  set mailBody to item 3 of argv
+  tell application "Mail"
+    set newMessage to make new outgoing message with properties {subject:mailSubject, content:mailBody, visible:true}
+    tell newMessage
+      make new to recipient at end of to recipients with properties {address:mailTo}
+    end tell
+    try
+      send newMessage
+      return "SENT_SUCCESSFULLY"
+    on error errMsg
+      set visible of newMessage to true
+      activate
+      return "DRAFT_OPENED: " & errMsg
+    end try
   end tell
-  try
-    send newMessage
-    log "SENT_SUCCESSFULLY"
-  on error errMsg
-    set visible of newMessage to true
-    activate
-    log "DRAFT_OPENED: " & errMsg
-  end try
-end tell
+end run
 `;
       fs.writeFileSync(scriptFile, appleScript, "utf-8");
       try {
-        const output = execSync(`osascript "${scriptFile}"`, { stdio: "pipe" }).toString();
+        const output = execFileSync("osascript", [scriptFile, SUBJECT, RECIPIENT_EMAIL, textContent], { encoding: "utf-8" });
         console.log("✅ E-mail pris en charge par l'application Mail macOS ! Détails :", output.trim());
-        return { success: true, method: "apple_mail" };
+        return { success: true, method: "apple_mail", details: output.trim() };
       } finally {
         try { fs.unlinkSync(scriptFile); } catch {}
       }

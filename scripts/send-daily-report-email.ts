@@ -352,12 +352,13 @@ LIBERTY K — Plateforme d'excellence
       const scriptFile = path.resolve(process.cwd(), "reports", "send_apple_mail.scpt");
       const appleScript = `on run argv
   set mailSubject to item 1 of argv
-  set mailTo to item 2 of argv
+  set recipientEmail to item 2 of argv
   set mailBody to item 3 of argv
   tell application "Mail"
+    launch
     set newMessage to make new outgoing message with properties {subject:mailSubject, content:mailBody, visible:true}
     tell newMessage
-      make new to recipient at end of to recipients with properties {address:mailTo}
+      make new to recipient with properties {address:recipientEmail}
     end tell
     try
       send newMessage

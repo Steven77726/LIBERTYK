@@ -60,6 +60,8 @@ export type Restaurant = {
   sponsored?: boolean;
   sponsorshipLevel?: string;
   fieldVisibility?: Record<string, boolean>;
+  subrubricId?: string;
+  rubricId?: string;
   latitude: number;
   longitude: number;
   importedAt: string;

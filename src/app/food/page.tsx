@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import {
   CakeSlice, ChefHat, Coffee, Croissant, IceCreamBowl,
-  Sandwich, Soup, UtensilsCrossed,
+  Sandwich, Soup, UtensilsCrossed, Wine,
 } from "lucide-react";
 import { FoodSubrubricGrid } from "@/components/ui/subrubric-grids";
 import { buildPageMetadata } from "@/lib/seo";
@@ -25,6 +25,7 @@ const addressTypes = [
   { label: "Street Food", description: "Saveurs sur le pouce", href: "/food/street-food", icon: Soup, image: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85" },
   { label: "Boulangeries", description: "Le goût du savoir-faire", href: "/food/boulangeries", icon: Croissant, image: "/images/food/boulangerie.jpg" },
   { label: "Glaciers", description: "Fraîcheur et plaisir", href: "/food/glaciers", icon: IceCreamBowl, image: "/images/food/glacier.webp" },
+  { label: "Cocktails & Soft", description: "Bars, cocktails et rafraîchissements", href: "/food/cocktails-soft", icon: Wine, image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=900&q=85", badge: "À venir" },
 ];
 
 export default function FoodPage() {
@@ -49,7 +50,7 @@ export default function FoodPage() {
           <p className="eyebrow">Choisir une adresse</p>
           <h2 className="text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Où souhaitez-vous aller ?</h2>
         </div>
-        <FoodSubrubricGrid fallbackCards={addressTypes.map(({ label, description, href, image }) => ({ label, description, href, image }))} />
+        <FoodSubrubricGrid fallbackCards={addressTypes.map(({ label, description, href, image, badge }) => ({ label, description, href, image, badge }))} />
       </section>
     </>
   );

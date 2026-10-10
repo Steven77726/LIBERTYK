@@ -717,7 +717,9 @@ export function UniversalEstablishmentCard({
                     (t) =>
                       t !== data.kosherType &&
                       t !== data.certification &&
-                      !t.toLowerCase().includes("sponsorise")
+                      !t.toLowerCase().includes("sponsorise") &&
+                      !t.toLowerCase().includes("cocktail") &&
+                      !t.toLowerCase().includes("soft")
                   )
                   .slice(0, 8)
                   .map((tag) => (

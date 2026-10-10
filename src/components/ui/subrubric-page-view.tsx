@@ -285,10 +285,13 @@ export function SubrubricPageView({
     };
   }, [rubricSlug, subrubricSlug, fallbackImage, fallbackTitle, fallbackDescription, target]);
 
+  const isComingSoon = target.includes("cocktail") || target.includes("soft");
+
   const countLabel = useMemo(() => {
     if (loading) return "Chargement…";
+    if (isComingSoon) return "À venir";
     return `${items.length} fiche${items.length > 1 ? "s" : ""}`;
-  }, [items.length, loading]);
+  }, [items.length, loading, isComingSoon]);
 
   return (
     <>
@@ -307,7 +310,7 @@ export function SubrubricPageView({
               <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-ink/50">{description}</p>
             </div>
           </div>
-          <span className="w-fit rounded-full bg-cream px-3 py-1.5 text-[11px] font-semibold text-ink/45">{countLabel}</span>
+          <span className={`w-fit rounded-full px-3 py-1.5 text-[11px] font-semibold ${isComingSoon ? "bg-amber-100 text-amber-800" : "bg-cream text-ink/45"}`}>{countLabel}</span>
         </div>
       </section>
 
@@ -324,9 +327,9 @@ export function SubrubricPageView({
 
         {!loading && !error && items.length === 0 && (
           <div className="rounded-[2rem] bg-white px-6 py-14 text-center shadow-soft">
-            <Sparkles size={24} className="mx-auto text-ink/20" />
-            <p className="mt-4 text-sm font-semibold">Aucune fiche publiée pour le moment.</p>
-            <p className="mt-1 text-xs text-ink/40">Les futures adresses apparaîtront ici automatiquement.</p>
+            <Sparkles size={24} className={`mx-auto ${isComingSoon ? "text-amber-500" : "text-ink/20"}`} />
+            <p className="mt-4 text-sm font-semibold">{isComingSoon ? "Sélection Cocktails & Soft à venir" : "Aucune fiche publiée pour le moment."}</p>
+            <p className="mt-1 text-xs text-ink/40">{isComingSoon ? "Les meilleures adresses de bars, cocktails et rafraîchissements casher arrivent très prochainement sur Liberty K." : "Les futures adresses apparaîtront ici automatiquement."}</p>
           </div>
         )}
 

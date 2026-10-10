@@ -18,7 +18,7 @@ export const categories: Category[] = [
     image: "https://dnpcrousaeoyyuxszwwm.supabase.co/storage/v1/object/public/liberty-images/rubrics/eadd5528-8501-4962-982b-bb043ff125a8.png?v=1787656413392",
     featured: ["Restaurants", "Traiteurs", "Pâtisseries"],
     format: "Grand carré",
-    subrubricCount: 10,
+    subrubricCount: 11,
     status: "Publié",
     order: 1,
   },

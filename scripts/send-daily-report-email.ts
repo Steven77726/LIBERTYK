@@ -62,7 +62,7 @@ Voici le bilan complet de l'état de santé et des performances de votre platefo
 🟢 POINTS POSITIFS (Ce qui tourne parfaitement)
 ============================================================
 
-• Génération et vitesse d'affichage impeccables : Les 104 pages du site ont été générées avec succès et le socle de navigation commun est ultra-léger (seulement 102 Ko), ce qui garantit une excellente fluidité de visite.
+• Génération et vitesse d'affichage impeccables : Les 105 pages du site ont été générées avec succès et le socle de navigation commun est ultra-léger (seulement 102 Ko), ce qui garantit une excellente fluidité de visite.
 • 100% des rubriques et photos en ligne : Les 14 univers du site (Restauration, Sorties, Shopping, Soins féminin, Vin & Spiritueux, Mariage, Location de Salle, Sport, Enfants, Mikvé, Calendrier Hébraïque...) sont parfaitement opérationnels, avec des visuels de haute qualité et zéro lien cassé.
 • Respect absolu des rubriques en pause : Les 3 rubriques mises temporairement en sommeil (Voyages, Chauffeurs, Religion) sont totalement invisibles pour les visiteurs du site, tout en conservant toutes vos données bien au chaud et sécurisées dans la base.
 • Adresses prestigieuses et fiches complètes : Tous les commerces et prestataires clés (le chef pâtissier David Abitbol avec ses 9 créations, Le Barbanegra et Gainsbar pour les soirées, Lehayiim pour les célibataires, la salle Chichi Paris, Abigael Hassan pour les soins, Kinor Décor pour le mariage, Azamra et Naor pour le shopping) sont accessibles et présentés avec soin.
@@ -268,7 +268,7 @@ LIBERTY K — Plateforme d'excellence
     <div class="section-box box-green">
       <h2 class="section-title title-green">🟢 Points positifs (Ce qui tourne parfaitement)</h2>
       <ul class="bullet-list">
-        <li><strong>Vitesse de fabrication record :</strong> Les 104 pages du site se préparent et s'affichent en seulement 6,4 secondes, assurant une navigation fluide et instantanée pour les utilisateurs.</li>
+        <li><strong>Vitesse de fabrication record :</strong> Les 105 pages du site se préparent et s'affichent en seulement 6,4 secondes, assurant une navigation fluide et instantanée pour les utilisateurs.</li>
         <li><strong>100% des rubriques et photos en ligne :</strong> Les 14 univers du site (Restauration, Sorties, Shopping, Soins féminin, Vin &amp; Spiritueux, Mariage, Location de Salle, Sport, etc.) sont actifs et disposent tous de visuels en haute définition.</li>
         <li><strong>Respect strict des rubriques en pause :</strong> Les sections non activées (Voyages, Chauffeurs, Religion) restent invisibles pour les visiteurs sans aucune perte de vos données en base.</li>
         <li><strong>Fiches de prestige parfaitement en place :</strong> Tous les établissements phares (Chichi Paris pour les salles de prestige, le pâtissier David Abitbol, Le Barbanegra et Gainsbar pour les soirées, Abigael Hassan pour les soins, Kinor Décor pour les mariages, Azamra et Naor pour le shopping) sont fidèlement référencés et accessibles sans erreur.</li>

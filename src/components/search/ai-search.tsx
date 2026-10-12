@@ -282,14 +282,14 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
     <div ref={rootRef} className="relative z-30 mx-auto mt-4 w-full max-w-3xl">
       {/* Barre de recherche optimisée & fluide (zéro vocal) */}
       <div
-        className={`group relative flex items-center gap-2 rounded-[2rem] border bg-white/[0.98] p-2 sm:p-2.5 shadow-[0_24px_80px_rgba(0,0,0,.40)] backdrop-blur-2xl transition-all duration-300 ${
+        className={`group relative flex items-center gap-2 rounded-[2rem] border bg-[#420207]/90 p-2 sm:p-2.5 shadow-[0_24px_80px_rgba(0,0,0,.50)] backdrop-blur-2xl transition-all duration-300 ${
           focused
-            ? "border-[#d5bb7d] shadow-[0_32px_110px_rgba(0,0,0,.50),0_0_0_6px_rgba(213,187,125,.14)]"
-            : "border-white/30 hover:border-white/60"
+            ? "border-[#d5bb7d] shadow-[0_32px_110px_rgba(0,0,0,.60),0_0_0_6px_rgba(213,187,125,.18)]"
+            : "border-white/20 hover:border-white/40"
         }`}
       >
         {/* Icône de recherche décorative intégrée */}
-        <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-cream/80 text-ink/70 sm:size-11">
+        <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-white sm:size-11">
           <Search size={18} strokeWidth={2.3} />
         </div>
 
@@ -317,7 +317,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             type="search"
             inputMode="search"
             autoComplete="off"
-            className="w-full bg-transparent px-1 text-[16px] font-semibold text-ink outline-hidden placeholder:font-normal placeholder:text-ink/40 sm:px-2 sm:text-base"
+            className="w-full bg-transparent px-1 text-[16px] font-semibold text-white outline-hidden placeholder:font-normal placeholder:text-white/45 sm:px-2 sm:text-base"
           />
         </div>
 
@@ -327,7 +327,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             <button
               type="button"
               onClick={clearSearch}
-              className="grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-ink/40 hover:bg-black/5 hover:text-ink transition cursor-pointer"
+              className="grid min-h-[44px] min-w-[44px] place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white transition cursor-pointer"
               aria-label="Effacer la recherche"
             >
               <X size={15} />
@@ -338,7 +338,7 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
             type="button"
             onClick={submit}
             aria-label="Lancer la recherche"
-            className="grid min-h-[44px] min-w-[44px] place-items-center rounded-2xl bg-ink text-white transition hover:bg-moss hover:scale-105 shadow-sm cursor-pointer sm:size-11"
+            className="grid min-h-[44px] min-w-[44px] place-items-center rounded-2xl bg-[#d5bb7d] text-black font-bold transition hover:bg-[#e7d39a] hover:scale-105 shadow-sm cursor-pointer sm:size-11"
           >
             <ArrowRight size={16} />
           </button>
@@ -377,16 +377,16 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.99 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="fixed z-[130] max-h-[80vh] overflow-y-auto rounded-3xl border border-black/10 bg-white/98 p-3.5 text-left text-ink shadow-[0_28px_90px_rgba(0,0,0,.35)] backdrop-blur-2xl"
+                className="fixed z-[130] max-h-[80vh] overflow-y-auto rounded-3xl border border-white/15 bg-[#52030a] p-3.5 text-left text-white shadow-[0_28px_90px_rgba(0,0,0,.70)] backdrop-blur-2xl"
               >
                 {/* En-tête de réponse / Synthèse de recherche */}
-                <div className="flex items-center gap-2.5 rounded-2xl bg-cream/80 p-3 border border-black/[.04] mb-3">
-                  <div className="grid size-7 shrink-0 place-items-center rounded-full bg-moss text-white shadow-2xs">
+                <div className="flex items-center gap-2.5 rounded-2xl bg-[#420207] p-3 border border-white/10 mb-3 text-white">
+                  <div className="grid size-7 shrink-0 place-items-center rounded-full bg-[#d5bb7d] text-black shadow-2xs">
                     <Sparkles size={14} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-ink/50 uppercase tracking-wider">Recherche Liberty</p>
-                    <p className="mt-0.5 text-xs font-semibold text-ink/90 truncate leading-snug">
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Recherche Liberty</p>
+                    <p className="mt-0.5 text-xs font-semibold text-white truncate leading-snug">
                       {loading
                         ? "Recherche en cours…"
                         : conciergeMessage || `${results.length} résultat${results.length > 1 ? "s" : ""} trouvé${results.length > 1 ? "s" : ""}`}
@@ -397,8 +397,8 @@ export function AiSearch({ showChips = true }: { showChips?: boolean }) {
                 {/* État de chargement discret */}
                 {loading && results.length === 0 ? (
                   <div className="flex items-center justify-center gap-3 py-10" role="status" aria-live="polite">
-                    <div className="size-5 rounded-full border-2 border-moss border-t-transparent animate-spin" />
-                    <p className="text-xs font-semibold text-ink/60">Recherche des établissements…</p>
+                    <div className="size-5 rounded-full border-2 border-[#d5bb7d] border-t-transparent animate-spin" />
+                    <p className="text-xs font-semibold text-white/70">Recherche des établissements…</p>
                   </div>
                 ) : results.length > 0 ? (
                   <div className="space-y-3">

@@ -137,7 +137,7 @@ export function CategoryGrid() {
 
   return (
     <section className="page-shell py-8 sm:py-10">
-      <div className="mb-5 max-w-3xl"><p className="eyebrow">Tous vos univers</p><h2 className="text-3xl font-semibold tracking-[-.055em] sm:text-4xl">Tout ce qui compte. <span className="text-ink/28">Au même endroit.</span></h2></div>
+      <div className="mb-5 max-w-3xl"><p className="eyebrow text-white/70">Tous vos univers</p><h2 className="text-3xl font-semibold tracking-[-.055em] sm:text-4xl text-white">Tout ce qui compte. <span className="text-white/45">Au même endroit.</span></h2></div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {cards.map(({ slug, label, description, image, imageAlt, icon: Icon, softColor, format, subrubricCount, isDormant }) => {
           const cardContent = (

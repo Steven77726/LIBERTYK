@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   CalendarDays,
+  Camera,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -12,6 +13,7 @@ import {
   Globe2,
   Instagram,
   MapPin,
+  Maximize2,
   MessageCircle,
   Navigation,
   Phone,
@@ -23,6 +25,7 @@ import { assetPath } from "@/lib/assets";
 import type { EstablishmentRecord } from "@/lib/supabase/establishments-repository";
 import { LikeButton, ShareButton } from "@/components/ui/entity-actions";
 import { getEstablishmentGoogleBusiness } from "@/lib/google-places";
+import { PhotoLightboxModal } from "@/components/ui/photo-lightbox-modal";
 import { DeliveryPlatformButtons } from "@/components/ui/delivery-badges";
 import { getMetroLineStyle } from "@/lib/transport/metro-lines";
 import { formatDistanceLabel } from "@/lib/geo/distance";
@@ -135,6 +138,8 @@ function Gallery({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [pausedUntil, setPausedUntil] = useState(0);
   const current = images[index] ?? images[0];
+  const photoAlts = establishment.photoAlts ?? [];
+  const currentAlt = photoAlts[index] || "";
 
   useEffect(() => {
     setIndex(0);
@@ -171,96 +176,145 @@ function Gallery({
 
   return (
     <>
-      <div className="relative aspect-[16/10] overflow-hidden rounded-2xl sm:rounded-3xl bg-sage shadow-xs">
-        <img
-          src={assetPath(current)}
-          alt={establishment.name}
-          className="size-full object-cover transition duration-500 hover:scale-[1.015]"
-          onClick={() => setLightboxOpen(true)}
-        />
+      <div className="flex flex-col gap-3">
+        {/* Cadre photo principale */}
+        <div className="relative aspect-[16/10] overflow-hidden rounded-2xl sm:rounded-3xl bg-sage shadow-xs group">
+          <img
+            src={assetPath(current)}
+            alt={currentAlt || establishment.name}
+            className="size-full object-cover transition duration-500 hover:scale-[1.015] cursor-pointer"
+            onClick={() => setLightboxOpen(true)}
+            title="Cliquer pour agrandir en plein écran"
+          />
 
-        {/* Bouton croix ✕ bien visible par-dessus la photo en haut à droite (zone 44px min, z-50) */}
-        {onClose && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="absolute right-3 top-3 z-50 grid min-h-[44px] min-w-[44px] place-items-center rounded-full bg-black/60 text-white backdrop-blur-md shadow-md transition hover:bg-black/80 hover:scale-105 cursor-pointer"
-            aria-label="Fermer la fiche"
-          >
-            <X size={20} />
-          </button>
-        )}
+          {/* Bouton croix ✕ bien visible par-dessus la photo en haut à droite (zone 44px min, z-50) */}
+          {onClose && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="absolute right-3 top-3 z-50 grid min-h-[44px] min-w-[44px] place-items-center rounded-full bg-black/60 text-white backdrop-blur-md shadow-md transition hover:bg-black/80 hover:scale-105 cursor-pointer"
+              aria-label="Fermer la fiche"
+            >
+              <X size={20} />
+            </button>
+          )}
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/60 to-transparent p-4 text-white">
-          <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-md">
-            {index + 1} / {images.length}
-          </span>
-          {images.length > 1 && (
-            <div className="flex items-center gap-1.5">
-              {images.map((image, imageIndex) => (
-                <span
-                  key={image}
-                  className={`h-1.5 rounded-full transition-all ${
-                    imageIndex === index ? "w-5 bg-white" : "w-1.5 bg-white/45"
-                  }`}
-                />
-              ))}
+          {/* Badge titre / légende de la photo si disponible */}
+          {currentAlt && (
+            <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-[calc(100%-4rem)]">
+              <span className="inline-block truncate rounded-full bg-black/65 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-md shadow-sm">
+                {currentAlt}
+              </span>
             </div>
+          )}
+
+          {/* Dégradé inférieur, compteur et bouton plein écran */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/75 via-black/20 to-transparent p-4 text-white">
+            <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-md">
+              {index + 1} / {images.length}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxOpen(true);
+              }}
+              className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/25 px-3 py-1 text-xs font-semibold backdrop-blur-md transition hover:bg-white/40 cursor-pointer"
+            >
+              <Maximize2 size={13} />
+              Plein écran
+            </button>
+          </div>
+
+          {/* Flèches de navigation */}
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  move(-1);
+                }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-md transition hover:bg-white hover:scale-105 cursor-pointer"
+                aria-label="Photo précédente"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  move(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-md transition hover:bg-white hover:scale-105 cursor-pointer"
+                aria-label="Photo suivante"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </>
           )}
         </div>
 
+        {/* Menu galerie photos / Miniatures interactives */}
         {images.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                move(-1);
-              }}
-              className="absolute left-3 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-md transition hover:bg-white cursor-pointer"
-              aria-label="Photo précédente"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                move(1);
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-md transition hover:bg-white cursor-pointer"
-              aria-label="Photo suivante"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </>
+          <div className="rounded-2xl border border-black/[.06] bg-cream/70 p-3 backdrop-blur-sm shadow-xs">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink/50">
+                <Camera size={13} className="text-moss" /> Galerie photos ({images.length})
+              </span>
+              <span className="text-[11px] text-moss font-semibold truncate max-w-[200px]">
+                {currentAlt || `Photo ${index + 1}`}
+              </span>
+            </div>
+            <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
+              {images.map((image, imageIndex) => {
+                const alt = photoAlts[imageIndex] || `Photo ${imageIndex + 1}`;
+                const isActive = imageIndex === index;
+                return (
+                  <button
+                    key={image + imageIndex}
+                    type="button"
+                    onClick={() => {
+                      pause();
+                      setIndex(imageIndex);
+                    }}
+                    title={alt}
+                    className={`group relative shrink-0 overflow-hidden rounded-xl transition duration-200 cursor-pointer ${
+                      isActive
+                        ? "ring-2 ring-moss ring-offset-2 scale-[1.03] shadow-md"
+                        : "opacity-65 hover:opacity-100 hover:scale-[1.02]"
+                    }`}
+                  >
+                    <div className="h-16 w-24 overflow-hidden rounded-xl bg-sage">
+                      <img
+                        src={assetPath(image)}
+                        alt={alt}
+                        className="size-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    {isActive && (
+                      <span className="absolute inset-x-0 bottom-0 bg-moss/90 text-center text-[9px] font-bold text-white py-0.5 truncate px-1">
+                        {alt.split("&")[0]?.split("-")[0]?.trim() || `Photo ${imageIndex + 1}`}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 
-      {lightboxOpen && (
-        <div
-          className="fixed inset-0 z-[160] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
-          onClick={() => setLightboxOpen(false)}
-        >
-          <button
-            type="button"
-            onClick={() => setLightboxOpen(false)}
-            className="absolute right-4 top-4 grid min-h-[44px] min-w-[44px] place-items-center rounded-full bg-white text-ink shadow-md"
-            aria-label="Fermer"
-          >
-            <X size={20} />
-          </button>
-          <img
-            src={assetPath(current)}
-            alt=""
-            className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      <PhotoLightboxModal
+        photos={images}
+        initialIndex={index}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        title={establishment.name}
+      />
     </>
   );
 }
@@ -285,21 +339,17 @@ function ActionLink({
       href={href}
       target={href.startsWith("tel:") || href.startsWith("mailto:") ? undefined : "_blank"}
       rel={href.startsWith("tel:") || href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
-      className={`flex min-h-[50px] items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-left transition ${
+      className={`flex min-h-[50px] items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-left transition border border-white/10 ${
         highlight
-          ? "bg-moss text-white shadow-sm hover:bg-moss/90"
-          : dark
-          ? "bg-ink text-white shadow-sm hover:bg-ink/90"
-          : "bg-cream text-ink hover:bg-black/[.05]"
+          ? "bg-[#d5bb7d] text-black shadow-sm hover:bg-[#e7d39a]"
+          : "bg-white/10 text-white hover:bg-white/20"
       }`}
     >
       <span
         className={`grid size-8 shrink-0 place-items-center rounded-xl ${
           highlight
-            ? "bg-white/20 text-white"
-            : dark
-            ? "bg-white/12 text-white"
-            : "bg-white text-moss shadow-2xs"
+            ? "bg-black/10 text-black"
+            : "bg-white/15 text-white shadow-2xs"
         }`}
       >
         {icon}
@@ -309,7 +359,7 @@ function ActionLink({
         {detail && (
           <span
             className={`block truncate text-[11px] ${
-              highlight || dark ? "text-white/70" : "text-ink/50"
+              highlight ? "text-black/70" : "text-white/70"
             }`}
           >
             {detail}
@@ -427,7 +477,7 @@ export function EstablishmentDetailModal({
           aria-modal="true"
           aria-label={establishment.name}
           onClick={(e) => e.stopPropagation()}
-          className={`relative flex flex-col w-full bg-[#fcfbfa] shadow-2xl transition-all duration-300 ease-out cursor-default
+          className={`relative flex flex-col w-full bg-[#52030a] text-white border border-white/15 shadow-2xl transition-all duration-300 ease-out cursor-default
             max-h-[90dvh] rounded-t-[32px] sm:max-h-[88vh] sm:max-w-2xl sm:rounded-3xl
             ${
               open
@@ -437,23 +487,23 @@ export function EstablishmentDetailModal({
         >
           {/* Poignée de tirage tactile visible sur mobile */}
           <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
-            <div className="h-1.5 w-12 rounded-full bg-black/20" />
+            <div className="h-1.5 w-12 rounded-full bg-white/20" />
           </div>
 
           {/* En-tête avec bouton de fermeture ✕ ergonomique (44px) */}
-          <div className="sticky top-0 z-30 flex items-center justify-between border-b border-black/[.06] bg-[#fcfbfa]/95 px-5 py-3 backdrop-blur-xl sm:rounded-t-3xl">
+          <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#52030a]/95 px-5 py-3 backdrop-blur-xl sm:rounded-t-3xl">
             <div className="min-w-0 pr-3">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-moss">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#d5bb7d]">
                 {category} · {subrubric}
               </span>
-              <h2 className="truncate text-base sm:text-lg font-bold text-ink">
+              <h2 className="truncate text-base sm:text-lg font-bold text-white">
                 {establishment.name}
               </h2>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="grid min-h-[44px] min-w-[44px] place-items-center rounded-full bg-white text-ink shadow-xs transition hover:bg-ink hover:text-white cursor-pointer"
+              className="grid min-h-[44px] min-w-[44px] place-items-center rounded-full bg-white/15 text-white border border-white/20 shadow-xs transition hover:bg-white/25 cursor-pointer"
               aria-label="Fermer la fiche"
             >
               <X size={20} />
@@ -472,10 +522,10 @@ export function EstablishmentDetailModal({
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-bold ${
                       establishment.kosherType === "Bassari"
-                        ? "bg-rose-50 text-rose-700"
+                        ? "bg-rose-950/80 text-rose-200 border border-rose-400/30"
                         : establishment.kosherType === "Halavi"
-                        ? "bg-sky-50 text-sky-700"
-                        : "bg-emerald-50 text-emerald-700"
+                        ? "bg-sky-950/80 text-sky-200 border border-sky-400/30"
+                        : "bg-emerald-950/80 text-emerald-200 border border-emerald-400/30"
                     }`}
                   >
                     {establishment.kosherType}
@@ -483,19 +533,19 @@ export function EstablishmentDetailModal({
                 )}
 
                 {establishment.certification && (
-                  <span className="rounded-full bg-cream px-3 py-1 text-xs font-semibold text-ink/75">
+                  <span className="rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-semibold text-white/90">
                     ✡ {establishment.certification}
                   </span>
                 )}
 
                 {establishment.averagePrice && (
-                  <span className="rounded-full bg-cream px-3 py-1 text-xs font-bold text-ink/50">
+                  <span className="rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-bold text-white/80">
                     {establishment.averagePrice}
                   </span>
                 )}
 
                 {distanceKm !== undefined && distanceKm > 0 && (
-                  <span className="rounded-full bg-sage px-3 py-1 text-xs font-bold text-moss">
+                  <span className="rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-bold text-[#d5bb7d]">
                     📍 {formatDistanceLabel(distanceKm)}
                   </span>
                 )}
@@ -503,8 +553,8 @@ export function EstablishmentDetailModal({
 
               {/* Note Google Vérifiée */}
               {hasGoogleProof && googleData && (
-                <div className="mt-3 flex items-center gap-2 rounded-2xl bg-cream/70 p-3 text-xs font-semibold text-ink">
-                  <span className="text-amber-500">★★★★★</span>
+                <div className="mt-3 flex items-center gap-2 rounded-2xl bg-[#420207] border border-white/10 p-3 text-xs font-semibold text-white">
+                  <span className="text-amber-400">★★★★★</span>
                   <span>
                     {googleData.rating.toLocaleString("fr-FR")} · {googleData.userRatingsTotal} avis Google
                   </span>
@@ -512,7 +562,7 @@ export function EstablishmentDetailModal({
                     href={googleData.googleMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold text-moss"
+                    className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold text-[#d5bb7d] hover:text-white"
                   >
                     Voir les avis <ExternalLink size={11} />
                   </a>
@@ -586,7 +636,7 @@ export function EstablishmentDetailModal({
                     href={normalizeExternalUrl(establishment.reservationTarget)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-moss px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-moss/90"
+                    className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-[#d5bb7d] px-6 py-3 text-sm font-bold text-black shadow-md transition hover:bg-[#e7d39a]"
                   >
                     <CalendarDays size={18} />
                     <span>{reserveLabel}</span>
@@ -595,7 +645,7 @@ export function EstablishmentDetailModal({
                   <button
                     type="button"
                     onClick={() => onReserve?.(establishment)}
-                    className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-moss px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-moss/90 cursor-pointer"
+                    className="flex min-h-[50px] w-full items-center justify-center gap-2 rounded-2xl bg-[#d5bb7d] px-6 py-3 text-sm font-bold text-black shadow-md transition hover:bg-[#e7d39a] cursor-pointer"
                   >
                     <CalendarDays size={18} />
                     <span>{reserveLabel}</span>
@@ -606,25 +656,25 @@ export function EstablishmentDetailModal({
 
             {/* Description complète */}
             {isMeaningful(establishment.description) && (
-              <div className="rounded-2xl bg-white p-4 sm:p-5 border border-black/[.05] shadow-2xs space-y-1.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-moss">
+              <div className="rounded-2xl bg-[#420207] p-4 sm:p-5 border border-white/10 shadow-2xs space-y-1.5 text-white">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#d5bb7d]">
                   Présentation
                 </p>
-                <p className="text-xs sm:text-sm leading-relaxed text-ink/75 whitespace-pre-line">
+                <p className="text-xs sm:text-sm leading-relaxed text-white/80 whitespace-pre-line">
                   {establishment.description}
                 </p>
               </div>
             )}
 
             {/* Adresse, Métro et Horaires */}
-            <div className="rounded-2xl bg-white p-4 sm:p-5 border border-black/[.05] shadow-2xs space-y-3">
+            <div className="rounded-2xl bg-[#420207] p-4 sm:p-5 border border-white/10 shadow-2xs space-y-3 text-white">
               {isMeaningful(address) && (
-                <div className="flex items-start gap-2.5 text-xs sm:text-sm text-ink/75">
-                  <MapPin size={16} className="mt-0.5 shrink-0 text-moss" />
+                <div className="flex items-start gap-2.5 text-xs sm:text-sm text-white/80">
+                  <MapPin size={16} className="mt-0.5 shrink-0 text-[#d5bb7d]" />
                   <div>
-                    <p className="font-semibold text-ink">{address}</p>
+                    <p className="font-semibold text-white">{address}</p>
                     {isMeaningful(establishment.nearestMetroName) && (
-                      <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-cream px-3 py-1.5 text-xs font-semibold text-ink/65">
+                      <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
                         <span>Métro {establishment.nearestMetroName}</span>
                         {metroStyle && (
                           <span
@@ -646,22 +696,22 @@ export function EstablishmentDetailModal({
 
               {/* Horaires d'ouverture */}
               {hours.length > 0 && (
-                <div className="border-t border-black/[.05] pt-3">
+                <div className="border-t border-white/10 pt-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
-                      <Clock size={14} className="text-moss" />
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                      <Clock size={14} className="text-[#d5bb7d]" />
                       <span>{today ? `Aujourd’hui · ${today}` : "Horaires d’ouverture"}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowHours((prev) => !prev)}
-                      className="rounded-full bg-cream px-2.5 py-1 text-[11px] font-bold text-ink/60 hover:text-ink cursor-pointer"
+                      className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 text-[11px] font-bold text-white/80 hover:bg-white/20 cursor-pointer"
                     >
                       {showHours ? "Masquer" : "Toute la semaine"}
                     </button>
                   </div>
                   {showHours && (
-                    <div className="mt-3 space-y-1.5 rounded-xl bg-cream/60 p-3 text-xs">
+                    <div className="mt-3 space-y-1.5 rounded-xl bg-[#350106] border border-white/5 p-3 text-xs text-white/80">
                       {hours.map((line) => {
                         const isToday = days[(new Date().getDay() + 6) % 7] === line.day;
                         return (

@@ -40,7 +40,6 @@ const foodImages: Record<string, string> = {
   "street-food": "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=85",
   boulangeries: "/images/food/boulangerie.jpg",
   glaciers: "/images/food/glacier.webp",
-  "cocktails-soft": "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=900&q=85",
 };
 
 const foodDescriptions: Record<string, string> = {
@@ -54,7 +53,6 @@ const foodDescriptions: Record<string, string> = {
   "street-food": "Saveurs sur le pouce",
   boulangeries: "Le goût du savoir-faire",
   glaciers: "Fraîcheur et plaisir",
-  "cocktails-soft": "Bars, cocktails et rafraîchissements",
 };
 
 const foodExtra = [
@@ -68,11 +66,9 @@ const foodExtra = [
   "Street Food",
   "Boulangeries",
   "Glaciers",
-  "Cocktails & Soft",
 ];
 
 const subrubricSlugOverrides: Record<string, string> = {
-  "food-Cocktails & Soft": "cocktails-soft",
   "mariage-Déco": "deco-mariage",
   "mariage-Traiteur Mariage": "traiteur-mariage",
   "mariage-Salle de Réception": "salle-de-reception",
@@ -241,15 +237,6 @@ export const subrubricSlugAliases: Record<string, string> = {
   "celibataire": "soirees-celibataires",
   "celibataires": "soirees-celibataires",
   "celibatiare": "soirees-celibataires",
-  "food-cocktail": "cocktails-soft",
-  "food-cocktails": "cocktails-soft",
-  "food-soft": "cocktails-soft",
-  "food-softs": "cocktails-soft",
-  "food-cocktails-soft": "cocktails-soft",
-  "cocktail": "cocktails-soft",
-  "cocktails": "cocktails-soft",
-  "soft": "cocktails-soft",
-  "softs": "cocktails-soft",
 };
 
 export function findLocalSubrubric(rubricSlug: string, subrubricSlug: string): LocalSubrubric | undefined {

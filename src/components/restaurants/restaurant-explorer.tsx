@@ -47,8 +47,7 @@ const excludedCuisineKeywords = new Set([
   "mariage", "location-de-salle", "vin-spiritueux", "mikve", "voyages", "calendrier",
   "bar", "club", "terrasse festive", "soirees", "celibataires", "peniche", "rencontres",
   "coiffure", "maquillage", "lissage", "decoration", "scenographie", "fleurs", "houppa",
-  "salle de reception", "evenementiel",
-  "cocktail", "cocktails", "soft", "softs", "cocktails-soft", "cocktail-soft", "cocktails-et-soft", "cocktail et soft", "cocktails & soft", "bars"
+  "salle de reception", "evenementiel"
 ]);
 
 export function isNonCuisineRubric(val: string): boolean {
@@ -446,8 +445,6 @@ function establishmentRecordsToRestaurants(records: EstablishmentRecord[]): Rest
       sponsored: item.sponsored,
       sponsorshipLevel: item.sponsorshipLevel,
       fieldVisibility: item.fieldVisibility,
-      subrubricId: item.subrubricId,
-      rubricId: item.rubricId,
       latitude: Number(item.latitude) || 48.8566,
       longitude: Number(item.longitude) || 2.3522,
       importedAt: item.updatedAt ?? new Date(Date.now() + index).toISOString(),
@@ -849,9 +846,6 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
   const results = useMemo(() => {
     const search = normalize(query);
     const filtered = restaurantData.filter((restaurant) => {
-      const sub = normalize(restaurant.subrubricId || "");
-      if (sub.includes("cocktail") || sub.includes("soft")) return false;
-
       const corpus = normalize(`${restaurant.name} ${restaurant.fullAddress} ${restaurant.arrondissement} ${restaurant.cuisine} ${restaurant.specialty} ${(restaurant.tags ?? []).join(" ")}`);
       if (search && !corpus.includes(search)) return false;
 

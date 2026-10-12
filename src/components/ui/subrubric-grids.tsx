@@ -13,7 +13,6 @@ import {
   Soup,
   Store,
   UtensilsCrossed,
-  Wine,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { categories } from "@/data/categories";
@@ -45,7 +44,6 @@ type StaticSubrubricCard = {
   description: string;
   href: string;
   image: string;
-  badge?: string;
 };
 
 const foodIconBySlug: Record<string, LucideIcon> = {
@@ -59,7 +57,6 @@ const foodIconBySlug: Record<string, LucideIcon> = {
   "street-food": Soup,
   boulangeries: Croissant,
   glaciers: IceCreamBowl,
-  "cocktails-soft": Wine,
 };
 
 const genericIconBySlug: Record<string, LucideIcon> = {
@@ -478,11 +475,6 @@ function SubrubricCard({
   const image = imageForSubrubric(rubricSlug, item, fallbackCards);
   const description = descriptionForSubrubric(item, fallbackCards);
   const isDormant = item.status === "En sommeil" || item.isDormant;
-  const isComingSoon =
-    slug === "cocktails-soft" ||
-    slug.includes("cocktail") ||
-    slug.includes("soft") ||
-    fallbackCards?.find((card) => slugify(card.label) === slug)?.badge === "À venir";
 
   const content = (
     <>
@@ -496,17 +488,12 @@ function SubrubricCard({
         }`}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
-      {isComingSoon ? (
-        <span className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-black/70 px-3 py-1 text-[11px] font-semibold text-amber-200 shadow-md backdrop-blur-md">
-          <span className="inline-block size-1.5 rounded-full bg-amber-400 animate-pulse" />
-          À venir
-        </span>
-      ) : isDormant ? (
+      {isDormant && (
         <span className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-black/60 px-3 py-1 text-[11px] font-semibold text-amber-200/90 shadow-md backdrop-blur-md">
           <span className="inline-block size-1.5 rounded-full bg-amber-400 animate-pulse" />
           Disponible bientôt
         </span>
-      ) : null}
+      )}
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
         <div className="min-w-0">
           <span className="mb-4 grid size-10 place-items-center rounded-xl border border-white/20 bg-white/15 backdrop-blur">
@@ -515,7 +502,7 @@ function SubrubricCard({
           <h3 className="truncate text-xl font-semibold tracking-tight">{item.name}</h3>
           {description && <p className="mt-1 line-clamp-2 text-xs text-white/60">{description}</p>}
           <p className="mt-3 text-[11px] font-semibold uppercase tracking-[.14em] text-white/45">
-            {isComingSoon ? "À venir" : isDormant ? "Bientôt disponible" : countLabel(establishmentCount)}
+            {isDormant ? "Bientôt disponible" : countLabel(establishmentCount)}
           </p>
         </div>
         {!isDormant && (

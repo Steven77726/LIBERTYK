@@ -605,7 +605,7 @@ export function UniversalEstablishmentCard({
       <article
         id={data.slug}
         onClick={() => setDrawerOpen(true)}
-        className={`group flex flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#52030a] text-white shadow-md transition-all duration-300 hover:shadow-2xl hover:border-white/20 cursor-pointer ${className}`}
+        className={`group flex flex-col overflow-hidden rounded-[1.75rem] border border-black/[.06] bg-white shadow-xs transition-all duration-300 hover:shadow-soft cursor-pointer ${className}`}
       >
         {/* 1. Galerie Photo */}
         <EstablishmentCardGallery
@@ -621,7 +621,7 @@ export function UniversalEstablishmentCard({
             <div className="flex items-start justify-between gap-3">
               <h3
                 onClick={() => setDrawerOpen(true)}
-                className="text-xl font-bold tracking-tight text-white cursor-pointer transition hover:text-[#d5bb7d]"
+                className="text-xl font-bold tracking-tight text-ink cursor-pointer transition hover:text-moss"
               >
                 {data.name}
               </h3>
@@ -629,14 +629,14 @@ export function UniversalEstablishmentCard({
 
             {/* Accroche / Description courte */}
             {data.shortDescription && (
-              <p className="mt-1 text-xs font-semibold text-[#d5bb7d]">
+              <p className="mt-1 text-xs font-semibold text-moss">
                 {data.shortDescription}
               </p>
             )}
 
             {/* Description détaillée / longue */}
             {data.description && data.description !== data.shortDescription && (
-              <p className="mt-2 text-xs leading-relaxed text-white/80 whitespace-pre-line">
+              <p className="mt-2 text-xs leading-relaxed text-ink/70 whitespace-pre-line">
                 {data.description}
               </p>
             )}
@@ -644,7 +644,7 @@ export function UniversalEstablishmentCard({
             {/* Avis & Note Google Vérifiée */}
             {data.fieldVisibility.reviews !== false && (
               <div className="mt-2.5">
-                <CustomerRating rating={data.rating} reviewCount={data.reviewCount} compact light />
+                <CustomerRating rating={data.rating} reviewCount={data.reviewCount} compact />
               </div>
             )}
 
@@ -657,10 +657,10 @@ export function UniversalEstablishmentCard({
                     onTag ? "cursor-pointer" : ""
                   } ${
                     data.kosherType === "Bassari"
-                      ? "bg-rose-950/80 text-rose-200 border border-rose-400/30"
+                      ? "bg-rose-50 text-rose-700"
                       : data.kosherType === "Halavi"
-                      ? "bg-sky-950/80 text-sky-200 border border-sky-400/30"
-                      : "bg-emerald-950/80 text-emerald-200 border border-emerald-400/30"
+                      ? "bg-sky-50 text-sky-700"
+                      : "bg-emerald-50 text-emerald-700"
                   }`}
                 >
                   {data.kosherType}
@@ -670,8 +670,8 @@ export function UniversalEstablishmentCard({
               {data.fieldVisibility.certification !== false && hasCertification && (
                 <span
                   onClick={onTag ? () => onTag(data.certification) : undefined}
-                  className={`rounded-full bg-white/10 border border-white/15 px-2.5 py-1 font-semibold text-white/90 ${
-                    onTag ? "cursor-pointer hover:bg-white/20" : ""
+                  className={`rounded-full bg-cream px-2.5 py-1 font-semibold text-ink/65 ${
+                    onTag ? "cursor-pointer hover:bg-sage hover:text-moss" : ""
                   }`}
                 >
                   ✡ {data.certification}
@@ -679,7 +679,7 @@ export function UniversalEstablishmentCard({
               )}
 
               {data.fieldVisibility.price !== false && data.price && (
-                <span className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 font-bold text-white/80">
+                <span className="rounded-full bg-cream px-2.5 py-1 font-bold text-ink/50">
                   {data.price}
                 </span>
               )}
@@ -688,22 +688,22 @@ export function UniversalEstablishmentCard({
               {data.beautyInfo && (
                 <>
                   {data.beautyInfo.priceFormatted && (
-                    <span className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 font-bold text-[#d5bb7d]">
+                    <span className="rounded-full bg-cream px-2.5 py-1 font-bold text-moss">
                       {data.beautyInfo.priceFormatted}
                     </span>
                   )}
                   {data.beautyInfo.durationMinutes && (
-                    <span className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 font-medium text-white/75">
+                    <span className="rounded-full bg-cream px-2.5 py-1 font-medium text-ink/50">
                       {data.beautyInfo.durationMinutes} min
                     </span>
                   )}
                   {data.beautyInfo.atHome && (
-                    <span className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 font-medium text-white/75 inline-flex items-center gap-1">
+                    <span className="rounded-full bg-cream px-2.5 py-1 font-medium text-ink/50 inline-flex items-center gap-1">
                       <HomeIcon size={10} /> À domicile
                     </span>
                   )}
                   {data.beautyInfo.onSite && (
-                    <span className="rounded-full bg-white/10 border border-white/15 px-2.5 py-1 font-medium text-white/75">
+                    <span className="rounded-full bg-cream px-2.5 py-1 font-medium text-ink/50">
                       Sur place
                     </span>
                   )}
@@ -726,8 +726,8 @@ export function UniversalEstablishmentCard({
                     <span
                       key={tag}
                       onClick={onTag ? () => onTag(tag) : undefined}
-                      className={`rounded-full bg-white/10 border border-white/10 px-2.5 py-1 text-[10px] font-medium text-white/85 ${
-                        onTag ? "cursor-pointer hover:bg-white/20 hover:text-white" : ""
+                      className={`rounded-full bg-sage/60 px-2.5 py-1 text-[10px] font-medium text-moss ${
+                        onTag ? "cursor-pointer hover:bg-moss hover:text-white" : ""
                       }`}
                     >
                       {tag}
@@ -737,8 +737,8 @@ export function UniversalEstablishmentCard({
 
             {/* Localisation : Adresse & Arrondissement (Texte explicite) */}
             {data.fieldVisibility.address !== false && hasMeaningfulAddress && (
-              <div className="mt-3 flex items-start gap-1.5 text-left text-xs leading-5 text-white/70">
-                <MapPin size={13} className="mt-0.5 shrink-0 text-[#d5bb7d]" />
+              <div className="mt-3 flex items-start gap-1.5 text-left text-xs leading-5 text-ink/60">
+                <MapPin size={13} className="mt-0.5 shrink-0 text-moss" />
                 <span className="line-clamp-2">
                   {data.address}
                   {data.city && data.city !== "Paris" ? ` · ${data.city}` : ""}
@@ -751,7 +751,7 @@ export function UniversalEstablishmentCard({
             {/* Métro le plus proche avec Badge de Ligne Stylé */}
             {data.nearestMetroName && (
               <div className="mt-2 flex items-center">
-                <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white/10 border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/80">
+                <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-cream/90 px-2.5 py-1 text-[11px] font-semibold text-ink/55">
                   <span className="truncate">Métro {data.nearestMetroName}</span>
                   {metroStyle && (
                     <span
@@ -771,39 +771,39 @@ export function UniversalEstablishmentCard({
 
             {/* Horaires d'ouverture : Volet dépliable / repliable à volonté */}
             {data.fieldVisibility.opening_hours !== false && data.hours && (
-              <div className="mt-2.5 overflow-hidden rounded-2xl bg-[#420207] border border-white/10 transition-all">
+              <div className="mt-2.5 overflow-hidden rounded-2xl bg-cream/70 border border-black/[.04] transition-all">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setHoursOpen((prev) => !prev);
                   }}
-                  className="flex w-full items-center justify-between p-2.5 text-left text-[11px] font-semibold text-white/85 transition hover:bg-white/5 cursor-pointer"
+                  className="flex w-full items-center justify-between p-2.5 text-left text-[11px] font-semibold text-ink/75 transition hover:bg-sage/40 cursor-pointer"
                   aria-expanded={hoursOpen}
                 >
                   <div className="flex items-center gap-1.5">
-                    <Clock size={13} className="text-[#d5bb7d] shrink-0" />
+                    <Clock size={13} className="text-moss shrink-0" />
                     <span>Horaires d&apos;ouverture</span>
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-white/60">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-ink/45">
                     <span>{hoursOpen ? "Masquer" : "Voir"}</span>
                     <ChevronDown
                       size={13}
-                      className={`transition-transform duration-200 ${hoursOpen ? "rotate-180 text-[#d5bb7d]" : ""}`}
+                      className={`transition-transform duration-200 ${hoursOpen ? "rotate-180 text-moss" : ""}`}
                     />
                   </div>
                 </button>
 
                 {hoursOpen && (
-                  <div className="border-t border-white/10 p-3 space-y-1 text-white/75 text-[11px] leading-snug">
+                  <div className="border-t border-black/[.05] p-3 space-y-1 text-ink/65 text-[11px] leading-snug">
                     {data.hours.split("\n").filter(Boolean).map((line, idx) => {
                       const parts = line.split(":");
                       const day = parts[0]?.trim();
                       const time = parts.slice(1).join(":").trim();
                       return (
-                        <div key={idx} className="flex items-center justify-between border-b border-white/5 pb-1 last:border-0 last:pb-0">
-                          <span className="font-medium text-white/80">{day}</span>
-                          <span className="font-semibold text-white">{time || "—"}</span>
+                        <div key={idx} className="flex items-center justify-between border-b border-black/[.03] pb-1 last:border-0 last:pb-0">
+                          <span className="font-medium text-ink/70">{day}</span>
+                          <span className="font-semibold text-ink/90">{time || "—"}</span>
                         </div>
                       );
                     })}
@@ -814,29 +814,29 @@ export function UniversalEstablishmentCard({
 
             {/* Services & Équipements si applicables */}
             {(data.services.dineIn || data.services.takeaway || data.services.delivery || data.amenities.terrace || data.amenities.privateHire) && (
-              <div className="mt-3.5 flex flex-wrap items-center gap-3 border-t border-white/10 pt-3 text-[10px] text-white/65">
+              <div className="mt-3.5 flex flex-wrap items-center gap-3 border-t border-black/[.05] pt-3 text-[10px] text-ink/50">
                 {data.services.dineIn && (
-                  <span className="flex items-center gap-1 text-white/90 font-semibold">
-                    <Store size={12} className="text-[#d5bb7d]" /> Sur place
+                  <span className="flex items-center gap-1 text-moss font-semibold">
+                    <Store size={12} /> Sur place
                   </span>
                 )}
                 {data.fieldVisibility.takeaway !== false && data.services.takeaway && (
-                  <span className="flex items-center gap-1 text-white/90 font-semibold">
-                    <UtensilsCrossed size={12} className="text-[#d5bb7d]" /> À emporter
+                  <span className="flex items-center gap-1 text-moss font-semibold">
+                    <UtensilsCrossed size={12} /> À emporter
                   </span>
                 )}
                 {data.fieldVisibility.delivery !== false && data.services.delivery && (
-                  <span className="flex items-center gap-1 text-white/90 font-semibold">
-                    <Car size={12} className="text-[#d5bb7d]" /> Livraison
+                  <span className="flex items-center gap-1 text-moss font-semibold">
+                    <Car size={12} /> Livraison
                   </span>
                 )}
                 {data.fieldVisibility.terrace !== false && data.amenities.terrace && (
-                  <span className="flex items-center gap-1 text-white/90 font-semibold">
+                  <span className="flex items-center gap-1 text-moss font-semibold">
                     Terrasse
                   </span>
                 )}
                 {data.amenities.privateHire && (
-                  <span className="flex items-center gap-1 text-white/90 font-semibold">
+                  <span className="flex items-center gap-1 text-moss font-semibold">
                     Privatisable
                   </span>
                 )}
@@ -845,16 +845,16 @@ export function UniversalEstablishmentCard({
           </div>
 
           {/* 3. Actions Directes & Liens Externes : Tous sur la même ligne avec la même forme */}
-          <div className="mt-4 pt-3 border-t border-white/10 space-y-2" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-4 pt-3 border-t border-black/[.05] space-y-2" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               {/* Bouton Fiche / Détails Plein Écran */}
               <button
                 type="button"
                 onClick={() => setDrawerOpen(true)}
-                className="flex flex-1 min-w-[80px] items-center justify-center gap-1.5 rounded-xl bg-white/10 border border-white/15 px-2.5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/20 cursor-pointer"
+                className="flex flex-1 min-w-[80px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss cursor-pointer"
                 title="Ouvrir la fiche complète"
               >
-                <Maximize2 size={13} className="text-[#d5bb7d]" />
+                <Maximize2 size={13} className="text-moss" />
                 <span>Détails</span>
               </button>
 
@@ -862,7 +862,7 @@ export function UniversalEstablishmentCard({
               {data.fieldVisibility.phone !== false && data.phone && (
                 <a
                   href={`tel:${data.phone.replace(/\s/g, "")}`}
-                  className="flex flex-1 min-w-[85px] items-center justify-center gap-1.5 rounded-xl bg-white/15 border border-white/20 px-2.5 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-white/25"
+                  className="flex flex-1 min-w-[85px] items-center justify-center gap-1.5 rounded-xl bg-ink px-2.5 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-moss"
                 >
                   <Phone size={13} />
                   <span>Appeler</span>
@@ -902,10 +902,10 @@ export function UniversalEstablishmentCard({
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-1 min-w-[75px] items-center justify-center gap-1.5 rounded-xl bg-white/10 border border-white/15 px-2.5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                  className="flex flex-1 min-w-[75px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
                   title="Ouvrir dans Google Maps"
                 >
-                  <MapPin size={13} className="text-[#d5bb7d]" />
+                  <MapPin size={13} className="text-moss" />
                   <span>Maps</span>
                 </a>
               )}
@@ -916,7 +916,7 @@ export function UniversalEstablishmentCard({
                   href={data.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-1 min-w-[85px] items-center justify-center gap-1.5 rounded-xl bg-white/10 border border-white/15 px-2.5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                  className="flex flex-1 min-w-[85px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
                   aria-label={`Compte Instagram de ${data.name}`}
                 >
                   <Instagram size={13} className="text-[#E1306C]" />
@@ -930,10 +930,10 @@ export function UniversalEstablishmentCard({
                   href={data.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-1 min-w-[80px] items-center justify-center gap-1.5 rounded-xl bg-white/10 border border-white/15 px-2.5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                  className="flex flex-1 min-w-[80px] items-center justify-center gap-1.5 rounded-xl bg-cream border border-black/[.05] px-2.5 py-2.5 text-xs font-semibold text-ink transition hover:bg-sage hover:text-moss"
                   title="Site web officiel"
                 >
-                  <Globe2 size={13} className="text-white/70" />
+                  <Globe2 size={13} className="text-ink/60" />
                   <span>Web</span>
                 </a>
               )}
@@ -944,7 +944,7 @@ export function UniversalEstablishmentCard({
                   href={safeExternalUrl(data.reservationTarget)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-1 min-w-[95px] items-center justify-center gap-1.5 rounded-xl bg-[#d5bb7d] px-2.5 py-2.5 text-xs font-bold text-black shadow-2xs transition hover:bg-[#e7d39a]"
+                  className="flex flex-1 min-w-[95px] items-center justify-center gap-1.5 rounded-xl bg-moss px-2.5 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-moss/90"
                 >
                   <CalendarDays size={13} />
                   <span>{bookingLabel}</span>

@@ -987,45 +987,45 @@ export function RestaurantExplorer({ initialRestaurants }: { initialRestaurants:
       <section className="page-shell py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-2">
-            <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-xl bg-[#52030a] border border-white/10 px-4 py-3 text-xs font-semibold text-white lg:hidden">
+            <button onClick={() => setShowFilters(true)} className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-semibold lg:hidden">
               <SlidersHorizontal size={14} /> Filtres {filters.length ? `(${filters.length})` : ""}
             </button>
-            <div className="flex rounded-xl bg-[#52030a] border border-white/10 p-1 shadow-sm">
-              <button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "list" ? "bg-white/20 text-white" : "text-white/60"}`}>
+            <div className="flex rounded-xl bg-white p-1 shadow-sm">
+              <button onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "list" ? "bg-ink text-white" : "text-ink/45"}`}>
                 <List size={14} /> Liste
               </button>
-              <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "map" ? "bg-white/20 text-white" : "text-white/60"}`}>
+              <button onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium ${view === "map" ? "bg-ink text-white" : "text-ink/45"}`}>
                 <MapIcon size={14} /> Carte
               </button>
             </div>
           </div>
 
-          <label className="flex items-center gap-2 rounded-xl bg-[#52030a] border border-white/10 px-4 py-3 text-xs text-white shadow-sm">
-            <select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent font-medium text-white outline-none">
+          <label className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs shadow-sm">
+            <select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent font-medium outline-none">
               {["Les plus proches", "Les mieux notés", "Les plus populaires", "Les nouveautés", "Ordre alphabétique"].map((item) => (
-                <option key={item} className="bg-[#52030a] text-white">{item}</option>
+                <option key={item}>{item}</option>
               ))}
             </select>
-            <ChevronDown size={13} className="text-white/50" />
+            <ChevronDown size={13} className="text-ink/40" />
           </label>
         </div>
       </section>
 
       <section className="page-shell pb-20">
         <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_450px]">
-          <aside className={`${showFilters ? "fixed inset-0 z-[70] overflow-y-auto bg-[#52030a] p-6 text-white" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-[#52030a] lg:border lg:border-white/10 lg:p-5 text-white`}>
-            <div className="flex items-center justify-between"><p className="font-semibold text-white">Filtres</p><div className="flex items-center gap-3">{filters.length > 0 && <button onClick={() => setFilters([])} className="text-[11px] font-semibold text-[#d5bb7d]">Tout effacer</button>}<button onClick={() => setShowFilters(false)} className="lg:hidden"><X size={19} /></button></div></div>
+          <aside className={`${showFilters ? "fixed inset-0 z-[70] overflow-y-auto bg-cream p-6" : "hidden"} lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:rounded-[1.75rem] lg:bg-white lg:p-5`}>
+            <div className="flex items-center justify-between"><p className="font-semibold">Filtres</p><div className="flex items-center gap-3">{filters.length > 0 && <button onClick={() => setFilters([])} className="text-[11px] font-semibold text-moss">Tout effacer</button>}<button onClick={() => setShowFilters(false)} className="lg:hidden"><X size={19} /></button></div></div>
             <FilterSection title="Localisation" options={dynamicLocationFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Cuisine" options={dynamicCuisineFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Type" options={typeFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Services" options={serviceFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Disponibilité" options={availabilityFilters} active={filters} toggle={toggleFilter} />
             <FilterSection title="Confort" options={comfortFilters} active={filters} toggle={toggleFilter} />
-            <button onClick={() => setShowFilters(false)} className="sticky bottom-3 mt-5 w-full rounded-xl bg-[#d5bb7d] py-3 text-xs font-bold text-black lg:hidden">Voir {results.length} résultats</button>
+            <button onClick={() => setShowFilters(false)} className="sticky bottom-3 mt-5 w-full rounded-xl bg-ink py-3 text-xs font-semibold text-white lg:hidden">Voir {results.length} résultats</button>
           </aside>
 
           <div id="restaurant-results" className={view === "map" ? "hidden xl:block" : ""}>
-            <div className="mb-4 flex items-center justify-between"><p className="text-sm font-semibold text-white">{results.length} restaurant{results.length > 1 ? "s" : ""}</p>{filters.length > 0 && <span className="text-xs text-white/60">{filters.length} filtre{filters.length > 1 ? "s" : ""} actif{filters.length > 1 ? "s" : ""}</span>}</div>
+            <div className="mb-4 flex items-center justify-between"><p className="text-sm font-semibold">{results.length} restaurant{results.length > 1 ? "s" : ""}</p>{filters.length > 0 && <span className="text-xs text-ink/40">{filters.length} filtre{filters.length > 1 ? "s" : ""} actif{filters.length > 1 ? "s" : ""}</span>}</div>
             {results.length ? <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{results.map((restaurant, index) => (
               <UniversalEstablishmentCard
                 key={restaurant.id}

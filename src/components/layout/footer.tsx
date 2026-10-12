@@ -7,7 +7,7 @@ import { openCookiePreferences } from "@/components/ui/cookie-banner";
 
 export function Footer() {
   return (
-    <footer className="mt-28 border-t border-white/10 bg-[#350106] text-white">
+    <footer className="mt-28 border-t border-black/5 bg-[#0f1714] text-white">
       <div className="page-shell grid gap-12 py-16 sm:py-20 md:grid-cols-[2fr_1fr]">
         {/* Colonne 1 : Marque & Mission Slogan */}
         <div className="space-y-5 max-w-xl">
@@ -96,7 +96,7 @@ export function Footer() {
       </div>
 
       {/* Barre inférieure */}
-      <div className="border-t border-white/10 bg-[#240004] py-6">
+      <div className="border-t border-white/10 bg-black/30 py-6">
         <div className="page-shell flex flex-col gap-4 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck size={14} className="text-emerald-400" />

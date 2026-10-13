@@ -144,7 +144,7 @@
     <div class="header">
       <div class="brand">LIBERTY K · ÉTAT & PERFORMANCES</div>
       <h1 class="title">Rapport d'analyse Liberty K</h1>
-      <p class="subtitle">Bilan d'activité des dernières 24 heures — dimanche 11 octobre 2026 à 12:48</p>
+      <p class="subtitle">Bilan d'activité des dernières 24 heures — mardi 13 octobre 2026 à 09:08</p>
       <div><span class="badge badge-ok">✅ Site opérationnel & données sécurisées</span></div>
     </div>
 
@@ -153,15 +153,15 @@
       <h2 class="section-title title-red">🔴 Problèmes prioritaires (Bugs, erreurs ou blocages)</h2>
 
       <div class="item">
-        <div class="item-title">1. Envoi direct des e-mails depuis le serveur web</div>
-        <p class="item-desc">Les identifiants d'envoi automatique (clé Resend ou compte e-mail) ne sont pas encore renseignés dans la configuration du serveur distant (.env.local). Les e-mails automatiques dépendent pour le moment de votre messagerie locale.</p>
-        <div class="item-action">➜ Action : Solution immédiate à apporter : Renseigner les identifiants d'expédition dans les paramètres du serveur pour que le site puisse envoyer ses courriels et alertes de façon 100% autonome.</div>
+        <div class="item-title">1. Envoi direct des e-mails depuis le serveur distant</div>
+        <p class="item-desc">Les identifiants d'expédition automatique ne sont pas encore renseignés dans la configuration du serveur distant (.env.local). Actuellement, les courriels partent via votre messagerie locale sur votre Mac. Pour une autonomie complète 24h/24, le serveur doit posséder sa propre passerelle.</p>
+        <div class="item-action">➜ Action : Solution immédiate à apporter : Renseigner les identifiants d'expédition (clé Resend ou SMTP) dans les paramètres du serveur.</div>
       </div>
 
       <div class="item">
         <div class="item-title">2. Avertissements sur des résidus de code inactifs</div>
-        <p class="item-desc">Quelques pages légales et administratives contiennent de petites lignes de code devenues inutiles après les récentes mises à jour. Cela ne bloque pas le site mais génère des alertes lors des tests de conformité.</p>
-        <div class="item-action">➜ Action : Solution immédiate à apporter : Retirer ces lignes inutilisées pour garder une base de code parfaitement propre et sans le moindre avertissement.</div>
+        <p class="item-desc">Lors des diagnostics de routine, 89 avertissements mineurs sont répertoriés (variables déclarées non utilisées et balises d'images standard). Cela ne bloque pas le site mais laisse de petites lignes superflues.</p>
+        <div class="item-action">➜ Action : Solution immédiate à apporter : Retirer ces lignes inutilisées pour garder une base de code 100% propre et sans le moindre avertissement.</div>
       </div>
     </div>
 
@@ -171,20 +171,20 @@
 
       <div class="item">
         <div class="item-title">1. Accélération de l'affichage des photos sur smartphone</div>
-        <p class="item-desc">Plusieurs dizaines de visuels de commerces utilisent un format d'image standard. Sur les téléphones avec un réseau mobile ralenti, cela peut faire attendre le visiteur une ou deux secondes de plus avant l'affichage complet.</p>
-        <div class="item-action">➜ Action : Piste d'optimisation : Activer le compresseur d'images intelligent Next.js pour diviser le poids des photos par deux et rendre le site ultra-rapide sur mobile.</div>
+        <p class="item-desc">Plusieurs dizaines de visuels utilisent un format d'image classique non compressé. Sur smartphone avec une connexion mobile modérée, cela peut ajouter 1 à 2 secondes d'attente avant affichage complet.</p>
+        <div class="item-action">➜ Action : Piste d'optimisation : Intégrer le composant optimisé Next.js pour compresser automatiquement les photos et diviser par deux le temps de chargement sur mobile.</div>
       </div>
 
       <div class="item">
-        <div class="item-title">2. Allègement de l'espace d'administration</div>
-        <p class="item-desc">Le panneau d'administration charge l'ensemble de ses outils d'un seul coup, ce qui alourdit un peu son ouverture par rapport au reste du site.</p>
-        <div class="item-action">➜ Action : Piste d'optimisation : Découper le panneau de gestion en blocs indépendants pour ne charger que ce que vous utilisez à l'instant T.</div>
+        <div class="item-title">2. Allègement du tableau de bord d'administration</div>
+        <p class="item-desc">Le panneau d'administration charge l'ensemble de ses outils d'un coup (environ 316 Ko), ce qui le rend un peu plus lourd à ouvrir que les pages publiques.</p>
+        <div class="item-action">➜ Action : Piste d'optimisation : Découper le panneau en modules indépendants pour charger uniquement l'onglet utilisé à l'instant T.</div>
       </div>
 
       <div class="item">
         <div class="item-title">3. Rangement des sous-projets annexes</div>
-        <p class="item-desc">Des dossiers de projets annexes (péniche restaurant, sapir) sont stockés dans le même dossier principal que Liberty K.</p>
-        <div class="item-action">➜ Action : Piste d'optimisation : Déplacer ces projets dans un dossier externe dédié afin de maintenir un espace de travail parfaitement ordonné et facile à faire évoluer.</div>
+        <p class="item-desc">Deux sous-projets annexes (« péniche-restaurant » et « sapir ») sont toujours stockés dans le dossier principal de Liberty K.</p>
+        <div class="item-action">➜ Action : Piste d'optimisation : Déplacer ces projets dans un dossier distinct sur votre Mac pour conserver un environnement de travail parfaitement ordonné.</div>
       </div>
     </div>
 
@@ -192,12 +192,13 @@
     <div class="section-box box-green">
       <h2 class="section-title title-green">🟢 Points positifs (Ce qui tourne parfaitement)</h2>
       <ul class="bullet-list">
-        <li><strong>Vitesse de fabrication record :</strong> Les 105 pages du site se préparent et s'affichent en seulement 6,4 secondes, assurant une navigation fluide et instantanée pour les utilisateurs.</li>
+        <li><strong>Vitesse d'affichage et fabrication des pages :</strong> Les 105 pages du site se génèrent instantanément en statique et le socle commun partagé est ultra-léger (seulement 102 Ko), assurant une navigation fluide pour les visiteurs.</li>
         <li><strong>100% des rubriques et photos en ligne :</strong> Les 14 univers du site (Restauration, Sorties, Shopping, Soins féminin, Vin &amp; Spiritueux, Mariage, Location de Salle, Sport, etc.) sont actifs et disposent tous de visuels en haute définition.</li>
-        <li><strong>Respect strict des rubriques en pause :</strong> Les sections non activées (Voyages, Chauffeurs, Religion) restent invisibles pour les visiteurs sans aucune perte de vos données en base.</li>
-        <li><strong>Fiches de prestige parfaitement en place :</strong> Tous les établissements phares (Chichi Paris pour les salles de prestige, le pâtissier David Abitbol, Le Barbanegra et Gainsbar pour les soirées, Abigael Hassan pour les soins, Kinor Décor pour les mariages, Azamra et Naor pour le shopping) sont fidèlement référencés et accessibles sans erreur.</li>
-        <li><strong>Recherche par quartier parisien instantanée :</strong> Les filtres par arrondissement (du 1er au 20e) fonctionnent avec une fluidité totale.</li>
-        <li><strong>Données cloud sécurisées :</strong> La liaison avec la base de données Supabase est totalement stable, avec 100% de conformité sur l'ensemble des données.</li>
+        <li><strong>Mise à jour « Food » opérationnelle :</strong> La réorganisation de la carte dans la catégorie Restauration (retrait des cocktails/softs sur la carte et intégration de la nouvelle section « Cocktails &amp; Soft À venir ») est en place avec succès.</li>
+        <li><strong>Fiches de prestige parfaitement en place :</strong> Tous les établissements phares (le chef pâtissier David Abitbol avec ses 9 douceurs, Le Barbanegra et Gainsbar pour les soirées, Lehayiim pour les célibataires, la salle Chichi Paris, Abigael Hassan pour les soins, Kinor Décor pour le mariage, Azamra et Naor pour le shopping) sont fidèlement référencés et accessibles sans erreur.</li>
+        <li><strong>Respect strict des rubriques en pause :</strong> Les 3 sections mises en sommeil (Voyages, Chauffeurs, Religion) restent strictement invisibles pour les visiteurs sans aucune perte de vos données en base.</li>
+        <li><strong>Sécurité et filtrage sans faille :</strong> Le système de protection empêche tout établissement déréférencé ou non homologué d'apparaître dans les résultats de recherche.</li>
+        <li><strong>Données cloud sécurisées :</strong> La liaison avec la base de données Supabase est totalement stable, et la sauvegarde de sécurité a été réalisée avec succès dans les dernières 24 heures.</li>
       </ul>
     </div>
 
@@ -206,5 +207,5 @@
       Plateforme Web : <a href="https://liberty-kosher.com" style="color:#d4af37;text-decoration:none;font-weight:700;">liberty-kosher.com</a>
     </div>
   </div>
-</body>
+ </body>
 </html>

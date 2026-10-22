@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Florentine sur Seine — Accueil, Listes & Tables</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #140406;
+      --card: #22080B;
+      --border: #4A1219;
+      --foreground: #F5EFE6;
+      --muted-foreground: #C8B6A6;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      background-color: #140406;
+      color: #F5EFE6;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .brand-logo {
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 0.84;
+      letter-spacing: -0.04em;
+    }
+    .ios-spring {
+      transition: all 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .ios-btn:active {
+      transform: scale(0.95);
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+    .shake-err {
+      animation: shake 0.25s ease-in-out 2;
+    }
+    @keyframes hold-fill-1s {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
+    .holding-bar {
+      animation: hold-fill-1s 1s linear forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 select-none">
+
+  <div class="w-full max-w-md bg-[#22080B] border border-[#4A1219] rounded-[32px] shadow-2xl overflow-hidden relative">
+
+    <!-- SCREEN 0: PAGE D'ACCUEIL / CONNEXION iOS -->
+    <div id="screen-login" class="bg-[#56070C] text-[#F5EFE6] p-6 space-y-5">
+      <div class="flex flex-col items-center text-center pt-1">
+        <img src="images/florentine-logo.jpg" alt="Florentine" class="w-20 h-20 rounded-2xl object-cover border border-white/20 shadow-lg mb-3" />
+        <h1 class="text-xl font-extrabold tracking-tight text-white">FLORENTINE SUR SEINE</h1>
+        <p class="text-xs text-[#E6D5C3]/85 mt-0.5">Choisissez votre accès pour ouvrir les listes</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <button onclick="selectLoginProfile('steven')" id="prof-steven" class="ios-btn p-3 rounded-2xl bg-[#F5EFE6] text-[#56070C] border-2 border-white flex items-center gap-2.5 shadow">
+          <span class="w-8 h-8 rounded-full bg-[#56070C] text-[#F5EFE6] font-black text-xs flex items-center justify-center shrink-0">S</span>
+          <div class="text-left">
+            <div class="text-xs font-extrabold leading-tight">Steven</div>
+            <div class="text-xs opacity-75">Admin • 3 listes</div>
+          </div>
+        </button>
+
+        <button onclick="selectLoginProfile('gabriel')" id="prof-gabriel" class="ios-btn p-3 rounded-2xl bg-black/25 text-[#F5EFE6] border border-white/15 flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-full bg-white/15 text-white font-black text-xs flex items-center justify-center shrink-0">G</span>
+          <div class="text-left">
+            <div class="text-xs font-extrabold leading-tight">Gabriel</div>
+            <div class="text-xs opacity-75">Admin • 3 listes</div>
+          </div>
+        </button>
+
+        <button onclick="selectLoginProfile('cynthia')" id="prof-cynthia" class="ios-btn p-3 rounded-2xl bg-black/25 text-[#F5EFE6] border border-white/15 flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-full bg-white/15 text-white font-black text-xs flex items-center justify-center shrink-0">C</span>
+          <div class="text-left">
+            <div class="text-xs font-extrabold leading-tight">Cynthia</div>
+            <div class="text-xs opacity-75">Fiche & Tables</div>
+          </div>
+        </button>
+
+        <button onclick="selectLoginProfile('physio')" id="prof-physio" class="ios-btn p-3 rounded-2xl bg-black/25 text-[#F5EFE6] border border-white/15 flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-full bg-white/15 text-white font-black text-xs flex items-center justify-center shrink-0">🛡️</span>
+          <div class="text-left">
+            <div class="text-xs font-extrabold leading-tight">Physio / Sécu</div>
+            <div class="text-xs opacity-75">3 listes & Tables</div>
+          </div>
+        </button>
+      </div>
+
+      <div id="login-box" class="bg-black/30 border border-white/15 rounded-2xl p-3.5 space-y-2.5">
+        <div class="flex items-center justify-between text-xs">
+          <span id="pwd-prompt-text" class="font-semibold text-[#E6D5C3]">Code PIN pour <strong id="login-target-name" class="text-white underline">Steven</strong> :</span>
+          <span id="login-error" class="text-red-300 font-bold hidden">Code incorrect</span>
+        </div>
+
+        <div class="flex gap-2">
+          <input id="pwd-input" type="password" inputmode="numeric" maxlength="6" placeholder="Code à 4 chiffres..."
+            onkeydown="if(event.key==='Enter') attemptLogin()"
+            class="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-xs text-white placeholder-white/50 tracking-widest font-mono focus:outline-none focus:border-white" />
+          <button onclick="attemptLogin()" class="ios-btn px-4 py-2.5 rounded-xl bg-[#F5EFE6] text-[#56070C] font-extrabold text-xs shadow">
+            Ouvrir →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="screen-app" class="hidden">
+      <div class="bg-[#56070C] text-[#F5EFE6] px-4 pt-3.5 pb-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <img src="images/florentine-logo.jpg" alt="Florentine" class="w-10 h-10 rounded-xl object-cover border border-white/20 shrink-0" />
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span id="session-badge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-white/15 text-white">Steven</span>
+                <button onclick="logout()" class="text-xs text-[#E6D5C3] underline hover:text-white">Verrouiller</button>
+              </div>
+              <div id="app-subtitle" class="text-sm font-extrabold tracking-tight text-white mt-0.5">Listes & Tables</div>
+            </div>
+          </div>
+
+          <div class="bg-black/40 border border-white/15 rounded-full px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-white shadow-sm">
+            <span id="mini-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="mini-jauge-text">0 / 200</span>
+          </div>
+        </div>
+
+        <div id="nav-bar" class="grid grid-cols-4 gap-1 bg-black/30 p-1 rounded-2xl mt-3 border border-white/10">
+          <button onclick="selectHost('steven')" id="tab-steven" class="ios-spring py-1.5 rounded-xl text-xs font-bold bg-[#F5EFE6] text-[#56070C] shadow">
+            Steven
+          </button>
+          <button onclick="selectHost('gabriel')" id="tab-gabriel" class="ios-spring py-1.5 rounded-xl text-xs font-semibold text-[#F5EFE6]/80 hover:text-white">
+            Gabriel
+          </button>
+          <button onclick="selectHost('cynthia')" id="tab-cynthia" class="ios-spring py-1.5 rounded-xl text-xs font-semibold text-[#F5EFE6]/80 hover:text-white">
+            Cynthia
+          </button>
+          <button onclick="switchMain('tables')" id="tab-tables" class="ios-spring py-1.5 rounded-xl text-xs font-semibold text-[#F5EFE6]/80 hover:text-white">
+            🍾 Tables
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 1: LISTES -->
+      <div id="view-listes" class="p-4 space-y-3">
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <input id="search-input" oninput="renderGuests()" type="text" placeholder="Rechercher nom ou prénom..."
+              class="w-full bg-[#140406] border border-[#4A1219] rounded-2xl pl-8 pr-3 py-2 text-xs text-[#F5EFE6] placeholder-[#C8B6A6] focus:outline-none focus:border-[#F5EFE6]" />
+            <span class="absolute left-2.5 top-2 text-xs opacity-60">🔍</span>
+          </div>
+          <button onclick="toggleAddForm()" class="ios-btn px-3 py-2 rounded-2xl bg-[#56070C] text-[#F5EFE6] text-xs font-bold shrink-0 shadow-sm">
+            + Invité
+          </button>
+        </div>
+
+        <div class="text-xs text-[#C8B6A6] px-1">
+          💡 Clic = <strong>+1</strong> • Maintenir <strong>1 sec</strong> = <strong>menu 1 à 10 pers.</strong>
+        </div>
+
+        <div id="add-drawer" class="hidden bg-[#140406] border border-[#4A1219] rounded-2xl p-3 space-y-2">
+          <div class="text-xs font-bold">Ajouter sur la liste de <span id="add-host-label" class="underline">Steven</span></div>
+          <div class="grid grid-cols-2 gap-2">
+            <input id="new-prenom" type="text" placeholder="Prénom" class="bg-[#22080B] border border-[#4A1219] rounded-xl px-2.5 py-1.5 text-xs text-[#F5EFE6]" />
+            <input id="new-nom" type="text" placeholder="Nom" class="bg-[#22080B] border border-[#4A1219] rounded-xl px-2.5 py-1.5 text-xs text-[#F5EFE6]" />
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <label class="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+              <input id="new-fav" type="checkbox" checked class="rounded" />
+              <span>⭐ Favoris (Invité proche)</span>
+            </label>
+            <button onclick="addGuest()" class="ios-btn px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+              Ajouter
+            </button>
+          </div>
+        </div>
+
+        <div class="max-h-[380px] overflow-y-auto space-y-3 pr-0.5">
+          <div>
+            <div class="flex items-center justify-between px-1 mb-1">
+              <span class="text-xs font-extrabold uppercase tracking-wider text-amber-400">
+                ⭐ Favoris — Invités Proches
+              </span>
+              <span id="fav-count" class="text-xs font-semibold text-[#C8B6A6]">0</span>
+            </div>
+            <div id="list-fav" class="bg-[#140406] border border-[#4A1219] rounded-2xl divide-y divide-[#4A1219] overflow-hidden"></div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between px-1 mb-1">
+              <span class="text-xs font-bold uppercase tracking-wider text-[#C8B6A6]">
+                📋 Reste de la liste
+              </span>
+              <span id="rest-count" class="text-xs font-semibold text-[#C8B6A6]">0</span>
+            </div>
+            <div id="list-rest" class="bg-[#140406] border border-[#4A1219] rounded-2xl divide-y divide-[#4A1219] overflow-hidden"></div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between px-1 mb-1">
+              <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-400">
+                ✅ Présents (Arrivés)
+              </span>
+              <span id="present-count" class="text-xs font-bold text-emerald-400">0</span>
+            </div>
+            <div id="list-present" class="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl divide-y divide-[#4A1219] overflow-hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: TABLES -->
+      <div id="view-tables" class="hidden p-4 space-y-3">
+        <div class="bg-[#140406] border border-[#4A1219] rounded-2xl p-3 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-amber-400">🍾 Attribuer une Table</span>
+            <span id="table-scope-label" class="text-xs text-[#C8B6A6]">Parmi les présents</span>
+          </div>
+
+          <div class="space-y-2">
+            <select id="table-guest-select" class="w-full bg-[#22080B] border border-[#4A1219] rounded-xl px-3 py-2 text-xs font-bold text-[#F5EFE6]">
+              <option value="">Choisir un invité présent...</option>
+            </select>
+
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input id="table-amount-input" type="number" inputmode="decimal" placeholder="Montant de la table (ex: 350)"
+                  onkeydown="if(event.key==='Enter') addTableEntry()"
+                  class="w-full bg-[#22080B] border border-[#4A1219] rounded-xl pl-3 pr-8 py-2 text-xs font-bold text-[#F5EFE6] placeholder-[#C8B6A6] focus:outline-none focus:border-[#F5EFE6]" />
+                <span class="absolute right-3 top-2 text-xs font-bold text-[#C8B6A6]">€</span>
+              </div>
+              <button onclick="addTableEntry()" class="ios-btn px-4 py-2 rounded-xl bg-[#56070C] text-[#F5EFE6] font-extrabold text-xs shrink-0 shadow">
+                + Table
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-[#56070C]/25 border border-[#7A1C24] rounded-2xl px-3.5 py-2.5 flex items-center justify-between">
+          <div>
+            <div class="text-xs text-[#C8B6A6]">Tables actives</div>
+            <div id="tables-count-label" class="text-sm font-black text-[#F5EFE6]">0 table</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-[#C8B6A6]">Total Montant Tables</div>
+            <div id="tables-total-euro" class="text-base font-black text-emerald-400">0 €</div>
+          </div>
+        </div>
+
+        <div id="tables-list" class="max-h-[260px] overflow-y-auto space-y-2 pr-0.5"></div>
+      </div>
+    </div>
+
+    <!-- POPUP MENU DÉROULANT iOS (1 à 10 PERSONNES) -->
+    <div id="picker-modal" class="hidden absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-[#22080B] border border-[#4A1219] rounded-3xl p-4 w-full max-w-xs shadow-2xl space-y-3">
+        <div class="text-center">
+          <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Validation Groupe</div>
+          <div id="picker-guest-name" class="text-sm font-extrabold text-[#F5EFE6] mt-0.5">NOM Prénom</div>
+          <p class="text-xs text-[#C8B6A6]">Sélectionnez le nombre de personnes (1 à 10) :</p>
+        </div>
+
+        <div class="space-y-2">
+          <select id="picker-select" onchange="confirmPickerCount(this.value)"
+            class="w-full bg-[#140406] border border-[#4A1219] rounded-xl px-3 py-2 text-xs font-bold text-[#F5EFE6]">
+            <option value="" disabled selected>Menu déroulant : Choisir de 1 à 10...</option>
+            <option value="1">1 personne</option>
+            <option value="2">2 personnes</option>
+            <option value="3">3 personnes</option>
+            <option value="4">4 personnes</option>
+            <option value="5">5 personnes</option>
+            <option value="6">6 personnes</option>
+            <option value="7">7 personnes</option>
+            <option value="8">8 personnes</option>
+            <option value="9">9 personnes</option>
+            <option value="10">10 personnes</option>
+          </select>
+
+          <div class="grid grid-cols-5 gap-1.5">
+            <button onclick="confirmPickerCount(1)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">1</button>
+            <button onclick="confirmPickerCount(2)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">2</button>
+            <button onclick="confirmPickerCount(3)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">3</button>
+            <button onclick="confirmPickerCount(4)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">4</button>
+            <button onclick="confirmPickerCount(5)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">5</button>
+            <button onclick="confirmPickerCount(6)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">6</button>
+            <button onclick="confirmPickerCount(7)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">7</button>
+            <button onclick="confirmPickerCount(8)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">8</button>
+            <button onclick="confirmPickerCount(9)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">9</button>
+            <button onclick="confirmPickerCount(10)" class="ios-btn py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">10</button>
+          </div>
+        </div>
+
+        <div id="picker-cancel-entry-wrap" class="hidden pt-1 border-t border-[#4A1219] space-y-1.5">
+          <button onclick="confirmPickerCount(0)" class="ios-btn w-full py-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-xs">
+            ↩️ Remettre en non arrivé (0)
+          </button>
+          <button onclick="deleteGuestFromModal()" class="ios-btn w-full py-2 rounded-xl bg-red-600/20 text-red-400 border border-red-500/30 font-bold text-xs">
+            🗑️ Supprimer définitivement cet invité
+          </button>
+        </div>
+
+        <button onclick="closePickerModal()" class="ios-btn w-full py-2 rounded-xl bg-[#140406] border border-[#4A1219] text-xs font-bold text-[#C8B6A6]">
+          Fermer
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const PASSWORDS = {
+      steven:  '0519',
+      gabriel: '2027',
+      cynthia: '2910',
+      physio:  ''
+    };
+
+    const PROFILE_LABELS = {
+      steven:  'Steven',
+      gabriel: 'Gabriel',
+      cynthia: 'Cynthia',
+      physio:  'Physio / Sécu'
+    };
+
+    const MAX = 200;
+    let count = 0;
+    let selectedLoginProfile = 'steven';
+    let currentUser = null;
+    let activeHost = 'steven';
+
+    let pressTimer = null;
+    let longPressTriggered = false;
+    let pickerTargetId = null;
+    let pickerTargetHost = null;
+
+    let guests = {
+      steven: [
+        { id: 201, prenom: 'Ruben', nom: 'Ohayon', fav: true, entered: false, partyCount: 0 },
+        { id: 202, prenom: 'Laura', nom: 'Assouline', fav: true, entered: false, partyCount: 0 },
+        { id: 203, prenom: 'Nathan', nom: 'Sebbag', fav: false, entered: false, partyCount: 0 },
+        { id: 204, prenom: 'Clara', nom: 'Bramli', fav: false, entered: false, partyCount: 0 },
+        { id: 205, prenom: 'Yoni', nom: 'Amram', fav: false, entered: false, partyCount: 0 }
+      ],
+      gabriel: [
+        { id: 1, prenom: 'Sarah', nom: 'Cohen', fav: true, entered: false, partyCount: 0 },
+        { id: 2, prenom: 'David', nom: 'Lévy', fav: true, entered: false, partyCount: 0 },
+        { id: 3, prenom: 'Mickaël', nom: 'Bensoussan', fav: false, entered: false, partyCount: 0 },
+        { id: 4, prenom: 'Chloé', nom: 'Attal', fav: false, entered: false, partyCount: 0 },
+        { id: 5, prenom: 'Jonathan', nom: 'Haddad', fav: false, entered: false, partyCount: 0 }
+      ],
+      cynthia: [
+        { id: 101, prenom: 'Léa', nom: 'Benhamou', fav: true, entered: false, partyCount: 0 },
+        { id: 102, prenom: 'Noémie', nom: 'Touitou', fav: true, entered: false, partyCount: 0 },
+        { id: 103, prenom: 'Sacha', nom: 'Abécassis', fav: false, entered: false, partyCount: 0 },
+        { id: 104, prenom: 'Eva', nom: 'Zrihen', fav: false, entered: false, partyCount: 0 },
+        { id: 105, prenom: 'Ilan', nom: 'Tordjman', fav: false, entered: false, partyCount: 0 }
+      ]
+    };
+
+    const STORAGE_KEY_FL = 'florentine_seine_app_state_v2';
+    let tables = [];
+
+    function saveAppState() {
+      try {
+        localStorage.setItem(STORAGE_KEY_FL, JSON.stringify({ count, guests, tables }));
+      } catch (e) {}
+    }
+
+    function loadAppState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_FL);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed.count === 'number') count = parsed.count;
+          if (parsed.guests) guests = parsed.guests;
+          if (Array.isArray(parsed.tables)) tables = parsed.tables;
+        }
+      } catch (e) {}
+    }
+
+    function isAdmin() {
+      return currentUser === 'steven' || currentUser === 'gabriel';
+    }
+
+    function selectLoginProfile(profile) {
+      selectedLoginProfile = profile;
+      document.getElementById('login-error').classList.add('hidden');
+      const pwdInput = document.getElementById('pwd-input');
+      const promptText = document.getElementById('pwd-prompt-text');
+
+      if (profile === 'physio') {
+        promptText.innerHTML = 'Accès direct <strong>Physio / Sécu</strong> (3 listes + Tables) :';
+        pwdInput.classList.add('hidden');
+      } else {
+        promptText.innerHTML = `Code PIN pour <strong id="login-target-name" class="text-white underline">${PROFILE_LABELS[profile]}</strong> :`;
+        pwdInput.classList.remove('hidden');
+        pwdInput.value = '';
+        pwdInput.focus();
+      }
+
+      ['steven', 'gabriel', 'cynthia', 'physio'].forEach(p => {
+        const btn = document.getElementById('prof-' + p);
+        const letterBadge = btn.querySelector('span');
+        if (p === profile) {
+          btn.className = 'ios-btn p-3 rounded-2xl bg-[#F5EFE6] text-[#56070C] border-2 border-white flex items-center gap-2.5 shadow';
+          letterBadge.className = 'w-8 h-8 rounded-full bg-[#56070C] text-[#F5EFE6] font-black text-xs flex items-center justify-center shrink-0';
+        } else {
+          btn.className = 'ios-btn p-3 rounded-2xl bg-black/25 text-[#F5EFE6] border border-white/15 flex items-center gap-2.5';
+          letterBadge.className = 'w-8 h-8 rounded-full bg-white/15 text-white font-black text-xs flex items-center justify-center shrink-0';
+        }
+      });
+    }
+
+    function attemptLogin() {
+      const input = document.getElementById('pwd-input').value.trim();
+      const expected = PASSWORDS[selectedLoginProfile];
+
+      if (selectedLoginProfile === 'physio' || input === expected) {
+        currentUser = selectedLoginProfile;
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-app').classList.remove('hidden');
+        document.getElementById('session-badge').textContent = PROFILE_LABELS[currentUser];
+        applyPermissions();
+      } else {
+        const err = document.getElementById('login-error');
+        const box = document.getElementById('login-box');
+        err.classList.remove('hidden');
+        box.classList.remove('shake-err');
+        void box.offsetWidth;
+        box.classList.add('shake-err');
+      }
+    }
+
+    function applyPermissions() {
+      const tabSteven = document.getElementById('tab-steven');
+      const tabGabriel = document.getElementById('tab-gabriel');
+      const tabCynthia = document.getElementById('tab-cynthia');
+      const navBar = document.getElementById('nav-bar');
+      const subtitle = document.getElementById('app-subtitle');
+
+      if (currentUser === 'cynthia') {
+        tabSteven.classList.add('hidden');
+        tabGabriel.classList.add('hidden');
+        tabCynthia.classList.remove('hidden');
+        navBar.className = 'grid grid-cols-2 gap-1 bg-black/30 p-1 rounded-2xl mt-3 border border-white/10';
+        subtitle.textContent = 'Ma Fiche & Mes Tables (Cynthia)';
+        selectHost('cynthia');
+      } else {
+        tabSteven.classList.remove('hidden');
+        tabGabriel.classList.remove('hidden');
+        tabCynthia.classList.remove('hidden');
+        navBar.className = 'grid grid-cols-4 gap-1 bg-black/30 p-1 rounded-2xl mt-3 border border-white/10';
+        subtitle.textContent = 'Listes & Tables';
+        selectHost(currentUser === 'gabriel' ? 'gabriel' : 'steven');
+      }
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('pwd-input').value = '';
+      document.getElementById('login-error').classList.add('hidden');
+      document.getElementById('screen-app').classList.add('hidden');
+      document.getElementById('screen-login').classList.remove('hidden');
+    }
+
+    function selectHost(host) {
+      if (currentUser === 'cynthia' && host !== 'cynthia') {
+        host = 'cynthia';
+      }
+      activeHost = host;
+      document.getElementById('view-listes').classList.remove('hidden');
+      document.getElementById('view-tables').classList.add('hidden');
+      document.getElementById('add-host-label').textContent = PROFILE_LABELS[host];
+
+      ['steven', 'gabriel', 'cynthia', 'tables'].forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        if (t === host) {
+          btn.className = 'ios-spring py-1.5 rounded-xl text-xs font-bold bg-[#F5EFE6] text-[#56070C] shadow';
+        } else {
+          btn.className = 'ios-spring py-1.5 rounded-xl text-xs font-semibold text-[#F5EFE6]/80 hover:text-white';
+        }
+        if (currentUser === 'cynthia' && (t === 'steven' || t === 'gabriel')) {
+          btn.classList.add('hidden');
+        }
+      });
+      renderGuests();
+    }
+
+    function switchMain(view) {
+      if (view === 'tables') {
+        document.getElementById('view-listes').classList.add('hidden');
+        document.getElementById('view-tables').classList.remove('hidden');
+        ['steven', 'gabriel', 'cynthia', 'tables'].forEach(t => {
+          const btn = document.getElementById('tab-' + t);
+          if (t === 'tables') {
+            btn.className = 'ios-spring py-1.5 rounded-xl text-xs font-bold bg-[#F5EFE6] text-[#56070C] shadow';
+          } else {
+            btn.className = 'ios-spring py-1.5 rounded-xl text-xs font-semibold text-[#F5EFE6]/80 hover:text-white';
+          }
+          if (currentUser === 'cynthia' && (t === 'steven' || t === 'gabriel')) {
+            btn.classList.add('hidden');
+          }
+        });
+        renderTablesView();
+      }
+    }
+
+    function toggleFav(id) {
+      const item = guests[activeHost].find(g => g.id === id);
+      if (item) {
+        item.fav = !item.fav;
+        saveAppState();
+        renderGuests();
+      }
+    }
+
+    function deleteGuest(hostKey, id) {
+      if (!isAdmin()) return;
+      const list = guests[hostKey];
+      const idx = list.findIndex(g => g.id === id);
+      if (idx === -1) return;
+
+      const item = list[idx];
+      if (item.entered && item.partyCount > 0) {
+        changeCount(-item.partyCount);
+      }
+      tables = tables.filter(t => !(t.guestId === id && t.host === hostKey));
+      list.splice(idx, 1);
+      saveAppState();
+      renderGuests();
+      renderTablesView();
+    }
+
+    function deleteGuestFromModal() {
+      if (!isAdmin() || pickerTargetId === null || !pickerTargetHost) return;
+      deleteGuest(pickerTargetHost, pickerTargetId);
+      closePickerModal();
+    }
+
+    function startArrivePress(id, event) {
+      if (event && event.type === 'mousedown' && event.button !== 0) return;
+      const item = guests[activeHost].find(g => g.id === id);
+      if (!item) return;
+
+      if (item.entered && !isAdmin()) {
+        return;
+      }
+
+      longPressTriggered = false;
+      const fillEl = document.getElementById('hold-bar-' + id);
+      if (fillEl) {
+        fillEl.classList.remove('hidden');
+        fillEl.classList.add('holding-bar');
+      }
+
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => {
+        longPressTriggered = true;
+        if (fillEl) {
+          fillEl.classList.add('hidden');
+          fillEl.classList.remove('holding-bar');
+        }
+        openPickerModal(activeHost, id);
+      }, 1000);
+    }
+
+    function endArrivePress(id, event) {
+      clearTimeout(pressTimer);
+      const fillEl = document.getElementById('hold-bar-' + id);
+      if (fillEl) {
+        fillEl.classList.add('hidden');
+        fillEl.classList.remove('holding-bar');
+      }
+
+      if (longPressTriggered) {
+        longPressTriggered = false;
+        return;
+      }
+
+      const item = guests[activeHost].find(g => g.id === id);
+      if (!item) return;
+
+      if (!item.entered) {
+        validateGuestArrival(activeHost, item, 1);
+      } else if (isAdmin()) {
+        openPickerModal(activeHost, id);
+      }
+    }
+
+    function cancelArrivePress(id) {
+      clearTimeout(pressTimer);
+      const fillEl = document.getElementById('hold-bar-' + id);
+      if (fillEl) {
+        fillEl.classList.add('hidden');
+        fillEl.classList.remove('holding-bar');
+      }
+    }
+
+    function openPickerModal(hostKey, id) {
+      const item = guests[hostKey].find(g => g.id === id);
+      if (!item) return;
+      pickerTargetId = id;
+      pickerTargetHost = hostKey;
+      document.getElementById('picker-guest-name').textContent = `${item.nom.toUpperCase()} ${item.prenom}`;
+      document.getElementById('picker-select').value = item.entered ? String(item.partyCount) : '';
+
+      const cancelWrap = document.getElementById('picker-cancel-entry-wrap');
+      if (isAdmin()) {
+        cancelWrap.classList.remove('hidden');
+      } else {
+        cancelWrap.classList.add('hidden');
+      }
+
+      document.getElementById('picker-modal').classList.remove('hidden');
+    }
+
+    function closePickerModal() {
+      pickerTargetId = null;
+      pickerTargetHost = null;
+      document.getElementById('picker-modal').classList.add('hidden');
+    }
+
+    function confirmPickerCount(val) {
+      const num = parseInt(val, 10);
+      if (isNaN(num) || pickerTargetId === null || !pickerTargetHost) return;
+      const item = guests[pickerTargetHost].find(g => g.id === pickerTargetId);
+      if (!item) return;
+
+      validateGuestArrival(pickerTargetHost, item, num);
+      closePickerModal();
+    }
+
+    function validateGuestArrival(hostKey, item, newCount) {
+      const oldCount = item.entered ? (item.partyCount || 1) : 0;
+      const diff = newCount - oldCount;
+
+      if (newCount <= 0) {
+        item.entered = false;
+        item.partyCount = 0;
+      } else {
+        item.entered = true;
+        item.partyCount = newCount;
+      }
+
+      if (diff !== 0) {
+        changeCount(diff);
+      }
+      saveAppState();
+      renderGuests();
+      renderTablesView();
+    }
+
+    function toggleAddForm() {
+      document.getElementById('add-drawer').classList.toggle('hidden');
+    }
+
+    function addGuest() {
+      const prenomEl = document.getElementById('new-prenom');
+      const nomEl = document.getElementById('new-nom');
+      const favEl = document.getElementById('new-fav');
+      const prenom = prenomEl.value.trim();
+      const nom = nomEl.value.trim();
+      if (!prenom && !nom) return;
+
+      guests[activeHost].unshift({
+        id: Date.now(),
+        prenom: prenom || 'Invité',
+        nom: nom.toUpperCase(),
+        fav: favEl.checked,
+        entered: false,
+        partyCount: 0
+      });
+
+      prenomEl.value = '';
+      nomEl.value = '';
+      document.getElementById('add-drawer').classList.add('hidden');
+      saveAppState();
+      renderGuests();
+    }
+
+    function renderGuests() {
+      const query = (document.getElementById('search-input').value || '').toLowerCase().trim();
+      const list = guests[activeHost].filter(g =>
+        (g.prenom + ' ' + g.nom).toLowerCase().includes(query) ||
+        (g.nom + ' ' + g.prenom).toLowerCase().includes(query)
+      );
+
+      const favs = list.filter(g => g.fav && !g.entered);
+      const rest = list.filter(g => !g.fav && !g.entered);
+      const presents = list.filter(g => g.entered);
+      const totalPresentPersons = presents.reduce((acc, g) => acc + (g.partyCount || 1), 0);
+
+      document.getElementById('fav-count').textContent = `${favs.length} en attente`;
+      document.getElementById('rest-count').textContent = `${rest.length} en attente`;
+      document.getElementById('present-count').textContent = `${presents.length} (${totalPresentPersons} pers.)`;
+
+      document.getElementById('list-fav').innerHTML = favs.length
+        ? favs.map(g => rowHTML(g, true)).join('')
+        : `<div class="p-2.5 text-xs text-[#C8B6A6] text-center">Aucun favori en attente</div>`;
+
+      document.getElementById('list-rest').innerHTML = rest.length
+        ? rest.map(g => rowHTML(g, false)).join('')
+        : `<div class="p-2.5 text-xs text-[#C8B6A6] text-center">Aucun autre invité en attente</div>`;
+
+      document.getElementById('list-present').innerHTML = presents.length
+        ? presents.map(g => rowHTML(g, g.fav)).join('')
+        : `<div class="p-2.5 text-xs text-[#C8B6A6] text-center">Aucun présent pour le moment</div>`;
+    }
+
+    function rowHTML(g, isFav) {
+      const admin = isAdmin();
+
+      let buttonHTML = '';
+      if (!g.entered) {
+        buttonHTML = `
+          <div class="flex items-center gap-1.5">
+            <button
+              onmousedown="startArrivePress(${g.id}, event)"
+              onmouseup="endArrivePress(${g.id}, event)"
+              onmouseleave="cancelArrivePress(${g.id})"
+              ontouchstart="startArrivePress(${g.id}, event)"
+              ontouchend="endArrivePress(${g.id}, event)"
+              ontouchcancel="cancelArrivePress(${g.id})"
+              oncontextmenu="return false;"
+              class="ios-btn relative overflow-hidden px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-[#56070C] text-[#F5EFE6] border border-white/15 shadow-sm">
+              <span id="hold-bar-${g.id}" class="hidden absolute left-0 top-0 bottom-0 bg-amber-400/50 pointer-events-none"></span>
+              <span class="relative z-10">Arrivé +</span>
+            </button>
+            ${admin ? `<button onclick="deleteGuest('${activeHost}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-red-500/15 text-red-400 flex items-center justify-center text-xs font-bold" title="Supprimer">✕</button>` : ''}
+          </div>
+        `;
+      } else {
+        buttonHTML = `
+          <div class="flex items-center gap-1.5">
+            <button
+              ${admin ? `onclick="openPickerModal('${activeHost}', ${g.id})"` : 'disabled'}
+              class="px-3 py-1.5 rounded-full text-xs font-extrabold transition flex items-center gap-1 ${
+                admin
+                  ? 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-500 cursor-pointer'
+                  : 'bg-emerald-700/80 text-white/90 opacity-90 cursor-not-allowed'
+              }">
+              <span>✓ Validé (${g.partyCount} pers.)</span>
+              ${admin ? '<span class="text-xs opacity-80">✎</span>' : '<span>🔒</span>'}
+            </button>
+            ${admin ? `<button onclick="deleteGuest('${activeHost}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-red-500/15 text-red-400 flex items-center justify-center text-xs font-bold" title="Supprimer">✕</button>` : ''}
+          </div>
+        `;
+      }
+
+      return `
+        <div class="flex items-center justify-between px-3 py-2.5 ${g.entered ? 'bg-emerald-500/5' : ''}">
+          <div class="flex items-center gap-2.5">
+            <button onclick="toggleFav(${g.id})" class="ios-btn text-base leading-none" title="Basculer Favori">
+              ${isFav ? '⭐' : '☆'}
+            </button>
+            <div>
+              <div class="text-xs font-extrabold text-[#F5EFE6]">
+                <span class="uppercase">${g.nom}</span> ${g.prenom}
+              </div>
+              <div class="text-xs text-[#C8B6A6]">
+                ${g.entered ? `Présent • ${g.partyCount} personne${g.partyCount > 1 ? 's' : ''}` : (isFav ? 'Invité proche' : 'Liste ' + PROFILE_LABELS[activeHost])}
+              </div>
+            </div>
+          </div>
+          ${buttonHTML}
+        </div>
+      `;
+    }
+
+    function getAllowedHostsForTables() {
+      if (currentUser === 'cynthia') return ['cynthia'];
+      return ['steven', 'gabriel', 'cynthia'];
+    }
+
+    function renderTablesView() {
+      const allowedHosts = getAllowedHostsForTables();
+      const selectEl = document.getElementById('table-guest-select');
+      const scopeLabel = document.getElementById('table-scope-label');
+
+      scopeLabel.textContent = currentUser === 'cynthia'
+        ? 'Présents de Cynthia uniquement'
+        : 'Présents (Steven, Gabriel, Cynthia)';
+
+      let optionsHTML = '<option value="">Choisir un invité présent...</option>';
+      let presentCount = 0;
+
+      allowedHosts.forEach(hKey => {
+        const hostPresents = guests[hKey].filter(g => g.entered);
+        hostPresents.forEach(g => {
+          presentCount++;
+          optionsHTML += `<option value="${hKey}:${g.id}">${g.nom.toUpperCase()} ${g.prenom} (${g.partyCount} pers. • ${PROFILE_LABELS[hKey]})</option>`;
+        });
+      });
+
+      if (presentCount === 0) {
+        optionsHTML = '<option value="">Aucun invité validé dans "Présents" pour le moment</option>';
+      }
+      selectEl.innerHTML = optionsHTML;
+
+      const visibleTables = tables.filter(t => allowedHosts.includes(t.host));
+
+      const totalEuro = visibleTables.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      document.getElementById('tables-count-label').textContent = `${visibleTables.length} table${visibleTables.length > 1 ? 's' : ''}`;
+      document.getElementById('tables-total-euro').textContent = `${totalEuro.toLocaleString('fr-FR')} €`;
+
+      const listEl = document.getElementById('tables-list');
+      if (!visibleTables.length) {
+        listEl.innerHTML = `<div class="p-4 text-xs text-[#C8B6A6] text-center bg-[#140406] border border-[#4A1219] rounded-2xl">Aucune table enregistrée. Validez d'abord un invité avec "Arrivé +" puis sélectionnez-le ci-dessus.</div>`;
+        return;
+      }
+
+      const admin = isAdmin();
+      listEl.innerHTML = visibleTables.map(t => `
+        <div class="bg-[#140406] border border-[#4A1219] rounded-2xl p-3 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-xl bg-[#56070C] text-[#F5EFE6] font-bold text-xs flex items-center justify-center shrink-0">🍾</span>
+            <div>
+              <div class="text-xs font-extrabold text-[#F5EFE6]">
+                <span class="uppercase">${t.nom}</span> ${t.prenom}
+              </div>
+              <div class="text-xs text-[#C8B6A6]">
+                Liste ${PROFILE_LABELS[t.host]} • ${t.partyCount} pers.
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <div class="flex items-center bg-[#22080B] border border-[#4A1219] rounded-xl px-2.5 py-1">
+              <input type="number" inputmode="decimal" value="${t.amount}"
+                onchange="updateTableAmount(${t.id}, this.value)"
+                class="w-16 bg-transparent text-right text-xs font-black text-emerald-400 focus:outline-none" />
+              <span class="text-xs font-bold text-emerald-400 ml-1">€</span>
+            </div>
+            ${admin ? `<button onclick="deleteTableEntry(${t.id})" class="ios-btn w-7 h-7 rounded-full bg-red-500/15 text-red-400 flex items-center justify-center text-xs font-bold" title="Supprimer la table">✕</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addTableEntry() {
+      const selectVal = document.getElementById('table-guest-select').value;
+      const amountVal = document.getElementById('table-amount-input').value.trim();
+
+      if (!selectVal) return;
+      const [hostKey, guestIdStr] = selectVal.split(':');
+      const guestId = Number(guestIdStr);
+      const guest = guests[hostKey].find(g => g.id === guestId);
+      if (!guest) return;
+
+      const amount = parseFloat(amountVal) || 0;
+
+      tables.unshift({
+        id: Date.now(),
+        guestId: guest.id,
+        host: hostKey,
+        nom: guest.nom,
+        prenom: guest.prenom,
+        partyCount: guest.partyCount || 1,
+        amount: amount
+      });
+
+      document.getElementById('table-amount-input').value = '';
+      saveAppState();
+      renderTablesView();
+    }
+
+    function updateTableAmount(tableId, newVal) {
+      const t = tables.find(item => item.id === tableId);
+      if (t) {
+        t.amount = parseFloat(newVal) || 0;
+        saveAppState();
+        renderTablesView();
+      }
+    }
+
+    function deleteTableEntry(tableId) {
+      if (!isAdmin()) return;
+      tables = tables.filter(item => item.id !== tableId);
+      saveAppState();
+      renderTablesView();
+    }
+
+    function changeCount(delta) {
+      if (delta > 0) {
+        count += delta;
+      } else {
+        const remove = Math.min(count, Math.abs(delta));
+        count -= remove;
+      }
+      saveAppState();
+      renderJaugeBadge();
+    }
+
+    function renderJaugeBadge() {
+      document.getElementById('mini-jauge-text').textContent = `${count} / 200`;
+      const miniDot = document.getElementById('mini-dot');
+
+      if (count >= MAX) {
+        miniDot.className = 'w-2 h-2 rounded-full bg-red-500 animate-ping';
+      } else if (count >= 170) {
+        miniDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+      } else {
+        miniDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+      }
+    }
+
+    loadAppState();
+    renderGuests();
+    renderJaugeBadge();
+  </script>
+</body>
+</html>

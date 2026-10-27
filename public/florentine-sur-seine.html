@@ -123,7 +123,7 @@
             <span class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-800 text-white font-black text-base flex items-center justify-center shrink-0">🛡️</span>
             <div class="text-left">
               <div class="text-sm font-black leading-tight">Physio</div>
-              <div class="text-[11px] font-semibold opacity-75">Accès direct</div>
+              <div class="text-[11px] font-semibold opacity-75">3 listes & Tables</div>
             </div>
           </button>
         </div>
@@ -496,7 +496,7 @@
       steven:  '0519',
       gabriel: '2027',
       cynthia: '2910',
-      physio:  ''
+      physio:  '2910'
     };
 
     const PROFILE_LABELS = {
@@ -903,15 +903,10 @@
       const pwdInput = document.getElementById('pwd-input');
       const promptText = document.getElementById('pwd-prompt-text');
 
-      if (profile === 'physio') {
-        promptText.innerHTML = 'Accès direct <strong class="text-emerald-300">Physio / Sécu</strong> :';
-        pwdInput.classList.add('hidden');
-      } else {
-        promptText.innerHTML = `Code PIN pour <strong id="login-target-name" class="text-amber-300 underline">${PROFILE_LABELS[profile]}</strong> :`;
-        pwdInput.classList.remove('hidden');
-        pwdInput.value = '';
-        pwdInput.focus();
-      }
+      promptText.innerHTML = `Code PIN pour <strong id="login-target-name" class="text-amber-300 underline">${PROFILE_LABELS[profile]}</strong> :`;
+      pwdInput.classList.remove('hidden');
+      pwdInput.value = '';
+      pwdInput.focus();
 
       ['steven', 'gabriel', 'cynthia', 'physio'].forEach(p => {
         const btn = document.getElementById('prof-' + p);
@@ -927,7 +922,7 @@
       const input = document.getElementById('pwd-input').value.trim();
       const expected = PASSWORDS[selectedLoginProfile];
 
-      if (selectedLoginProfile === 'physio' || input === expected) {
+      if (input === expected) {
         currentUser = selectedLoginProfile;
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-app').classList.remove('hidden');

@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Florentine sur Seine — Accueil, Listes & Tables</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --background: #0F0306;
@@ -162,6 +163,10 @@
             <div class="min-w-0">
               <div class="flex items-center gap-1.5">
                 <span id="session-badge" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white leading-none">Steven</span>
+                <span id="live-sync-badge" class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1 leading-none">
+                  <span id="live-sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span id="live-sync-text">LIVE</span>
+                </span>
                 <button onclick="logout()" class="text-[11px] font-semibold text-amber-200/80 underline">Verrouiller</button>
               </div>
               <div id="app-subtitle" class="text-sm font-black tracking-tight text-white truncate">Liste Steven</div>
@@ -579,12 +584,54 @@
     };
 
     const STORAGE_KEY_FL = 'florentine_seine_app_state_v2';
+    const MIGRATION_KEY_FL = 'florentine_cloud_migrated_v1';
+    const SUPABASE_URL_FL = 'https://dnpcrousaeoyyuxszwwm.supabase.co';
+    const SUPABASE_ANON_KEY_FL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRucGNyb3VzYWVveXl1eHN6d3dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2Nzk4NDAsImV4cCI6MjA5OTI1NTg0MH0.t4XZQGdpqOh3liAk1UP9F5-QdwIHQLl0o_q9odWhVxo';
+    const DEVICE_ID_FL = 'dev_' + Math.random().toString(36).slice(2, 10);
+
     let tables = [];
+    let lastStateTimestamp = 0;
+    let supabaseClient = null;
+    let liveChannel = null;
+
+    function setLiveIndicator(status) {
+      const dot = document.getElementById('live-sync-dot');
+      const txt = document.getElementById('live-sync-text');
+      if (!dot || !txt) return;
+      if (status === 'syncing') {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping';
+        txt.textContent = 'SYNC...';
+      } else if (status === 'ok') {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
+        txt.textContent = 'LIVE';
+      } else {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-rose-400';
+        txt.textContent = 'LOCAL';
+      }
+    }
+
+    function refreshAllViews() {
+      renderJaugeBadge();
+      if (currentMainView === 'arrives') renderArrivesView();
+      else if (currentMainView === 'tables') renderTablesView();
+      else renderGuests();
+    }
 
     function saveAppState() {
+      lastStateTimestamp = Date.now();
+      const payload = {
+        count,
+        guests,
+        tables,
+        updatedAt: lastStateTimestamp,
+        senderId: DEVICE_ID_FL
+      };
       try {
-        localStorage.setItem(STORAGE_KEY_FL, JSON.stringify({ count, guests, tables }));
+        localStorage.setItem(STORAGE_KEY_FL, JSON.stringify(payload));
+        localStorage.setItem(MIGRATION_KEY_FL, '1');
       } catch (e) {}
+
+      pushStateToCloud(payload);
     }
 
     function loadAppState() {
@@ -595,8 +642,164 @@
           if (typeof parsed.count === 'number') count = parsed.count;
           if (parsed.guests) guests = parsed.guests;
           if (Array.isArray(parsed.tables)) tables = parsed.tables;
+          if (typeof parsed.updatedAt === 'number') lastStateTimestamp = parsed.updatedAt;
         }
       } catch (e) {}
+    }
+
+    async function pushStateToCloud(payload) {
+      if (!supabaseClient) return;
+      setLiveIndicator('syncing');
+      try {
+        if (liveChannel) {
+          liveChannel.send({
+            type: 'broadcast',
+            event: 'florentine_update',
+            payload: payload
+          });
+        }
+        const { error } = await supabaseClient
+          .from('florentine_state')
+          .upsert({
+            id: 'main',
+            state: payload,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+        setLiveIndicator(error ? 'err' : 'ok');
+      } catch (e) {
+        setLiveIndicator('err');
+      }
+    }
+
+    function applyRemoteState(remoteState) {
+      if (!remoteState || typeof remoteState !== 'object') return;
+      if (remoteState.senderId === DEVICE_ID_FL) return;
+      if (remoteState.updatedAt && remoteState.updatedAt < lastStateTimestamp) return;
+
+      if (remoteState.guests) guests = remoteState.guests;
+      if (Array.isArray(remoteState.tables)) tables = remoteState.tables;
+      if (typeof remoteState.count === 'number') count = remoteState.count;
+      lastStateTimestamp = remoteState.updatedAt || Date.now();
+
+      try {
+        localStorage.setItem(STORAGE_KEY_FL, JSON.stringify({
+          count,
+          guests,
+          tables,
+          updatedAt: lastStateTimestamp,
+          senderId: remoteState.senderId || 'cloud'
+        }));
+      } catch (e) {}
+
+      refreshAllViews();
+      setLiveIndicator('ok');
+    }
+
+    // Fusionne les rajouts locaux d'un téléphone qui avait travaillé hors-ligne avant la mise en place du Cloud
+    function mergeLocalAdditionsIntoCloud(cloudState) {
+      let hasNewLocalAdditions = false;
+      const mergedGuests = {
+        steven: [...((cloudState.guests && cloudState.guests.steven) || [])],
+        gabriel: [...((cloudState.guests && cloudState.guests.gabriel) || [])],
+        cynthia: [...((cloudState.guests && cloudState.guests.cynthia) || [])]
+      };
+
+      ['steven', 'gabriel', 'cynthia'].forEach(h => {
+        const localList = (guests && guests[h]) || [];
+        localList.forEach(localG => {
+          const existingIdx = mergedGuests[h].findIndex(cg => cg.id === localG.id);
+          if (existingIdx === -1 && localG.id > 1000) {
+            mergedGuests[h].push(localG);
+            hasNewLocalAdditions = true;
+          } else if (existingIdx !== -1 && localG.entered && !mergedGuests[h][existingIdx].entered) {
+            mergedGuests[h][existingIdx] = localG;
+            hasNewLocalAdditions = true;
+          }
+        });
+      });
+
+      const mergedTables = [...(cloudState.tables || [])];
+      (tables || []).forEach(localT => {
+        if (!mergedTables.some(ct => ct.id === localT.id)) {
+          mergedTables.push(localT);
+          hasNewLocalAdditions = true;
+        }
+      });
+
+      return { hasNewLocalAdditions, mergedGuests, mergedTables };
+    }
+
+    async function pullCloudState() {
+      if (!supabaseClient) return;
+      try {
+        const { data, error } = await supabaseClient
+          .from('florentine_state')
+          .select('state, updated_at')
+          .eq('id', 'main')
+          .maybeSingle();
+
+        if (error) {
+          setLiveIndicator('err');
+          return;
+        }
+
+        const alreadyMigrated = localStorage.getItem(MIGRATION_KEY_FL) === '1';
+
+        if (!data || !data.state || !data.state.guests) {
+          // Le Cloud est encore vide : ce téléphone envoie sa liste actuelle dans le Cloud !
+          localStorage.setItem(MIGRATION_KEY_FL, '1');
+          saveAppState();
+          return;
+        }
+
+        if (!alreadyMigrated) {
+          const { hasNewLocalAdditions, mergedGuests, mergedTables } = mergeLocalAdditionsIntoCloud(data.state);
+          localStorage.setItem(MIGRATION_KEY_FL, '1');
+          if (hasNewLocalAdditions) {
+            guests = mergedGuests;
+            tables = mergedTables;
+            refreshAllViews();
+            saveAppState();
+            return;
+          }
+        }
+
+        applyRemoteState(data.state);
+      } catch (e) {
+        setLiveIndicator('err');
+      }
+    }
+
+    function initLiveCloudSync() {
+      if (!window.supabase || !window.supabase.createClient) return;
+      supabaseClient = window.supabase.createClient(SUPABASE_URL_FL, SUPABASE_ANON_KEY_FL);
+
+      pullCloudState();
+
+      liveChannel = supabaseClient
+        .channel('florentine-live-room')
+        .on('broadcast', { event: 'florentine_update' }, (msg) => {
+          if (msg && msg.payload) {
+            applyRemoteState(msg.payload);
+          }
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'florentine_state', filter: 'id=eq.main' }, (payload) => {
+          if (payload && payload.new && payload.new.state) {
+            applyRemoteState(payload.new.state);
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') setLiveIndicator('ok');
+        });
+
+      // Rafraîchissement automatique de sécurité toutes les 3 secondes + au réveil de l'iPhone
+      setInterval(() => {
+        if (!document.hidden) pullCloudState();
+      }, 3000);
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) pullCloudState();
+      });
     }
 
     function isAdmin() {
@@ -1754,6 +1957,7 @@
     loadAppState();
     renderGuests();
     renderJaugeBadge();
+    initLiveCloudSync();
   </script>
 </body>
 </html>

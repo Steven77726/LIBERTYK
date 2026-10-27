@@ -9,11 +9,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
-      --background: #110407;
-      --card: #1E080D;
-      --border: #42121B;
+      --background: #0F0306;
+      --card: #1A060B;
+      --border: #3B1018;
       --foreground: #FAF5EE;
-      --muted: #C8B6A6;
     }
     * {
       -webkit-tap-highlight-color: transparent;
@@ -24,7 +23,7 @@
       padding: 0;
       width: 100%;
       min-height: 100dvh;
-      background-color: #110407;
+      background-color: #0F0306;
       color: #FAF5EE;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
       user-select: none;
@@ -34,19 +33,19 @@
     input, select, textarea {
       user-select: text;
       -webkit-user-select: text;
-      font-size: 16px !important; /* Empêche le zoom auto sur iPhone */
+      font-size: 16px !important; /* Empêche le zoom auto iOS */
     }
     .safe-top {
-      padding-top: max(0.75rem, env(safe-area-inset-top));
+      padding-top: max(0.5rem, env(safe-area-inset-top));
     }
     .safe-bottom {
-      padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
     .ios-spring {
-      transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+      transition: all 0.18s cubic-bezier(0.32, 0.72, 0, 1);
     }
     .ios-btn:active {
-      transform: scale(0.96);
+      transform: scale(0.95);
     }
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
@@ -61,149 +60,142 @@
       to { width: 100%; }
     }
     .holding-bar {
-      animation: hold-fill-1s 0.9s linear forwards;
+      animation: hold-fill-1s 0.85s linear forwards;
     }
     @keyframes hold-fill-2s {
       from { width: 0%; }
       to { width: 100%; }
     }
     .holding-bar-2s {
-      animation: hold-fill-2s 1.4s linear forwards;
+      animation: hold-fill-2s 1.2s linear forwards;
     }
-    /* Custom scrollbar discrète */
     ::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.18);
-      border-radius: 9999px;
+      width: 0px;
+      height: 0px;
     }
   </style>
 </head>
-<body class="min-h-[100dvh] w-full bg-[#110407] text-[#FAF5EE] flex flex-col">
+<body class="min-h-[100dvh] w-full bg-[#0F0306] text-[#FAF5EE] flex flex-col">
 
-  <!-- CONTENEUR PLEIN ÉCRAN SUR IPHONE (ET CENTRÉ LARGE SUR GRAND ÉCRAN) -->
-  <div class="w-full max-w-xl mx-auto min-h-[100dvh] flex flex-col bg-[#160509] relative shadow-2xl">
+  <div class="w-full max-w-xl mx-auto min-h-[100dvh] flex flex-col bg-[#130408] relative">
 
     <!-- ========================================== -->
     <!-- SCREEN 0: PAGE D'ACCUEIL / CONNEXION       -->
     <!-- ========================================== -->
-    <div id="screen-login" class="flex-1 flex flex-col justify-between bg-gradient-to-b from-[#5A0810] via-[#2B060B] to-[#120306] p-6 safe-top safe-bottom">
-      <div class="flex flex-col items-center text-center pt-4">
-        <div class="relative mb-4">
+    <div id="screen-login" class="flex-1 flex flex-col justify-between bg-gradient-to-b from-[#5A0810] via-[#26050A] to-[#0F0306] p-5 safe-top safe-bottom">
+      <div class="flex flex-col items-center text-center pt-3">
+        <div class="relative mb-3">
           <div class="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-amber-400/50 via-rose-500/40 to-purple-500/40 blur-md"></div>
-          <img src="images/florentine-logo.jpg" alt="Florentine" class="relative w-24 h-24 rounded-3xl object-cover border-2 border-amber-300/40 shadow-2xl" />
+          <img src="images/florentine-logo.jpg" alt="Florentine" class="relative w-20 h-20 rounded-2xl object-cover border-2 border-amber-300/40 shadow-2xl" />
         </div>
-        <h1 class="text-2xl font-black tracking-tight text-white">FLORENTINE SUR SEINE</h1>
-        <p class="text-sm text-amber-200/80 mt-1 font-medium">Accueil • Listes Alphabétiques • Tables VIP</p>
+        <h1 class="text-xl font-black tracking-tight text-white">FLORENTINE SUR SEINE</h1>
+        <p class="text-xs text-amber-200/80 mt-0.5 font-medium">Listes Rapides • Arrivés • Tables VIP</p>
       </div>
 
-      <div class="space-y-4 my-auto py-4">
-        <div class="text-xs font-bold uppercase tracking-widest text-amber-300/80 text-center">
-          Sélectionnez votre profil
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <button onclick="selectLoginProfile('steven')" id="prof-steven" class="ios-btn p-4 rounded-2xl bg-[#FAF5EE] text-[#56070C] border-2 border-amber-300 flex items-center gap-3 shadow-lg">
-            <span class="w-11 h-11 rounded-2xl bg-gradient-to-br from-rose-600 to-[#56070C] text-white font-black text-base flex items-center justify-center shrink-0 shadow">S</span>
+      <div class="space-y-3.5 my-auto py-3">
+        <div class="grid grid-cols-2 gap-2.5">
+          <button onclick="selectLoginProfile('steven')" id="prof-steven" class="ios-btn p-3.5 rounded-2xl bg-[#FAF5EE] text-[#56070C] border-2 border-amber-300 flex items-center gap-2.5 shadow-lg">
+            <span class="w-10 h-10 rounded-full bg-gradient-to-br from-rose-600 to-[#56070C] text-white font-black text-sm flex items-center justify-center shrink-0">S</span>
             <div class="text-left">
-              <div class="text-base font-black leading-tight">Steven</div>
-              <div class="text-xs font-semibold opacity-75 mt-0.5">Admin • Tout accès</div>
+              <div class="text-sm font-black leading-tight">Steven</div>
+              <div class="text-[11px] font-semibold opacity-75">Admin • 3 listes</div>
             </div>
           </button>
 
-          <button onclick="selectLoginProfile('gabriel')" id="prof-gabriel" class="ios-btn p-4 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-3">
-            <span class="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-800 text-white font-black text-base flex items-center justify-center shrink-0 shadow">G</span>
+          <button onclick="selectLoginProfile('gabriel')" id="prof-gabriel" class="ios-btn p-3.5 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-2.5">
+            <span class="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-blue-800 text-white font-black text-sm flex items-center justify-center shrink-0">G</span>
             <div class="text-left">
-              <div class="text-base font-black leading-tight">Gabriel</div>
-              <div class="text-xs font-semibold opacity-75 mt-0.5">Admin • Tout accès</div>
+              <div class="text-sm font-black leading-tight">Gabriel</div>
+              <div class="text-[11px] font-semibold opacity-75">Admin • 3 listes</div>
             </div>
           </button>
 
-          <button onclick="selectLoginProfile('cynthia')" id="prof-cynthia" class="ios-btn p-4 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-3">
-            <span class="w-11 h-11 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-purple-800 text-white font-black text-base flex items-center justify-center shrink-0 shadow">C</span>
+          <button onclick="selectLoginProfile('cynthia')" id="prof-cynthia" class="ios-btn p-3.5 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-2.5">
+            <span class="w-10 h-10 rounded-full bg-gradient-to-br from-fuchsia-500 to-purple-800 text-white font-black text-sm flex items-center justify-center shrink-0">C</span>
             <div class="text-left">
-              <div class="text-base font-black leading-tight">Cynthia</div>
-              <div class="text-xs font-semibold opacity-75 mt-0.5">Liste & Tables</div>
+              <div class="text-sm font-black leading-tight">Cynthia</div>
+              <div class="text-[11px] font-semibold opacity-75">Liste & Tables</div>
             </div>
           </button>
 
-          <button onclick="selectLoginProfile('physio')" id="prof-physio" class="ios-btn p-4 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-3">
-            <span class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-800 text-white font-black text-lg flex items-center justify-center shrink-0 shadow">🛡️</span>
+          <button onclick="selectLoginProfile('physio')" id="prof-physio" class="ios-btn p-3.5 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-2.5">
+            <span class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-800 text-white font-black text-base flex items-center justify-center shrink-0">🛡️</span>
             <div class="text-left">
-              <div class="text-base font-black leading-tight">Physio</div>
-              <div class="text-xs font-semibold opacity-75 mt-0.5">3 Listes & Tables</div>
+              <div class="text-sm font-black leading-tight">Physio</div>
+              <div class="text-[11px] font-semibold opacity-75">Accès direct</div>
             </div>
           </button>
         </div>
 
-        <div id="login-box" class="bg-black/40 backdrop-blur-md border border-white/15 rounded-3xl p-4 space-y-3 shadow-xl">
-          <div class="flex items-center justify-between text-sm">
+        <div id="login-box" class="bg-black/45 border border-white/15 rounded-2xl p-3.5 space-y-2.5 shadow-xl">
+          <div class="flex items-center justify-between text-xs">
             <span id="pwd-prompt-text" class="font-semibold text-amber-100">Code PIN pour <strong id="login-target-name" class="text-amber-300 underline">Steven</strong> :</span>
             <span id="login-error" class="text-rose-400 font-extrabold hidden">Code incorrect !</span>
           </div>
 
-          <div class="flex gap-2.5">
-            <input id="pwd-input" type="password" inputmode="numeric" maxlength="6" placeholder="Code à 4 chiffres..."
+          <div class="flex gap-2">
+            <input id="pwd-input" type="password" inputmode="numeric" maxlength="6" placeholder="Code PIN..."
               onkeydown="if(event.key==='Enter') attemptLogin()"
-              class="flex-1 bg-white/10 border border-white/25 rounded-2xl px-4 py-3.5 text-base font-bold text-white placeholder-white/40 tracking-widest font-mono focus:outline-none focus:border-amber-300" />
-            <button onclick="attemptLogin()" class="ios-btn px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-300 to-amber-400 text-[#3B0408] font-black text-base shadow-lg">
-              Entrer →
+              class="flex-1 bg-white/10 border border-white/25 rounded-xl px-3.5 py-2.5 text-base font-bold text-white placeholder-white/40 tracking-widest font-mono focus:outline-none focus:border-amber-300" />
+            <button onclick="attemptLogin()" class="ios-btn px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-300 to-amber-400 text-[#3B0408] font-black text-sm shadow">
+              Ouvrir →
             </button>
           </div>
         </div>
       </div>
 
-      <div class="text-center text-xs text-white/40 font-medium">
-        Florentine sur Seine • Interface Plein Écran iPhone
+      <div class="text-center text-[11px] text-white/35">
+        Florentine sur Seine • Mode Snap Compact
       </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- MAIN APP PLEIN ÉCRAN                       -->
+    <!-- MAIN APP PLEIN ÉCRAN COMPACT STYLE SNAP    -->
     <!-- ========================================== -->
     <div id="screen-app" class="hidden flex-1 flex flex-col min-h-[100dvh]">
 
-      <!-- HEADER DYNAMIQUE COLORÉ SELON L'ONGLET -->
-      <header id="app-header" class="bg-gradient-to-b from-[#6B0B14] to-[#3A070C] text-[#FAF5EE] px-4 pt-3 pb-3.5 safe-top border-b border-white/10 sticky top-0 z-30 shadow-lg transition-colors duration-300">
+      <!-- HEADER COMPACT COLLÉ EN HAUT -->
+      <header id="app-header" class="bg-gradient-to-b from-[#6B0B14] to-[#2D0509] text-[#FAF5EE] px-3 pt-2 pb-2.5 safe-top border-b border-white/10 sticky top-0 z-30 shadow-md transition-colors duration-200">
         <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-3 min-w-0">
-            <img src="images/florentine-logo.jpg" alt="Florentine" class="w-11 h-11 rounded-2xl object-cover border border-amber-300/40 shrink-0 shadow" />
+          <div class="flex items-center gap-2 min-w-0">
+            <img src="images/florentine-logo.jpg" alt="Florentine" class="w-8 h-8 rounded-xl object-cover border border-amber-300/40 shrink-0" />
             <div class="min-w-0">
-              <div class="flex items-center gap-2">
-                <span id="session-badge" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-white/20 text-white">Steven</span>
-                <button onclick="logout()" class="text-xs font-semibold text-amber-200/90 underline active:opacity-70">Verrouiller</button>
+              <div class="flex items-center gap-1.5">
+                <span id="session-badge" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white leading-none">Steven</span>
+                <button onclick="logout()" class="text-[11px] font-semibold text-amber-200/80 underline">Verrouiller</button>
               </div>
-              <div id="app-subtitle" class="text-base font-black tracking-tight text-white truncate mt-0.5">Liste Steven</div>
+              <div id="app-subtitle" class="text-sm font-black tracking-tight text-white truncate">Liste Steven</div>
             </div>
           </div>
 
-          <!-- JAUGE COMPACTE TRÈS LISIBLE -->
-          <div class="bg-black/45 border border-white/20 rounded-2xl px-3.5 py-2 flex items-center gap-2 shrink-0 shadow">
-            <span id="mini-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <div class="text-right">
-              <div class="text-[10px] uppercase tracking-wider text-white/60 font-bold leading-none">Présents</div>
-              <div id="mini-jauge-text" class="text-sm font-black text-white leading-tight mt-0.5">0 / 200</div>
-            </div>
-          </div>
+          <!-- BOUTON / JAUGE DIRECTE VERS LES ARRIVÉS -->
+          <button onclick="switchMain('arrives')" class="ios-btn bg-black/45 border border-emerald-400/35 rounded-full px-3 py-1 flex items-center gap-1.5 shrink-0 shadow">
+            <span id="mini-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="mini-jauge-text" class="text-xs font-black text-emerald-300">0 / 200</span>
+            <span class="text-[10px] text-white/60 font-bold">Arrivés</span>
+          </button>
         </div>
 
-        <!-- BARRE D'ONGLETS PRINCIPALE GRANDS BOUTONS -->
-        <div id="nav-bar" class="grid grid-cols-4 gap-1.5 bg-black/35 p-1.5 rounded-2xl mt-3 border border-white/10">
-          <button onclick="selectHost('steven')" id="tab-steven" class="ios-spring py-2.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+        <!-- BARRE D'ONGLETS PRINCIPALE (AVEC ONGLET DÉDIÉ "✅ ARRIVÉS" + "🍾 TABLES") -->
+        <div id="nav-bar" class="grid grid-cols-5 gap-1 bg-black/40 p-1 rounded-xl mt-2 border border-white/10">
+          <button onclick="selectHost('steven')" id="tab-steven" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
             <span>Steven</span>
           </button>
-          <button onclick="selectHost('gabriel')" id="tab-gabriel" class="ios-spring py-2.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+          <button onclick="selectHost('gabriel')" id="tab-gabriel" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
             <span>Gabriel</span>
           </button>
-          <button onclick="selectHost('cynthia')" id="tab-cynthia" class="ios-spring py-2.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-fuchsia-400"></span>
+          <button onclick="selectHost('cynthia')" id="tab-cynthia" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>
             <span>Cynthia</span>
           </button>
-          <button onclick="switchMain('tables')" id="tab-tables" class="ios-spring py-2.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-1">
+          <button onclick="switchMain('arrives')" id="tab-arrives" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
+            <span>✅</span>
+            <span>Arrivés</span>
+            <span id="nav-arrives-badge" class="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 text-[10px] font-black">0</span>
+          </button>
+          <button onclick="switchMain('tables')" id="tab-tables" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
             <span>🍾</span>
             <span>Tables</span>
           </button>
@@ -211,217 +203,211 @@
       </header>
 
       <!-- ========================================== -->
-      <!-- VIEW 1: LISTES D'INVITÉS (A-Z & FAVORIS)   -->
+      <!-- VIEW 1: LISTES COMPACTES STYLE SNAP        -->
       <!-- ========================================== -->
-      <div id="view-listes" class="flex-1 flex flex-col px-3.5 pt-3 pb-8 safe-bottom space-y-3">
+      <div id="view-listes" class="flex-1 flex flex-col px-2.5 pt-2 pb-6 safe-bottom space-y-2">
 
-        <!-- CARTE D'AJOUT ULTRA FLUIDE (TOUJOURS PRÊTE OU REPLIABLE) -->
-        <div class="bg-gradient-to-br from-[#260910] to-[#1A060B] border border-rose-500/25 rounded-3xl p-3.5 shadow-lg space-y-2.5">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-black uppercase tracking-wider text-amber-300">✨ Ajout rapide</span>
-              <span id="add-host-badge" class="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-400/30">Liste Steven</span>
-            </div>
-            <span id="add-feedback" class="text-xs font-bold text-emerald-400 hidden">✓ Ajouté !</span>
+        <!-- BARRE D'AJOUT RAPIDE EN 1 SEULE LIGNE COMPACTE -->
+        <div class="bg-[#1C070C] border border-white/15 rounded-2xl p-1.5 flex items-center gap-1.5 shadow">
+          <button type="button" onclick="toggleQuickFav()" id="quick-fav-btn"
+            class="ios-btn w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400 text-base flex items-center justify-center shrink-0"
+            title="Favori ⭐">
+            ⭐
+          </button>
+
+          <div class="relative flex-1 min-w-0">
+            <input id="quick-name-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+              placeholder="Ajouter Nom Prénom..."
+              onkeydown="if(event.key==='Enter'){ event.preventDefault(); quickAddGuest(); }"
+              class="w-full h-9 bg-black/40 border border-white/15 rounded-xl pl-2.5 pr-7 text-sm font-bold text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
+            <button onclick="clearQuickInput()" id="clear-quick-btn" class="hidden absolute right-1.5 top-2 w-5 h-5 rounded-full bg-white/15 text-white/70 text-[10px] font-bold flex items-center justify-center">✕</button>
           </div>
 
-          <!-- Saisie fluide en 1 seul champ ou Nom + Prénom automatique + Étoile directe -->
-          <div class="flex gap-2">
-            <button type="button" onclick="toggleQuickFav()" id="quick-fav-btn"
-              class="ios-btn w-12 h-12 rounded-2xl bg-amber-400/20 border-2 border-amber-400 text-2xl flex items-center justify-center shrink-0 shadow"
-              title="Basculer Favori ⭐">
-              ⭐
-            </button>
-            <div class="relative flex-1">
-              <input id="quick-name-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
-                placeholder="Nom et Prénom (ex: Cohen Sarah)..."
-                onkeydown="if(event.key==='Enter'){ event.preventDefault(); quickAddGuest(); }"
-                class="w-full h-12 bg-[#110306] border border-white/20 rounded-2xl pl-3.5 pr-9 text-base font-bold text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
-              <button onclick="clearQuickInput()" id="clear-quick-btn" class="hidden absolute right-2.5 top-3 w-6 h-6 rounded-full bg-white/15 text-white/70 text-xs font-bold flex items-center justify-center">✕</button>
-            </div>
-          </div>
+          <button type="button" onclick="cycleQuickCount()" id="quick-count-btn"
+            class="ios-btn h-9 px-2.5 rounded-xl bg-white/10 border border-white/15 text-xs font-black text-amber-300 shrink-0"
+            title="Toucher pour changer le nombre de personnes prévu">
+            1p
+          </button>
 
-          <!-- Choix rapide du nombre de personnes + Bouton Ajouter -->
-          <div class="flex items-center justify-between gap-2 pt-0.5">
-            <div class="flex items-center gap-1 overflow-x-auto py-0.5">
-              <span class="text-xs font-bold text-white/60 mr-1 shrink-0">Pers :</span>
-              <button type="button" onclick="setQuickCount(1)" id="qcount-1" class="ios-btn w-8 h-8 rounded-xl text-xs font-black bg-amber-400 text-[#2B0508] shadow">1</button>
-              <button type="button" onclick="setQuickCount(2)" id="qcount-2" class="ios-btn w-8 h-8 rounded-xl text-xs font-bold bg-white/10 text-white/80">2</button>
-              <button type="button" onclick="setQuickCount(3)" id="qcount-3" class="ios-btn w-8 h-8 rounded-xl text-xs font-bold bg-white/10 text-white/80">3</button>
-              <button type="button" onclick="setQuickCount(4)" id="qcount-4" class="ios-btn w-8 h-8 rounded-xl text-xs font-bold bg-white/10 text-white/80">4</button>
-              <button type="button" onclick="setQuickCount(5)" id="qcount-5" class="ios-btn w-8 h-8 rounded-xl text-xs font-bold bg-white/10 text-white/80">5</button>
-              <button type="button" onclick="promptCustomQuickCount()" id="qcount-more" class="ios-btn px-2 h-8 rounded-xl text-xs font-bold bg-white/10 text-amber-300">6-10</button>
-            </div>
-
-            <button
-              onmousedown="startAddBtnPress(event)"
-              onmouseup="endAddBtnPress(event)"
-              onmouseleave="cancelAddBtnPress()"
-              ontouchstart="startAddBtnPress(event)"
-              ontouchend="endAddBtnPress(event)"
-              ontouchcancel="cancelAddBtnPress()"
-              oncontextmenu="return false;"
-              class="ios-btn relative overflow-hidden px-5 h-10 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-black shadow-lg shrink-0 flex items-center gap-1.5">
-              <span id="add-hold-bar" class="hidden absolute left-0 top-0 bottom-0 bg-amber-400/60 pointer-events-none"></span>
-              <span class="relative z-10">+ Ajouter</span>
-            </button>
-          </div>
+          <button
+            onmousedown="startAddBtnPress(event)"
+            onmouseup="endAddBtnPress(event)"
+            onmouseleave="cancelAddBtnPress()"
+            ontouchstart="startAddBtnPress(event)"
+            ontouchend="endAddBtnPress(event)"
+            ontouchcancel="cancelAddBtnPress()"
+            oncontextmenu="return false;"
+            class="ios-btn relative overflow-hidden px-3.5 h-9 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black shadow shrink-0 flex items-center">
+            <span id="add-hold-bar" class="hidden absolute left-0 top-0 bottom-0 bg-amber-400/60 pointer-events-none"></span>
+            <span class="relative z-10">+ Ajouter</span>
+          </button>
         </div>
 
-        <!-- BARRE DE RECHERCHE & FILTRES D'AFFICHAGE -->
-        <div class="space-y-2">
-          <div class="relative">
-            <input id="search-input" oninput="renderGuests()" type="text" placeholder="Rechercher un nom ou prénom (A-Z)..."
-              class="w-full h-11 bg-[#1D070C] border border-white/15 rounded-2xl pl-10 pr-9 text-base font-semibold text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
-            <span class="absolute left-3.5 top-2.5 text-base opacity-70">🔍</span>
-            <button onclick="document.getElementById('search-input').value=''; renderGuests();" class="absolute right-3 top-2.5 text-xs text-white/50 hover:text-white p-1">✕</button>
-          </div>
-
-          <!-- Filtres rapides colorés -->
-          <div class="flex items-center justify-between gap-1.5">
-            <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-              <button onclick="setListFilter('all')" id="filter-all" class="ios-btn px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white text-[#2B0508] shadow shrink-0">
-                🔤 Tous (A-Z)
-              </button>
-              <button onclick="setListFilter('fav')" id="filter-fav" class="ios-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-400/30 shrink-0">
-                ⭐ Favoris (<span id="badge-fav-count">0</span>)
-              </button>
-              <button onclick="setListFilter('waiting')" id="filter-waiting" class="ios-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-white/10 text-white/80 shrink-0">
-                ⏳ Attente (<span id="badge-wait-count">0</span>)
-              </button>
-              <button onclick="setListFilter('present')" id="filter-present" class="ios-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 shrink-0">
-                ✅ Arrivés (<span id="badge-pres-count">0</span>)
-              </button>
+        <!-- RECHERCHE + FILTRES RAPIDES (TOUS / ARRIVÉS / ATTENTE / FAVORIS) -->
+        <div class="flex flex-col gap-1.5">
+          <div class="flex gap-1.5">
+            <div class="relative flex-1">
+              <input id="search-input" oninput="renderGuests()" type="text" placeholder="Rechercher sur la liste..."
+                class="w-full h-9 bg-[#1A060B] border border-white/12 rounded-xl pl-8 pr-7 text-sm font-semibold text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
+              <span class="absolute left-2.5 top-2 text-xs opacity-65">🔍</span>
+              <button onclick="document.getElementById('search-input').value=''; renderGuests();" class="absolute right-2 top-2 text-xs text-white/40 hover:text-white">✕</button>
             </div>
 
-            <button onclick="toggleGroupByFav()" id="btn-group-fav" class="ios-btn px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40 shrink-0" title="Grouper les favoris en haut ou tout mélanger A-Z">
+            <button onclick="toggleGroupByFav()" id="btn-group-fav" class="ios-btn px-2.5 h-9 rounded-xl text-xs font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/40 shrink-0">
               ⭐ En tête
             </button>
           </div>
+
+          <!-- PILULES DE FILTRE AVEC "ARRIVÉS" BIEN VISIBLE -->
+          <div class="grid grid-cols-4 gap-1 bg-black/35 p-1 rounded-xl border border-white/10">
+            <button onclick="setListFilter('all')" id="filter-all" class="ios-btn py-1.5 rounded-lg text-xs font-extrabold bg-white text-[#2B0508] shadow text-center">
+              Tous (<span id="badge-all-count">0</span>)
+            </button>
+            <button onclick="setListFilter('present')" id="filter-present" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-emerald-300 text-center">
+              ✅ Arrivés (<span id="badge-pres-count">0</span>)
+            </button>
+            <button onclick="setListFilter('waiting')" id="filter-waiting" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-white/75 text-center">
+              ⏳ Attente (<span id="badge-wait-count">0</span>)
+            </button>
+            <button onclick="setListFilter('fav')" id="filter-fav" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-amber-300 text-center">
+              ⭐ Favoris (<span id="badge-fav-count">0</span>)
+            </button>
+          </div>
         </div>
 
-        <!-- BARRE ALPHABÉTIQUE RAPIDE (A-Z) -->
-        <div id="alpha-bar" class="flex items-center gap-1 overflow-x-auto py-1 px-1 bg-black/30 rounded-2xl border border-white/10 text-xs font-black"></div>
+        <!-- MINI INDEX A-Z ULTRA FIN -->
+        <div id="alpha-bar" class="flex items-center gap-0.5 overflow-x-auto py-1 px-1 bg-black/25 rounded-xl border border-white/5 text-[11px] font-black"></div>
 
-        <!-- CONTENEUR PRINCIPAL DES LISTES (PREND TOUT L'ÉCRAN, SANS HAUTEUR BRIDÉE) -->
-        <div id="guests-container" class="flex-1 space-y-4 pb-6"></div>
+        <!-- LISTE ULTRA SERRÉE STYLE SNAPCHAT -->
+        <div id="guests-container" class="flex-1 space-y-2 pb-6"></div>
 
       </div>
 
       <!-- ========================================== -->
-      <!-- VIEW 2: TABLES VIP (100% AUTONOME)         -->
+      <!-- VIEW 2: ONGLET DÉDIÉ "✅ ARRIVÉS"           -->
       <!-- ========================================== -->
-      <div id="view-tables" class="hidden flex-1 flex flex-col px-3.5 pt-3 pb-8 safe-bottom space-y-4">
+      <div id="view-arrives" class="hidden flex-1 flex flex-col px-2.5 pt-2.5 pb-6 safe-bottom space-y-2.5">
 
-        <!-- RÉSUMÉ CHIFFRES TABLES -->
-        <div class="grid grid-cols-2 gap-2.5">
-          <div class="bg-gradient-to-br from-amber-500/20 to-amber-900/20 border border-amber-400/35 rounded-3xl p-3.5 flex items-center justify-between shadow">
-            <div>
-              <div class="text-xs font-bold uppercase tracking-wider text-amber-200/80">Tables réservées</div>
-              <div id="tables-count-label" class="text-xl font-black text-white mt-0.5">0 table</div>
-              <div id="tables-installed-label" class="text-xs font-semibold text-emerald-300 mt-0.5">0 installée</div>
-            </div>
-            <span class="text-2xl">🍾</span>
+        <!-- BANDEAU RÉCAP DES ARRIVÉS -->
+        <div class="bg-gradient-to-r from-emerald-900/50 via-teal-900/40 to-[#1A060B] border border-emerald-400/35 rounded-2xl p-3 flex items-center justify-between">
+          <div>
+            <div class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">✅ Personnes entrées</div>
+            <div id="arrives-summary-title" class="text-lg font-black text-white leading-tight mt-0.5">0 invité • 0 pers.</div>
           </div>
-
-          <div class="bg-gradient-to-br from-emerald-500/20 to-teal-900/20 border border-emerald-400/35 rounded-3xl p-3.5 flex items-center justify-between shadow">
-            <div>
-              <div class="text-xs font-bold uppercase tracking-wider text-emerald-200/80">Total Tables</div>
-              <div id="tables-total-euro" class="text-xl font-black text-emerald-300 mt-0.5">0 €</div>
-              <div id="tables-total-pax" class="text-xs font-semibold text-white/75 mt-0.5">0 pers. à table</div>
-            </div>
-            <span class="text-2xl">💶</span>
+          <div class="text-right">
+            <div class="text-[11px] font-bold text-white/60">Capacité max</div>
+            <div id="arrives-jauge-big" class="text-base font-black text-emerald-400">0 / 200</div>
           </div>
         </div>
 
-        <!-- FORMULAIRE AUTONOME D'AJOUT DE TABLE -->
-        <div class="bg-gradient-to-br from-[#281008] via-[#1E080D] to-[#150408] border border-amber-400/30 rounded-3xl p-4 space-y-3 shadow-xl">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-black uppercase tracking-wider text-amber-300">🍾 Nouvelle Table (Autonome)</span>
-            </div>
-            <span class="text-xs font-semibold text-amber-200/70">Sans obligation d'arrivée</span>
+        <!-- FILTRE PAR HÔTE DANS L'ONGLET ARRIVÉS + RECHERCHE -->
+        <div class="flex flex-col gap-1.5">
+          <div id="arrives-host-filters" class="grid grid-cols-4 gap-1 bg-black/35 p-1 rounded-xl border border-white/10">
+            <button onclick="setArrivesHostFilter('all')" id="arr-filter-all" class="ios-btn py-1.5 rounded-lg text-xs font-extrabold bg-emerald-400 text-[#05291A] shadow">
+              Tous
+            </button>
+            <button onclick="setArrivesHostFilter('steven')" id="arr-filter-steven" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-rose-300">
+              Steven
+            </button>
+            <button onclick="setArrivesHostFilter('gabriel')" id="arr-filter-gabriel" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-sky-300">
+              Gabriel
+            </button>
+            <button onclick="setArrivesHostFilter('cynthia')" id="arr-filter-cynthia" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-fuchsia-300">
+              Cynthia
+            </button>
           </div>
 
-          <!-- Saisie directe du nom de la table / client -->
-          <div class="space-y-2.5">
-            <div class="flex gap-2">
-              <button type="button" onclick="toggleTableFavInput()" id="table-fav-btn"
-                class="ios-btn w-12 h-12 rounded-2xl bg-amber-400/20 border-2 border-amber-400 text-xl flex items-center justify-center shrink-0"
-                title="Table VIP / Favori ⭐">
-                ⭐
-              </button>
-              <input id="table-client-input" type="text" placeholder="Nom du client / réservation (ex: Cohen David)..."
+          <div class="relative">
+            <input id="arrives-search-input" oninput="renderArrivesView()" type="text" placeholder="Rechercher parmi les présents..."
+              class="w-full h-9 bg-[#1A060B] border border-emerald-500/25 rounded-xl pl-8 pr-7 text-sm font-semibold text-white placeholder-white/40 focus:outline-none focus:border-emerald-400" />
+            <span class="absolute left-2.5 top-2 text-xs opacity-65">🔍</span>
+            <button onclick="document.getElementById('arrives-search-input').value=''; renderArrivesView();" class="absolute right-2 top-2 text-xs text-white/40">✕</button>
+          </div>
+        </div>
+
+        <!-- LISTE SERRÉE DES PRÉSENTS (STYLE SNAP) -->
+        <div id="arrives-list-container" class="flex-1 pb-6"></div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- VIEW 3: TABLES VIP (100% AUTONOME & SERRÉ) -->
+      <!-- ========================================== -->
+      <div id="view-tables" class="hidden flex-1 flex flex-col px-2.5 pt-2.5 pb-6 safe-bottom space-y-2.5">
+
+        <!-- RÉSUMÉ COMPACT TABLES -->
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-gradient-to-br from-amber-500/20 to-[#1D070C] border border-amber-400/35 rounded-2xl p-2.5 flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-amber-200/80">Tables</div>
+              <div id="tables-count-label" class="text-base font-black text-white">0 table</div>
+              <div id="tables-installed-label" class="text-[11px] font-semibold text-emerald-300">0 installée</div>
+            </div>
+            <span class="text-xl">🍾</span>
+          </div>
+
+          <div class="bg-gradient-to-br from-emerald-500/20 to-[#1D070C] border border-emerald-400/35 rounded-2xl p-2.5 flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-200/80">Total Montant</div>
+              <div id="tables-total-euro" class="text-base font-black text-emerald-300">0 €</div>
+              <div id="tables-total-pax" class="text-[11px] font-semibold text-white/75">0 pers.</div>
+            </div>
+            <span class="text-xl">💶</span>
+          </div>
+        </div>
+
+        <!-- AJOUT DE TABLE AUTONOME COMPACT -->
+        <div class="bg-[#1C070C] border border-amber-400/30 rounded-2xl p-2.5 space-y-2 shadow">
+          <div class="flex gap-1.5">
+            <button type="button" onclick="toggleTableFavInput()" id="table-fav-btn"
+              class="ios-btn w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400 text-base flex items-center justify-center shrink-0">
+              ⭐
+            </button>
+            <input id="table-client-input" type="text" placeholder="Nom client table (ex: Cohen David)..."
+              onkeydown="if(event.key==='Enter') addAutonomousTable()"
+              class="flex-1 h-9 bg-black/40 border border-white/15 rounded-xl px-2.5 text-sm font-bold text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
+            <select id="table-quick-pick" onchange="fillTableFromList(this.value)"
+              class="w-28 h-9 bg-white/10 border border-white/15 rounded-xl px-2 text-xs font-bold text-amber-200 focus:outline-none">
+              <option value="">📋 Liste...</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-4 gap-1.5">
+            <select id="table-pax-input" class="h-9 bg-black/40 border border-white/15 rounded-xl px-2 text-xs font-extrabold text-white">
+              <option value="1">1 pers.</option>
+              <option value="2">2 pers.</option>
+              <option value="3">3 pers.</option>
+              <option value="4" selected>4 pers.</option>
+              <option value="5">5 pers.</option>
+              <option value="6">6 pers.</option>
+              <option value="8">8 pers.</option>
+              <option value="10">10 pers.</option>
+              <option value="12">12 pers.</option>
+            </select>
+
+            <input id="table-num-input" type="text" placeholder="N° (VIP 1)"
+              class="h-9 bg-black/40 border border-white/15 rounded-xl px-2 text-xs font-bold text-amber-300 placeholder-white/35 focus:outline-none" />
+
+            <select id="table-host-input" class="h-9 bg-black/40 border border-white/15 rounded-xl px-2 text-xs font-extrabold text-white">
+              <option value="steven">Steven</option>
+              <option value="gabriel">Gabriel</option>
+              <option value="cynthia">Cynthia</option>
+            </select>
+
+            <div class="relative">
+              <input id="table-amount-input" type="number" inputmode="decimal" placeholder="Prix"
                 onkeydown="if(event.key==='Enter') addAutonomousTable()"
-                class="flex-1 h-12 bg-[#110306] border border-white/20 rounded-2xl px-3.5 text-base font-bold text-white placeholder-white/40 focus:outline-none focus:border-amber-400" />
-            </div>
-
-            <!-- Option : ou repêcher un nom existant dans les listes (même non arrivé) -->
-            <div class="flex items-center gap-2">
-              <select id="table-quick-pick" onchange="fillTableFromList(this.value)"
-                class="w-full h-10 bg-white/5 border border-white/15 rounded-xl px-3 text-sm font-semibold text-amber-200 focus:outline-none focus:border-amber-400">
-                <option value="">📋 Ou choisir un nom depuis les listes (A-Z, arrivé ou non)...</option>
-              </select>
-            </div>
-
-            <!-- Ligne : Nombre de pers. + Numéro/Nom Table + Hôte -->
-            <div class="grid grid-cols-3 gap-2">
-              <div>
-                <label class="block text-[11px] font-bold text-white/60 mb-1 uppercase">Personnes</label>
-                <select id="table-pax-input" class="w-full h-11 bg-[#110306] border border-white/20 rounded-xl px-2.5 text-base font-extrabold text-white">
-                  <option value="1">1 pers.</option>
-                  <option value="2">2 pers.</option>
-                  <option value="3">3 pers.</option>
-                  <option value="4" selected>4 pers.</option>
-                  <option value="5">5 pers.</option>
-                  <option value="6">6 pers.</option>
-                  <option value="7">7 pers.</option>
-                  <option value="8">8 pers.</option>
-                  <option value="10">10 pers.</option>
-                  <option value="12">12 pers.</option>
-                  <option value="15">15 pers.</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-[11px] font-bold text-white/60 mb-1 uppercase">N° / Zone Table</label>
-                <input id="table-num-input" type="text" placeholder="Ex: VIP 1, T4..."
-                  class="w-full h-11 bg-[#110306] border border-white/20 rounded-xl px-3 text-base font-bold text-amber-300 placeholder-white/35 focus:outline-none focus:border-amber-400" />
-              </div>
-
-              <div>
-                <label class="block text-[11px] font-bold text-white/60 mb-1 uppercase">Référent</label>
-                <select id="table-host-input" class="w-full h-11 bg-[#110306] border border-white/20 rounded-xl px-2.5 text-base font-extrabold text-white">
-                  <option value="steven">Steven</option>
-                  <option value="gabriel">Gabriel</option>
-                  <option value="cynthia">Cynthia</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Ligne : Montant € + Bouton Ajouter Table -->
-            <div class="flex gap-2 pt-1">
-              <div class="relative flex-1">
-                <input id="table-amount-input" type="number" inputmode="decimal" placeholder="Montant (ex: 500)"
-                  onkeydown="if(event.key==='Enter') addAutonomousTable()"
-                  class="w-full h-12 bg-[#110306] border border-emerald-400/40 rounded-2xl pl-4 pr-9 text-base font-black text-emerald-300 placeholder-white/40 focus:outline-none focus:border-emerald-400" />
-                <span class="absolute right-3.5 top-3 text-base font-black text-emerald-400">€</span>
-              </div>
-              <button onclick="addAutonomousTable()" class="ios-btn px-6 h-12 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-[#2B0508] font-black text-base shrink-0 shadow-lg flex items-center gap-1.5">
-                <span>+ Créer Table</span>
-              </button>
+                class="w-full h-9 bg-black/40 border border-emerald-400/40 rounded-xl pl-2 pr-5 text-xs font-black text-emerald-300 placeholder-white/40 focus:outline-none" />
+              <span class="absolute right-2 top-2 text-xs font-black text-emerald-400">€</span>
             </div>
           </div>
+
+          <button onclick="addAutonomousTable()" class="ios-btn w-full h-9 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-[#2B0508] font-black text-xs shadow flex items-center justify-center gap-1">
+            <span>+ Ajouter la Table (Sans obligation d'arrivée)</span>
+          </button>
         </div>
 
-        <!-- RECHERCHE / TRI DES TABLES PAR ALPHABET -->
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-black uppercase tracking-wider text-amber-300">📋 Liste des Tables (A → Z)</span>
-          <span id="table-scope-label" class="text-xs font-semibold text-white/60">Toutes les tables</span>
-        </div>
-
-        <!-- LISTE DES TABLES PLEINE HAUTEUR -->
-        <div id="tables-list" class="flex-1 space-y-2.5 pb-6"></div>
+        <!-- LISTE SERRÉE DES TABLES -->
+        <div id="tables-list" class="flex-1 pb-6"></div>
       </div>
 
     </div>
@@ -430,37 +416,36 @@
     <!-- POPUP MENU (1 à 10 PERSONNES)              -->
     <!-- ========================================== -->
     <div id="picker-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div class="bg-[#22080E] border-2 border-amber-400/40 rounded-3xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+      <div class="bg-[#22080E] border-2 border-amber-400/40 rounded-3xl p-4 w-full max-w-xs shadow-2xl space-y-3">
         <div class="text-center">
-          <div id="picker-title-badge" class="inline-block text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 mb-1">Nombre de personnes</div>
-          <div id="picker-guest-name" class="text-lg font-black text-white mt-0.5">NOM Prénom</div>
-          <p class="text-sm text-white/70 mt-0.5">Touchez un chiffre de 1 à 10 :</p>
+          <div id="picker-title-badge" class="inline-block text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300">Nombre de personnes</div>
+          <div id="picker-guest-name" class="text-base font-black text-white mt-1">NOM Prénom</div>
         </div>
 
-        <div class="grid grid-cols-5 gap-2">
-          <button onclick="confirmPickerCount(1)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">1</button>
-          <button onclick="confirmPickerCount(2)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">2</button>
-          <button onclick="confirmPickerCount(3)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">3</button>
-          <button onclick="confirmPickerCount(4)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">4</button>
-          <button onclick="confirmPickerCount(5)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">5</button>
-          <button onclick="confirmPickerCount(6)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">6</button>
-          <button onclick="confirmPickerCount(7)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">7</button>
-          <button onclick="confirmPickerCount(8)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">8</button>
-          <button onclick="confirmPickerCount(9)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">9</button>
-          <button onclick="confirmPickerCount(10)" class="ios-btn py-3.5 rounded-2xl bg-emerald-600 text-white font-black text-base shadow">10</button>
+        <div class="grid grid-cols-5 gap-1.5">
+          <button onclick="confirmPickerCount(1)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">1</button>
+          <button onclick="confirmPickerCount(2)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">2</button>
+          <button onclick="confirmPickerCount(3)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">3</button>
+          <button onclick="confirmPickerCount(4)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">4</button>
+          <button onclick="confirmPickerCount(5)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">5</button>
+          <button onclick="confirmPickerCount(6)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">6</button>
+          <button onclick="confirmPickerCount(7)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">7</button>
+          <button onclick="confirmPickerCount(8)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">8</button>
+          <button onclick="confirmPickerCount(9)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">9</button>
+          <button onclick="confirmPickerCount(10)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">10</button>
         </div>
 
-        <div id="picker-cancel-entry-wrap" class="hidden pt-2 border-t border-white/10 space-y-2">
-          <button onclick="confirmPickerCount(0)" class="ios-btn w-full py-3 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 font-extrabold text-sm">
-            ↩️ Remettre en attente (Non arrivé)
+        <div id="picker-cancel-entry-wrap" class="hidden pt-2 border-t border-white/10 space-y-1.5">
+          <button onclick="confirmPickerCount(0)" class="ios-btn w-full py-2.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/40 font-extrabold text-xs">
+            ↩️ Remettre en non arrivé (0)
           </button>
-          <button onclick="deleteGuestFromModal()" class="ios-btn w-full py-3 rounded-2xl bg-rose-600/25 text-rose-300 border border-rose-500/40 font-extrabold text-sm">
-            🗑️ Supprimer définitivement cet invité
+          <button onclick="deleteGuestFromModal()" class="ios-btn w-full py-2.5 rounded-xl bg-rose-600/25 text-rose-300 border border-rose-500/40 font-extrabold text-xs">
+            🗑️ Supprimer cet invité
           </button>
         </div>
 
-        <button onclick="closePickerModal()" class="ios-btn w-full py-3 rounded-2xl bg-white/10 text-sm font-bold text-white/80">
-          Annuler
+        <button onclick="closePickerModal()" class="ios-btn w-full py-2.5 rounded-xl bg-white/10 text-xs font-bold text-white/80">
+          Fermer
         </button>
       </div>
     </div>
@@ -479,37 +464,39 @@
       steven:  'Steven',
       gabriel: 'Gabriel',
       cynthia: 'Cynthia',
-      physio:  'Physio / Sécu'
+      physio:  'Physio'
     };
 
     const HOST_THEMES = {
       steven: {
-        headerGrad: 'from-[#6B0B14] to-[#34060B]',
+        headerGrad: 'from-[#6B0B14] to-[#2D0509]',
         badgeBg: 'bg-rose-500/20 text-rose-200 border-rose-400/40',
-        tabActive: 'bg-gradient-to-r from-rose-500 to-[#7A1220] text-white shadow-lg border border-rose-300/40',
-        accentText: 'text-rose-300',
-        avatarBg: 'from-rose-600 to-[#56070C]'
+        tabActive: 'bg-gradient-to-r from-rose-500 to-[#7A1220] text-white shadow border border-rose-300/40',
+        dot: 'bg-rose-400'
       },
       gabriel: {
-        headerGrad: 'from-[#0F2952] to-[#09152B]',
+        headerGrad: 'from-[#0F2952] to-[#081326]',
         badgeBg: 'bg-sky-500/20 text-sky-200 border-sky-400/40',
-        tabActive: 'bg-gradient-to-r from-sky-500 to-blue-700 text-white shadow-lg border border-sky-300/40',
-        accentText: 'text-sky-300',
-        avatarBg: 'from-sky-500 to-blue-800'
+        tabActive: 'bg-gradient-to-r from-sky-500 to-blue-700 text-white shadow border border-sky-300/40',
+        dot: 'bg-sky-400'
       },
       cynthia: {
-        headerGrad: 'from-[#4A1259] to-[#24082E]',
+        headerGrad: 'from-[#4A1259] to-[#200629]',
         badgeBg: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-400/40',
-        tabActive: 'bg-gradient-to-r from-fuchsia-500 to-purple-700 text-white shadow-lg border border-fuchsia-300/40',
-        accentText: 'text-fuchsia-300',
-        avatarBg: 'from-fuchsia-500 to-purple-800'
+        tabActive: 'bg-gradient-to-r from-fuchsia-500 to-purple-700 text-white shadow border border-fuchsia-300/40',
+        dot: 'bg-fuchsia-400'
+      },
+      arrives: {
+        headerGrad: 'from-[#064E3B] to-[#04241C]',
+        badgeBg: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40',
+        tabActive: 'bg-gradient-to-r from-emerald-400 to-teal-500 text-[#04241C] shadow border border-emerald-200',
+        dot: 'bg-emerald-400'
       },
       tables: {
-        headerGrad: 'from-[#5C3409] to-[#291504]',
+        headerGrad: 'from-[#5C3409] to-[#241203]',
         badgeBg: 'bg-amber-500/20 text-amber-200 border-amber-400/40',
-        tabActive: 'bg-gradient-to-r from-amber-400 to-amber-500 text-[#2B0508] shadow-lg border border-amber-200',
-        accentText: 'text-amber-300',
-        avatarBg: 'from-amber-500 to-yellow-700'
+        tabActive: 'bg-gradient-to-r from-amber-400 to-amber-500 text-[#2B0508] shadow border border-amber-200',
+        dot: 'bg-amber-400'
       }
     };
 
@@ -518,20 +505,20 @@
     let selectedLoginProfile = 'steven';
     let currentUser = null;
     let activeHost = 'steven';
-    let currentMainView = 'listes'; // 'listes' | 'tables'
+    let currentMainView = 'listes'; // 'listes' | 'arrives' | 'tables'
+    let arrivesHostFilter = 'all';  // 'all' | 'steven' | 'gabriel' | 'cynthia'
 
-    // Options de saisie rapide
     let quickFav = true;
     let quickPlannedCount = 1;
-    let listFilter = 'all'; // 'all' | 'fav' | 'waiting' | 'present'
-    let groupByFav = true;  // true = Favoris en haut (triés A-Z) puis Reste (trié A-Z)
+    let listFilter = 'all'; // 'all' | 'present' | 'waiting' | 'fav'
+    let groupByFav = true;
     let tableFavInput = true;
 
     let pressTimer = null;
     let longPressTriggered = false;
     let pickerTargetId = null;
     let pickerTargetHost = null;
-    let pickerMode = 'arrive'; // 'arrive' | 'planned' | 'quick'
+    let pickerMode = 'arrive';
 
     let guests = {
       steven: [
@@ -582,7 +569,6 @@
       return currentUser === 'steven' || currentUser === 'gabriel';
     }
 
-    // Tri alphabétique A -> Z sur le Nom (puis Prénom)
     function sortAlpha(list) {
       return [...list].sort((a, b) => {
         const keyA = ((a.nom || '') + ' ' + (a.prenom || '')).trim().toLowerCase();
@@ -597,7 +583,6 @@
       return /[A-Z]/.test(first) ? first : '#';
     }
 
-    // Couleur d'avatar ludique selon la lettre
     function getLetterColor(letter) {
       const palette = [
         'from-rose-500 to-pink-700 text-white',
@@ -618,7 +603,7 @@
       const promptText = document.getElementById('pwd-prompt-text');
 
       if (profile === 'physio') {
-        promptText.innerHTML = 'Accès direct <strong class="text-emerald-300">Physio / Sécu</strong> (Sans code) :';
+        promptText.innerHTML = 'Accès direct <strong class="text-emerald-300">Physio / Sécu</strong> :';
         pwdInput.classList.add('hidden');
       } else {
         promptText.innerHTML = `Code PIN pour <strong id="login-target-name" class="text-amber-300 underline">${PROFILE_LABELS[profile]}</strong> :`;
@@ -630,9 +615,9 @@
       ['steven', 'gabriel', 'cynthia', 'physio'].forEach(p => {
         const btn = document.getElementById('prof-' + p);
         if (p === profile) {
-          btn.className = 'ios-btn p-4 rounded-2xl bg-[#FAF5EE] text-[#56070C] border-2 border-amber-300 flex items-center gap-3 shadow-lg';
+          btn.className = 'ios-btn p-3.5 rounded-2xl bg-[#FAF5EE] text-[#56070C] border-2 border-amber-300 flex items-center gap-2.5 shadow-lg';
         } else {
-          btn.className = 'ios-btn p-4 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-3';
+          btn.className = 'ios-btn p-3.5 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center gap-2.5';
         }
       });
     }
@@ -662,20 +647,26 @@
       const tabGabriel = document.getElementById('tab-gabriel');
       const tabCynthia = document.getElementById('tab-cynthia');
       const navBar = document.getElementById('nav-bar');
+      const arrHostFilters = document.getElementById('arrives-host-filters');
 
       if (currentUser === 'cynthia') {
         tabSteven.classList.add('hidden');
         tabGabriel.classList.add('hidden');
         tabCynthia.classList.remove('hidden');
-        navBar.className = 'grid grid-cols-2 gap-1.5 bg-black/35 p-1.5 rounded-2xl mt-3 border border-white/10';
+        navBar.className = 'grid grid-cols-3 gap-1 bg-black/40 p-1 rounded-xl mt-2 border border-white/10';
+        arrHostFilters.classList.add('hidden');
+        arrivesHostFilter = 'cynthia';
         selectHost('cynthia');
       } else {
         tabSteven.classList.remove('hidden');
         tabGabriel.classList.remove('hidden');
         tabCynthia.classList.remove('hidden');
-        navBar.className = 'grid grid-cols-4 gap-1.5 bg-black/35 p-1.5 rounded-2xl mt-3 border border-white/10';
+        navBar.className = 'grid grid-cols-5 gap-1 bg-black/40 p-1 rounded-xl mt-2 border border-white/10';
+        arrHostFilters.classList.remove('hidden');
+        arrivesHostFilter = 'all';
         selectHost(currentUser === 'gabriel' ? 'gabriel' : 'steven');
       }
+      renderJaugeBadge();
     }
 
     function logout() {
@@ -689,17 +680,17 @@
     function applyHeaderTheme(themeKey) {
       const theme = HOST_THEMES[themeKey] || HOST_THEMES.steven;
       const header = document.getElementById('app-header');
-      header.className = `bg-gradient-to-b ${theme.headerGrad} text-[#FAF5EE] px-4 pt-3 pb-3.5 safe-top border-b border-white/10 sticky top-0 z-30 shadow-lg transition-colors duration-300`;
+      header.className = `bg-gradient-to-b ${theme.headerGrad} text-[#FAF5EE] px-3 pt-2 pb-2.5 safe-top border-b border-white/10 sticky top-0 z-30 shadow-md transition-colors duration-200`;
     }
 
     function updateNavTabsUI(selectedTab) {
-      ['steven', 'gabriel', 'cynthia', 'tables'].forEach(t => {
+      ['steven', 'gabriel', 'cynthia', 'arrives', 'tables'].forEach(t => {
         const btn = document.getElementById('tab-' + t);
         const theme = HOST_THEMES[t];
         if (t === selectedTab) {
-          btn.className = `ios-spring py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-1.5 ${theme.tabActive}`;
+          btn.className = `ios-spring py-1.5 rounded-lg text-xs font-black flex items-center justify-center gap-1 ${theme.tabActive}`;
         } else {
-          btn.className = 'ios-spring py-2.5 rounded-xl text-sm font-bold text-white/75 hover:text-white flex items-center justify-center gap-1.5';
+          btn.className = 'ios-spring py-1.5 rounded-lg text-xs font-bold text-white/75 hover:text-white flex items-center justify-center gap-1';
         }
         if (currentUser === 'cynthia' && (t === 'steven' || t === 'gabriel')) {
           btn.classList.add('hidden');
@@ -714,28 +705,33 @@
       activeHost = host;
       currentMainView = 'listes';
       document.getElementById('view-listes').classList.remove('hidden');
+      document.getElementById('view-arrives').classList.add('hidden');
       document.getElementById('view-tables').classList.add('hidden');
 
-      const theme = HOST_THEMES[host];
       applyHeaderTheme(host);
       updateNavTabsUI(host);
-
       document.getElementById('app-subtitle').textContent = `Liste ${PROFILE_LABELS[host]} (A-Z)`;
-      const addBadge = document.getElementById('add-host-badge');
-      addBadge.textContent = `Liste ${PROFILE_LABELS[host]}`;
-      addBadge.className = `text-xs font-extrabold px-2.5 py-0.5 rounded-lg border ${theme.badgeBg}`;
 
       renderGuests();
     }
 
     function switchMain(view) {
-      if (view === 'tables') {
-        currentMainView = 'tables';
-        document.getElementById('view-listes').classList.add('hidden');
+      currentMainView = view;
+      document.getElementById('view-listes').classList.add('hidden');
+      document.getElementById('view-arrives').classList.add('hidden');
+      document.getElementById('view-tables').classList.add('hidden');
+
+      if (view === 'arrives') {
+        document.getElementById('view-arrives').classList.remove('hidden');
+        applyHeaderTheme('arrives');
+        updateNavTabsUI('arrives');
+        document.getElementById('app-subtitle').textContent = '✅ Tous les Invités Arrivés';
+        renderArrivesView();
+      } else if (view === 'tables') {
         document.getElementById('view-tables').classList.remove('hidden');
         applyHeaderTheme('tables');
         updateNavTabsUI('tables');
-        document.getElementById('app-subtitle').textContent = '🍾 Tables VIP (Liste Autonome)';
+        document.getElementById('app-subtitle').textContent = '🍾 Tables VIP (Autonome)';
 
         const hostSelect = document.getElementById('table-host-input');
         if (currentUser === 'cynthia') {
@@ -745,52 +741,40 @@
           hostSelect.disabled = false;
           hostSelect.value = activeHost || 'steven';
         }
-
         renderTablesView();
       }
     }
 
     // ==========================================
-    // SAISIE ULTRA FLUIDE D'INVITÉ
+    // SAISIE ULTRA FLUIDE D'INVITÉ (COMPACT)
     // ==========================================
     function toggleQuickFav() {
       quickFav = !quickFav;
       const btn = document.getElementById('quick-fav-btn');
       if (quickFav) {
-        btn.className = 'ios-btn w-12 h-12 rounded-2xl bg-amber-400/25 border-2 border-amber-400 text-2xl flex items-center justify-center shrink-0 shadow';
+        btn.className = 'ios-btn w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400 text-base flex items-center justify-center shrink-0';
         btn.textContent = '⭐';
       } else {
-        btn.className = 'ios-btn w-12 h-12 rounded-2xl bg-white/5 border border-white/20 text-2xl flex items-center justify-center shrink-0 opacity-60';
+        btn.className = 'ios-btn w-9 h-9 rounded-xl bg-white/5 border border-white/15 text-base flex items-center justify-center shrink-0 opacity-60';
         btn.textContent = '☆';
       }
     }
 
-    function setQuickCount(n) {
-      quickPlannedCount = n;
-      [1, 2, 3, 4, 5].forEach(val => {
-        const el = document.getElementById('qcount-' + val);
-        if (val === n) {
-          el.className = 'ios-btn w-8 h-8 rounded-xl text-xs font-black bg-amber-400 text-[#2B0508] shadow';
-        } else {
-          el.className = 'ios-btn w-8 h-8 rounded-xl text-xs font-bold bg-white/10 text-white/80';
-        }
-      });
-      const moreBtn = document.getElementById('qcount-more');
-      if (n > 5) {
-        moreBtn.className = 'ios-btn px-2.5 h-8 rounded-xl text-xs font-black bg-amber-400 text-[#2B0508] shadow';
-        moreBtn.textContent = `${n}p`;
-      } else {
-        moreBtn.className = 'ios-btn px-2 h-8 rounded-xl text-xs font-bold bg-white/10 text-amber-300';
-        moreBtn.textContent = '6-10';
-      }
+    function cycleQuickCount() {
+      const cycle = [1, 2, 3, 4, 5, 6, 8, 10];
+      const idx = cycle.indexOf(quickPlannedCount);
+      quickPlannedCount = cycle[(idx + 1) % cycle.length];
+      updateQuickCountBtn();
     }
 
-    function promptCustomQuickCount() {
-      pickerMode = 'quick';
-      document.getElementById('picker-title-badge').textContent = 'Personnes prévues à l\'ajout';
-      document.getElementById('picker-guest-name').textContent = 'Choisir de 1 à 10 personnes';
-      document.getElementById('picker-cancel-entry-wrap').classList.add('hidden');
-      document.getElementById('picker-modal').classList.remove('hidden');
+    function updateQuickCountBtn() {
+      const btn = document.getElementById('quick-count-btn');
+      btn.textContent = `${quickPlannedCount}p`;
+      if (quickPlannedCount > 1) {
+        btn.className = 'ios-btn h-9 px-2.5 rounded-xl bg-amber-400 text-[#2B0508] text-xs font-black shrink-0 shadow';
+      } else {
+        btn.className = 'ios-btn h-9 px-2.5 rounded-xl bg-white/10 border border-white/15 text-xs font-black text-amber-300 shrink-0';
+      }
     }
 
     function clearQuickInput() {
@@ -811,7 +795,6 @@
       }
     });
 
-    // Découpe intelligente "Cohen Sarah" -> Nom: COHEN, Prénom: Sarah
     function parseFullName(raw) {
       const clean = raw.trim().replace(/\s+/g, ' ');
       if (!clean) return null;
@@ -847,7 +830,7 @@
         if (createdId) {
           openPickerModal(activeHost, createdId, 'planned');
         }
-      }, 1400);
+      }, 1200);
     }
 
     function endAddBtnPress(event) {
@@ -894,11 +877,8 @@
 
       inputEl.value = '';
       document.getElementById('clear-quick-btn').classList.add('hidden');
-      setQuickCount(1);
-
-      const fb = document.getElementById('add-feedback');
-      fb.classList.remove('hidden');
-      setTimeout(() => fb.classList.add('hidden'), 1500);
+      quickPlannedCount = 1;
+      updateQuickCountBtn();
 
       saveAppState();
       renderGuests();
@@ -910,20 +890,20 @@
     }
 
     // ==========================================
-    // GESTION DES FILTRES ET AFFICHAGE A-Z
+    // FILTRES ET LISTE COMPACTE STYLE SNAP
     // ==========================================
     function setListFilter(filter) {
       listFilter = filter;
       const styles = {
-        all:     { active: 'bg-white text-[#2B0508] shadow font-extrabold', idle: 'bg-white/10 text-white/80 font-bold' },
-        fav:     { active: 'bg-amber-400 text-[#2B0508] shadow font-extrabold', idle: 'bg-amber-500/15 text-amber-300 border border-amber-400/30 font-bold' },
-        waiting: { active: 'bg-white text-[#2B0508] shadow font-extrabold', idle: 'bg-white/10 text-white/80 font-bold' },
-        present: { active: 'bg-emerald-400 text-[#062E1E] shadow font-extrabold', idle: 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 font-bold' }
+        all:     { active: 'bg-white text-[#2B0508] shadow font-extrabold', idle: 'text-white/75 font-bold' },
+        present: { active: 'bg-emerald-400 text-[#05291A] shadow font-extrabold', idle: 'text-emerald-300 font-bold' },
+        waiting: { active: 'bg-white text-[#2B0508] shadow font-extrabold', idle: 'text-white/75 font-bold' },
+        fav:     { active: 'bg-amber-400 text-[#2B0508] shadow font-extrabold', idle: 'text-amber-300 font-bold' }
       };
 
-      ['all', 'fav', 'waiting', 'present'].forEach(f => {
+      ['all', 'present', 'waiting', 'fav'].forEach(f => {
         const btn = document.getElementById('filter-' + f);
-        btn.className = `ios-btn px-3 py-1.5 rounded-xl text-xs shrink-0 ${f === filter ? styles[f].active : styles[f].idle}`;
+        btn.className = `ios-btn py-1.5 rounded-lg text-xs text-center ${f === filter ? styles[f].active : styles[f].idle}`;
       });
       renderGuests();
     }
@@ -932,11 +912,11 @@
       groupByFav = !groupByFav;
       const btn = document.getElementById('btn-group-fav');
       if (groupByFav) {
-        btn.className = 'ios-btn px-2.5 py-1.5 rounded-xl text-xs font-extrabold bg-amber-400/25 text-amber-300 border border-amber-400/50 shrink-0';
+        btn.className = 'ios-btn px-2.5 h-9 rounded-xl text-xs font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/40 shrink-0';
         btn.textContent = '⭐ En tête';
       } else {
-        btn.className = 'ios-btn px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white/10 text-white/70 border border-white/15 shrink-0';
-        btn.textContent = '🔤 Pur A-Z';
+        btn.className = 'ios-btn px-2.5 h-9 rounded-xl text-xs font-bold bg-white/10 text-white/70 border border-white/15 shrink-0';
+        btn.textContent = '🔤 A-Z';
       }
       renderGuests();
     }
@@ -952,110 +932,80 @@
       const query = (document.getElementById('search-input').value || '').toLowerCase().trim();
       const rawHostList = guests[activeHost] || [];
 
-      // Compteurs globaux de la liste active
       const totalFavs = rawHostList.filter(g => g.fav).length;
       const totalWaiting = rawHostList.filter(g => !g.entered).length;
       const totalPresents = rawHostList.filter(g => g.entered);
       const totalPresentPax = totalPresents.reduce((acc, g) => acc + (g.partyCount || 1), 0);
 
-      document.getElementById('badge-fav-count').textContent = totalFavs;
+      document.getElementById('badge-all-count').textContent = rawHostList.length;
+      document.getElementById('badge-pres-count').textContent = `${totalPresents.length}`;
       document.getElementById('badge-wait-count').textContent = totalWaiting;
-      document.getElementById('badge-pres-count').textContent = `${totalPresents.length} (${totalPresentPax}p)`;
+      document.getElementById('badge-fav-count').textContent = totalFavs;
 
-      // Filtrage par recherche
       let filtered = rawHostList.filter(g =>
         (g.nom + ' ' + g.prenom).toLowerCase().includes(query) ||
         (g.prenom + ' ' + g.nom).toLowerCase().includes(query)
       );
 
-      // Filtrage par onglet de statut
-      if (listFilter === 'fav') {
-        filtered = filtered.filter(g => g.fav);
+      if (listFilter === 'present') {
+        filtered = filtered.filter(g => g.entered);
       } else if (listFilter === 'waiting') {
         filtered = filtered.filter(g => !g.entered);
-      } else if (listFilter === 'present') {
-        filtered = filtered.filter(g => g.entered);
+      } else if (listFilter === 'fav') {
+        filtered = filtered.filter(g => g.fav);
       }
 
       const sortedAll = sortAlpha(filtered);
 
-      // Barre d'index alphabétique A-Z
+      // Barre d'index A-Z ultra compacte
       const presentLetters = new Set(sortedAll.map(g => getInitialLetter(g)));
       const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
       const alphaBar = document.getElementById('alpha-bar');
       alphaBar.innerHTML = alphabet.map(l => {
         const has = presentLetters.has(l);
         return has
-          ? `<button onclick="scrollToLetter('${l}')" class="ios-btn w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/40 font-black text-xs shrink-0 flex items-center justify-center">${l}</button>`
-          : `<span class="w-6 h-7 text-white/20 font-bold text-xs shrink-0 flex items-center justify-center">${l}</span>`;
+          ? `<button onclick="scrollToLetter('${l}')" class="ios-btn w-6 h-6 rounded-md bg-amber-400/20 text-amber-300 font-black text-[11px] shrink-0 flex items-center justify-center">${l}</button>`
+          : `<span class="w-5 h-6 text-white/20 font-bold text-[10px] shrink-0 flex items-center justify-center">${l}</span>`;
       }).join('');
 
       const container = document.getElementById('guests-container');
 
       if (!sortedAll.length) {
         container.innerHTML = `
-          <div class="bg-[#1D070C] border border-white/10 rounded-3xl p-8 text-center space-y-2">
-            <div class="text-3xl">✨</div>
-            <div class="text-base font-bold text-white">Aucun invité trouvé</div>
-            <div class="text-sm text-white/60">Utilisez la barre d'ajout rapide ci-dessus pour ajouter vos invités par ordre alphabétique.</div>
+          <div class="bg-[#1A060B] border border-white/10 rounded-2xl p-6 text-center space-y-1">
+            <div class="text-sm font-bold text-white">Aucun invité dans cette vue</div>
+            <div class="text-xs text-white/50">Changez de filtre ou ajoutez un invité ci-dessus.</div>
           </div>
         `;
         return;
       }
 
       if (groupByFav && listFilter === 'all') {
-        const favsWaiting = sortedAll.filter(g => g.fav && !g.entered);
-        const restWaiting = sortedAll.filter(g => !g.fav && !g.entered);
-        const arrivedList = sortedAll.filter(g => g.entered);
-
+        const favs = sortedAll.filter(g => g.fav);
+        const others = sortedAll.filter(g => !g.fav);
         let html = '';
 
-        // Section 1 : Favoris A-Z
-        if (favsWaiting.length > 0) {
+        if (favs.length > 0) {
           html += `
-            <div class="space-y-2">
-              <div class="flex items-center justify-between px-1">
-                <span class="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-                  <span>⭐ Favoris • Invités Proches (A → Z)</span>
-                </span>
-                <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300">${favsWaiting.length}</span>
+            <div>
+              <div class="flex items-center justify-between px-2 py-1">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-300">⭐ Favoris (${favs.length})</span>
               </div>
-              <div class="space-y-2">
-                ${renderAlphabeticalRows(favsWaiting, true)}
+              <div class="bg-[#1A060B] border border-amber-400/35 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
+                ${favs.map(g => snapRowHTML(g, activeHost, false)).join('')}
               </div>
             </div>
           `;
         }
 
-        // Section 2 : Reste de la liste A-Z
-        if (restWaiting.length > 0) {
+        if (others.length > 0) {
           html += `
-            <div class="space-y-2">
-              <div class="flex items-center justify-between px-1 pt-1">
-                <span class="text-xs font-black uppercase tracking-wider text-white/75">
-                  🔤 Liste Alphabétique (A → Z)
-                </span>
-                <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-white/10 text-white/80">${restWaiting.length}</span>
+            <div>
+              <div class="flex items-center justify-between px-2 py-1">
+                <span class="text-[11px] font-black uppercase tracking-wider text-white/60">🔤 Ordre Alphabétique (${others.length})</span>
               </div>
-              <div class="space-y-2">
-                ${renderAlphabeticalRows(restWaiting, true)}
-              </div>
-            </div>
-          `;
-        }
-
-        // Section 3 : Déjà arrivés A-Z
-        if (arrivedList.length > 0) {
-          html += `
-            <div class="space-y-2">
-              <div class="flex items-center justify-between px-1 pt-2">
-                <span class="text-xs font-black uppercase tracking-wider text-emerald-400">
-                  ✅ Présents / Arrivés (A → Z)
-                </span>
-                <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">${arrivedList.length} (${totalPresentPax} pers.)</span>
-              </div>
-              <div class="space-y-2">
-                ${renderAlphabeticalRows(arrivedList, false)}
+              <div class="bg-[#1A060B] border border-white/12 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
+                ${renderSnapAlphabeticalBlock(others, activeHost)}
               </div>
             </div>
           `;
@@ -1063,127 +1013,197 @@
 
         container.innerHTML = html;
       } else {
-        // Affichage unifié 100% alphabétique A-Z avec séparateurs de lettres
         container.innerHTML = `
-          <div class="space-y-2">
-            ${renderAlphabeticalRows(sortedAll, true)}
+          <div class="bg-[#1A060B] border border-white/12 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
+            ${renderSnapAlphabeticalBlock(sortedAll, activeHost)}
           </div>
         `;
       }
     }
 
-    function renderAlphabeticalRows(list, showLetterHeaders) {
+    function renderSnapAlphabeticalBlock(list, hostKey) {
       let currentLetter = null;
       let assignedAnchors = new Set();
       let out = '';
 
       list.forEach(g => {
         const letter = getInitialLetter(g);
-        if (showLetterHeaders && letter !== currentLetter) {
+        if (letter !== currentLetter) {
           currentLetter = letter;
           const anchorId = !assignedAnchors.has(letter) ? `id="letter-sec-${letter}"` : '';
           assignedAnchors.add(letter);
           out += `
-            <div ${anchorId} class="flex items-center gap-2 pt-2 pb-0.5 px-1 scroll-mt-36">
-              <span class="w-6 h-6 rounded-lg bg-white/15 text-amber-300 font-black text-xs flex items-center justify-center shadow">${letter}</span>
-              <div class="h-px flex-1 bg-gradient-to-r from-white/20 to-transparent"></div>
+            <div ${anchorId} class="bg-black/45 px-3 py-1 flex items-center justify-between text-[11px] font-black text-amber-300 tracking-wider scroll-mt-32">
+              <span>${letter}</span>
             </div>
           `;
         }
-        out += rowHTML(g);
+        out += snapRowHTML(g, hostKey, false);
       });
       return out;
     }
 
-    function rowHTML(g) {
+    // Ligne ultra-serrée style Snapchat
+    function snapRowHTML(g, hostKey, showHostBadge = false) {
       const admin = isAdmin();
       const isFav = !!g.fav;
       const letter = getInitialLetter(g);
       const avatarColor = isFav
-        ? 'from-amber-300 via-amber-400 to-orange-500 text-[#2B0508] ring-2 ring-amber-300/60'
+        ? 'from-amber-300 to-orange-500 text-[#2B0508]'
         : getLetterColor(letter);
 
-      const cardStyle = g.entered
-        ? 'bg-gradient-to-r from-emerald-950/60 to-[#18070B] border-emerald-500/40'
+      const rowBg = g.entered
+        ? 'bg-emerald-950/35'
         : isFav
-          ? 'bg-gradient-to-r from-amber-500/15 via-[#240910] to-[#1A060B] border-amber-400/45 shadow-md'
-          : 'bg-[#1D070C] border-white/12';
+          ? 'bg-amber-500/[0.06]'
+          : '';
 
-      let actionHTML = '';
+      const hostBadgeHTML = showHostBadge
+        ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${HOST_THEMES[hostKey].badgeBg}">${PROFILE_LABELS[hostKey]}</span>`
+        : '';
+
+      let rightActionHTML = '';
       if (!g.entered) {
         const pCount = g.plannedCount && g.plannedCount > 1 ? `${g.plannedCount}p` : '+1';
-        actionHTML = `
-          <div class="flex items-center gap-1.5 shrink-0">
+        rightActionHTML = `
+          <div class="flex items-center gap-1 shrink-0">
             <button
-              onmousedown="startArrivePress(${g.id}, event)"
-              onmouseup="endArrivePress(${g.id}, event)"
+              onmousedown="startArrivePress('${hostKey}', ${g.id}, event)"
+              onmouseup="endArrivePress('${hostKey}', ${g.id}, event)"
               onmouseleave="cancelArrivePress(${g.id})"
-              ontouchstart="startArrivePress(${g.id}, event)"
-              ontouchend="endArrivePress(${g.id}, event)"
+              ontouchstart="startArrivePress('${hostKey}', ${g.id}, event)"
+              ontouchend="endArrivePress('${hostKey}', ${g.id}, event)"
               ontouchcancel="cancelArrivePress(${g.id})"
               oncontextmenu="return false;"
-              class="ios-btn relative overflow-hidden px-4 py-2.5 rounded-2xl text-sm font-black bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md flex items-center gap-1">
-              <span id="hold-bar-${g.id}" class="hidden absolute left-0 top-0 bottom-0 bg-amber-400/60 pointer-events-none"></span>
-              <span class="relative z-10">Arrivé (${pCount})</span>
+              class="ios-btn relative overflow-hidden px-3 py-1.5 rounded-full text-xs font-black bg-emerald-500 text-[#04241C] shadow-sm">
+              <span id="hold-bar-${g.id}" class="hidden absolute left-0 top-0 bottom-0 bg-amber-300/70 pointer-events-none"></span>
+              <span class="relative z-10">Arrivé ${pCount}</span>
             </button>
-            ${admin ? `<button onclick="deleteGuest('${activeHost}', ${g.id})" class="ios-btn w-9 h-9 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 flex items-center justify-center text-sm font-black" title="Supprimer">✕</button>` : ''}
+            ${admin ? `<button onclick="deleteGuest('${hostKey}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-white/5 text-white/40 hover:text-rose-400 flex items-center justify-center text-xs font-bold">✕</button>` : ''}
           </div>
         `;
       } else {
-        actionHTML = `
-          <div class="flex items-center gap-1.5 shrink-0">
+        rightActionHTML = `
+          <div class="flex items-center gap-1 shrink-0">
             <button
-              ${admin ? `onclick="openPickerModal('${activeHost}', ${g.id}, 'arrive')"` : 'disabled'}
-              class="ios-btn px-3.5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-1.5 ${
-                admin
-                  ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50'
-                  : 'bg-emerald-800/40 text-emerald-200/80'
-              }">
-              <span>✓ ${g.partyCount} pers.</span>
-              ${admin ? '<span class="text-xs opacity-80">✎</span>' : ''}
+              ${admin ? `onclick="openPickerModal('${hostKey}', ${g.id}, 'arrive')"` : 'disabled'}
+              class="ios-btn px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+              <span>✅ ${g.partyCount}p</span>
+              ${admin ? '<span class="text-[10px] opacity-75">✎</span>' : ''}
             </button>
-            ${admin ? `<button onclick="deleteGuest('${activeHost}', ${g.id})" class="ios-btn w-9 h-9 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 flex items-center justify-center text-sm font-black" title="Supprimer">✕</button>` : ''}
+            ${admin ? `<button onclick="deleteGuest('${hostKey}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-white/5 text-white/40 hover:text-rose-400 flex items-center justify-center text-xs font-bold">✕</button>` : ''}
           </div>
         `;
       }
 
       return `
-        <div class="border ${cardStyle} rounded-2xl px-3.5 py-3 flex items-center justify-between gap-2.5 transition-all">
-          <div class="flex items-center gap-3 min-w-0">
-            <button onclick="toggleFav(${g.id})" class="ios-btn relative w-11 h-11 rounded-2xl bg-gradient-to-br ${avatarColor} font-black text-base flex items-center justify-center shrink-0 shadow" title="Basculer Favori ⭐">
-              <span>${letter}</span>
-              <span class="absolute -top-1.5 -right-1.5 text-sm leading-none drop-shadow">${isFav ? '⭐' : '☆'}</span>
+        <div class="flex items-center justify-between px-2.5 py-2 gap-2 ${rowBg}">
+          <div class="flex items-center gap-2 min-w-0">
+            <button onclick="toggleFav('${hostKey}', ${g.id})" class="ios-btn text-base leading-none shrink-0" title="Favori ⭐">
+              ${isFav ? '⭐' : '<span class="opacity-30">☆</span>'}
             </button>
 
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor} font-black text-xs flex items-center justify-center shrink-0">
+              ${letter}
+            </div>
+
             <div class="min-w-0">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-base font-black text-white tracking-tight uppercase">${g.nom}</span>
-                <span class="text-base font-bold text-amber-100/95 truncate">${g.prenom || ''}</span>
+              <div class="flex items-center gap-1.5 truncate">
+                <span class="text-[15px] font-black text-white uppercase tracking-tight">${g.nom}</span>
+                <span class="text-[15px] font-semibold text-amber-100/95 truncate">${g.prenom || ''}</span>
               </div>
-              <div class="flex items-center gap-2 mt-0.5 text-xs font-semibold">
+              <div class="flex items-center gap-1.5 text-[11px] font-semibold leading-tight">
+                ${hostBadgeHTML}
                 ${
                   g.entered
-                    ? `<span class="text-emerald-300 font-bold">✅ Présent (${g.partyCount} pers.)</span>`
-                    : isFav
-                      ? `<span class="text-amber-300 font-bold">⭐ Favori proche</span>`
-                      : `<span class="text-white/55">Liste ${PROFILE_LABELS[activeHost]}</span>`
+                    ? `<span class="text-emerald-400 font-extrabold">● Arrivé (${g.partyCount} pers.)</span>`
+                    : `<span class="text-white/45">${isFav ? 'Favori proche' : 'En attente'}${g.plannedCount > 1 ? ' • Prévu ' + g.plannedCount + 'p' : ''}</span>`
                 }
-                ${!g.entered && g.plannedCount > 1 ? `<span class="px-2 py-0.5 rounded-md bg-white/10 text-amber-200 font-bold">Prévu: ${g.plannedCount} pers.</span>` : ''}
               </div>
             </div>
           </div>
 
-          ${actionHTML}
+          ${rightActionHTML}
         </div>
       `;
     }
 
-    function toggleFav(id) {
-      const item = guests[activeHost].find(g => g.id === id);
+    // ==========================================
+    // VUE DÉDIÉE "✅ ARRIVÉS" (ONGLET ARRIVÉS)
+    // ==========================================
+    function setArrivesHostFilter(hFilter) {
+      arrivesHostFilter = hFilter;
+      const styles = {
+        all:     { active: 'bg-emerald-400 text-[#05291A] shadow font-extrabold', idle: 'text-white/75 font-bold' },
+        steven:  { active: 'bg-rose-500 text-white shadow font-extrabold', idle: 'text-rose-300 font-bold' },
+        gabriel: { active: 'bg-sky-500 text-white shadow font-extrabold', idle: 'text-sky-300 font-bold' },
+        cynthia: { active: 'bg-fuchsia-500 text-white shadow font-extrabold', idle: 'text-fuchsia-300 font-bold' }
+      };
+      ['all', 'steven', 'gabriel', 'cynthia'].forEach(f => {
+        const btn = document.getElementById('arr-filter-' + f);
+        if (btn) {
+          btn.className = `ios-btn py-1.5 rounded-lg text-xs ${f === hFilter ? styles[f].active : styles[f].idle}`;
+        }
+      });
+      renderArrivesView();
+    }
+
+    function renderArrivesView() {
+      const allowedHosts = currentUser === 'cynthia'
+        ? ['cynthia']
+        : (arrivesHostFilter === 'all' ? ['steven', 'gabriel', 'cynthia'] : [arrivesHostFilter]);
+
+      const query = (document.getElementById('arrives-search-input').value || '').toLowerCase().trim();
+
+      let allArrived = [];
+      allowedHosts.forEach(hKey => {
+        (guests[hKey] || []).forEach(g => {
+          if (g.entered) {
+            allArrived.push({ ...g, hostKey: hKey });
+          }
+        });
+      });
+
+      if (query) {
+        allArrived = allArrived.filter(g =>
+          (g.nom + ' ' + g.prenom).toLowerCase().includes(query) ||
+          (g.prenom + ' ' + g.nom).toLowerCase().includes(query)
+        );
+      }
+
+      const sortedArrived = sortAlpha(allArrived);
+      const totalPax = sortedArrived.reduce((sum, g) => sum + (g.partyCount || 1), 0);
+
+      document.getElementById('arrives-summary-title').textContent = `${sortedArrived.length} invité${sortedArrived.length > 1 ? 's' : ''} • ${totalPax} pers.`;
+      document.getElementById('arrives-jauge-big').textContent = `${count} / 200`;
+
+      const container = document.getElementById('arrives-list-container');
+      if (!sortedArrived.length) {
+        container.innerHTML = `
+          <div class="bg-[#1A060B] border border-white/10 rounded-2xl p-6 text-center space-y-1">
+            <div class="text-2xl">✅</div>
+            <div class="text-sm font-bold text-white">Aucun invité arrivé pour le moment</div>
+            <div class="text-xs text-white/50">Dès que vous cliquez sur "Arrivé +1" dans une liste, la personne apparaît ici.</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="bg-[#1A060B] border border-emerald-500/30 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
+          ${sortedArrived.map(g => snapRowHTML(g, g.hostKey, true)).join('')}
+        </div>
+      `;
+    }
+
+    function toggleFav(hostKey, id) {
+      const targetHost = hostKey || activeHost;
+      const item = (guests[targetHost] || []).find(g => g.id === id);
       if (item) {
         item.fav = !item.fav;
         saveAppState();
-        renderGuests();
+        if (currentMainView === 'arrives') renderArrivesView();
+        else renderGuests();
       }
     }
 
@@ -1199,7 +1219,9 @@
       }
       list.splice(idx, 1);
       saveAppState();
-      renderGuests();
+      renderJaugeBadge();
+      if (currentMainView === 'arrives') renderArrivesView();
+      else renderGuests();
     }
 
     function deleteGuestFromModal() {
@@ -1208,9 +1230,9 @@
       closePickerModal();
     }
 
-    function startArrivePress(id, event) {
+    function startArrivePress(hostKey, id, event) {
       if (event && event.type === 'mousedown' && event.button !== 0) return;
-      const item = guests[activeHost].find(g => g.id === id);
+      const item = (guests[hostKey] || []).find(g => g.id === id);
       if (!item) return;
 
       if (item.entered && !isAdmin()) return;
@@ -1229,11 +1251,11 @@
           fillEl.classList.add('hidden');
           fillEl.classList.remove('holding-bar');
         }
-        openPickerModal(activeHost, id, 'arrive');
-      }, 900);
+        openPickerModal(hostKey, id, 'arrive');
+      }, 850);
     }
 
-    function endArrivePress(id, event) {
+    function endArrivePress(hostKey, id, event) {
       clearTimeout(pressTimer);
       const fillEl = document.getElementById('hold-bar-' + id);
       if (fillEl) {
@@ -1246,13 +1268,13 @@
         return;
       }
 
-      const item = guests[activeHost].find(g => g.id === id);
+      const item = (guests[hostKey] || []).find(g => g.id === id);
       if (!item) return;
 
       if (!item.entered) {
-        validateGuestArrival(activeHost, item, item.plannedCount || 1);
+        validateGuestArrival(hostKey, item, item.plannedCount || 1);
       } else if (isAdmin()) {
-        openPickerModal(activeHost, id, 'arrive');
+        openPickerModal(hostKey, id, 'arrive');
       }
     }
 
@@ -1266,7 +1288,7 @@
     }
 
     function openPickerModal(hostKey, id, mode = 'arrive') {
-      const item = guests[hostKey].find(g => g.id === id);
+      const item = (guests[hostKey] || []).find(g => g.id === id);
       if (!item) return;
       pickerTargetId = id;
       pickerTargetHost = hostKey;
@@ -1293,16 +1315,8 @@
 
     function confirmPickerCount(val) {
       const num = parseInt(val, 10);
-      if (isNaN(num)) return;
-
-      if (pickerMode === 'quick') {
-        setQuickCount(num > 0 ? num : 1);
-        closePickerModal();
-        return;
-      }
-
-      if (pickerTargetId === null || !pickerTargetHost) return;
-      const item = guests[pickerTargetHost].find(g => g.id === pickerTargetId);
+      if (isNaN(num) || pickerTargetId === null || !pickerTargetHost) return;
+      const item = (guests[pickerTargetHost] || []).find(g => g.id === pickerTargetId);
       if (!item) return;
 
       if (pickerMode === 'planned') {
@@ -1331,12 +1345,14 @@
         changeCount(diff);
       }
       saveAppState();
-      renderGuests();
-      if (currentMainView === 'tables') renderTablesView();
+      renderJaugeBadge();
+      if (currentMainView === 'arrives') renderArrivesView();
+      else if (currentMainView === 'tables') renderTablesView();
+      else renderGuests();
     }
 
     // ==========================================
-    // GESTION DES TABLES 100% AUTONOME (A-Z)
+    // GESTION DES TABLES 100% AUTONOME (COMPACT)
     // ==========================================
     function getAllowedHostsForTables() {
       if (currentUser === 'cynthia') return ['cynthia'];
@@ -1347,10 +1363,10 @@
       tableFavInput = !tableFavInput;
       const btn = document.getElementById('table-fav-btn');
       if (tableFavInput) {
-        btn.className = 'ios-btn w-12 h-12 rounded-2xl bg-amber-400/25 border-2 border-amber-400 text-xl flex items-center justify-center shrink-0';
+        btn.className = 'ios-btn w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400 text-base flex items-center justify-center shrink-0';
         btn.textContent = '⭐';
       } else {
-        btn.className = 'ios-btn w-12 h-12 rounded-2xl bg-white/5 border border-white/20 text-xl flex items-center justify-center shrink-0 opacity-60';
+        btn.className = 'ios-btn w-9 h-9 rounded-xl bg-white/5 border border-white/15 text-base flex items-center justify-center shrink-0 opacity-60';
         btn.textContent = '☆';
       }
     }
@@ -1365,8 +1381,8 @@
       document.getElementById('table-pax-input').value = String(g.partyCount || g.plannedCount || 4);
       document.getElementById('table-host-input').value = hKey;
       tableFavInput = !!g.fav;
-      toggleTableFavInput(); // inverse
-      toggleTableFavInput(); // rétablit l'affichage exact
+      toggleTableFavInput();
+      toggleTableFavInput();
       document.getElementById('table-quick-pick').value = '';
       document.getElementById('table-amount-input').focus();
     }
@@ -1432,15 +1448,6 @@
       }
     }
 
-    function updateTablePax(tableId, delta) {
-      const t = tables.find(item => item.id === tableId);
-      if (t) {
-        t.partyCount = Math.max(1, (t.partyCount || 1) + delta);
-        saveAppState();
-        renderTablesView();
-      }
-    }
-
     function deleteTableEntry(tableId) {
       if (!isAdmin() && currentUser !== 'cynthia') return;
       tables = tables.filter(item => item.id !== tableId);
@@ -1450,10 +1457,7 @@
 
     function renderTablesView() {
       const allowedHosts = getAllowedHostsForTables();
-      const scopeLabel = document.getElementById('table-scope-label');
-      scopeLabel.textContent = currentUser === 'cynthia' ? 'Tables de Cynthia' : 'Toutes les tables (Steven, Gabriel, Cynthia)';
 
-      // Remplir le sélecteur optionnel avec TOUS les invités des listes (arrivés ou non), triés A-Z
       const selectEl = document.getElementById('table-quick-pick');
       let allGuestsForPick = [];
       allowedHosts.forEach(hKey => {
@@ -1463,15 +1467,13 @@
       });
       allGuestsForPick = sortAlpha(allGuestsForPick);
 
-      let optionsHTML = '<option value="">📋 Ou choisir un nom depuis les listes (A-Z, arrivé ou non)...</option>';
+      let optionsHTML = '<option value="">📋 Liste...</option>';
       allGuestsForPick.forEach(g => {
         const star = g.fav ? '⭐ ' : '';
-        const status = g.entered ? `✅ ${g.partyCount}p` : `⏳ ${g.plannedCount || 1}p`;
-        optionsHTML += `<option value="${g.hostKey}:${g.id}">${star}${g.nom.toUpperCase()} ${g.prenom || ''} (${status} • ${PROFILE_LABELS[g.hostKey]})</option>`;
+        optionsHTML += `<option value="${g.hostKey}:${g.id}">${star}${g.nom.toUpperCase()} ${g.prenom || ''} (${PROFILE_LABELS[g.hostKey]})</option>`;
       });
       selectEl.innerHTML = optionsHTML;
 
-      // Filtrer et trier les tables par ordre alphabétique (Favoris en tête ou A-Z)
       const visibleTables = sortAlpha(tables.filter(t => allowedHosts.includes(t.host)));
 
       const totalEuro = visibleTables.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -1481,15 +1483,13 @@
       document.getElementById('tables-count-label').textContent = `${visibleTables.length} table${visibleTables.length > 1 ? 's' : ''}`;
       document.getElementById('tables-installed-label').textContent = `${installedCount} installée${installedCount > 1 ? 's' : ''}`;
       document.getElementById('tables-total-euro').textContent = `${totalEuro.toLocaleString('fr-FR')} €`;
-      document.getElementById('tables-total-pax').textContent = `${totalPax} pers. prévues`;
+      document.getElementById('tables-total-pax').textContent = `${totalPax} pers.`;
 
       const listEl = document.getElementById('tables-list');
       if (!visibleTables.length) {
         listEl.innerHTML = `
-          <div class="p-6 text-sm text-white/60 text-center bg-[#1D070C] border border-white/10 rounded-3xl space-y-1">
-            <div class="text-2xl">🍾</div>
-            <div class="font-bold text-white">Aucune table enregistrée</div>
-            <div>Tapez directement un nom ci-dessus (même si la personne n'est pas encore arrivée) pour créer une table.</div>
+          <div class="p-6 text-xs text-white/55 text-center bg-[#1A060B] border border-white/10 rounded-2xl">
+            Aucune table enregistrée. Saisissez un nom directement ci-dessus.
           </div>
         `;
         return;
@@ -1497,60 +1497,55 @@
 
       const canDelete = isAdmin() || currentUser === 'cynthia';
 
-      listEl.innerHTML = visibleTables.map(t => {
-        const hostTheme = HOST_THEMES[t.host] || HOST_THEMES.steven;
-        const isArrived = !!t.arrived;
-        const isFav = !!t.fav;
+      listEl.innerHTML = `
+        <div class="bg-[#1A060B] border border-amber-400/30 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
+          ${visibleTables.map(t => {
+            const hostTheme = HOST_THEMES[t.host] || HOST_THEMES.steven;
+            const isArrived = !!t.arrived;
+            const isFav = !!t.fav;
 
-        return `
-          <div class="bg-gradient-to-r ${isArrived ? 'from-emerald-950/60 to-[#1B070C] border-emerald-400/45' : isFav ? 'from-amber-500/15 to-[#1B070C] border-amber-400/45' : 'from-[#220910] to-[#160509] border-white/15'} border rounded-3xl p-3.5 space-y-2.5 shadow-md">
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-3 min-w-0">
-                <button onclick="toggleTableFavItem(${t.id})" class="ios-btn w-11 h-11 rounded-2xl ${isFav ? 'bg-amber-400 text-[#2B0508]' : 'bg-white/10 text-white'} font-black text-lg flex items-center justify-center shrink-0 shadow">
-                  ${isFav ? '⭐' : '🍾'}
-                </button>
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-base font-black text-white uppercase">${t.nom}</span>
-                    <span class="text-base font-bold text-amber-100 truncate">${t.prenom || ''}</span>
-                    ${t.tableName ? `<span class="px-2 py-0.5 rounded-lg bg-amber-400 text-[#2B0508] text-xs font-black uppercase">${t.tableName}</span>` : ''}
-                  </div>
-                  <div class="flex items-center gap-2 mt-0.5 text-xs font-bold">
-                    <span class="px-2 py-0.5 rounded-md border ${hostTheme.badgeBg}">${PROFILE_LABELS[t.host]}</span>
-                    <span class="text-white/75">${t.partyCount || 1} pers.</span>
+            return `
+              <div class="px-2.5 py-2 flex items-center justify-between gap-2 ${isArrived ? 'bg-emerald-950/35' : ''}">
+                <div class="flex items-center gap-2 min-w-0">
+                  <button onclick="toggleTableFavItem(${t.id})" class="ios-btn text-base leading-none shrink-0">
+                    ${isFav ? '⭐' : '🍾'}
+                  </button>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 truncate">
+                      <span class="text-[15px] font-black text-white uppercase">${t.nom}</span>
+                      <span class="text-[15px] font-semibold text-amber-100 truncate">${t.prenom || ''}</span>
+                      ${t.tableName ? `<span class="px-1.5 py-0.2 rounded bg-amber-400 text-[#2B0508] text-[10px] font-black uppercase">${t.tableName}</span>` : ''}
+                    </div>
+                    <div class="flex items-center gap-1.5 text-[11px] font-semibold">
+                      <span class="px-1.5 py-0.2 rounded border ${hostTheme.badgeBg} text-[10px] font-extrabold">${PROFILE_LABELS[t.host]}</span>
+                      <span class="text-white/65">${t.partyCount || 1}p</span>
+                    </div>
                   </div>
                 </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button onclick="toggleTableArrived(${t.id})" class="ios-btn px-2.5 py-1 rounded-full text-[11px] font-black ${
+                    isArrived
+                      ? 'bg-emerald-500 text-[#04241C]'
+                      : 'bg-white/10 text-amber-200 border border-white/15'
+                  }">
+                    ${isArrived ? '✅ Installée' : '⏳ Attente'}
+                  </button>
+
+                  <div class="flex items-center bg-black/45 border border-emerald-400/35 rounded-xl px-2 py-1">
+                    <input type="number" inputmode="decimal" value="${t.amount}"
+                      onchange="updateTableAmount(${t.id}, this.value)"
+                      class="w-14 bg-transparent text-right text-xs font-black text-emerald-300 focus:outline-none" />
+                    <span class="text-[11px] font-black text-emerald-400 ml-0.5">€</span>
+                  </div>
+
+                  ${canDelete ? `<button onclick="deleteTableEntry(${t.id})" class="ios-btn w-7 h-7 rounded-full bg-white/5 text-white/40 hover:text-rose-400 flex items-center justify-center text-xs font-bold">✕</button>` : ''}
+                </div>
               </div>
-
-              ${canDelete ? `<button onclick="deleteTableEntry(${t.id})" class="ios-btn w-9 h-9 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 flex items-center justify-center text-sm font-black shrink-0" title="Supprimer la table">✕</button>` : ''}
-            </div>
-
-            <!-- Barre d'actions autonomes de la table : Statut Installée / Personnes / Montant € -->
-            <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
-              <button onclick="toggleTableArrived(${t.id})" class="ios-btn px-3.5 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 ${
-                isArrived
-                  ? 'bg-emerald-500 text-[#05291A] shadow'
-                  : 'bg-white/10 text-amber-200 border border-white/15'
-              }">
-                <span>${isArrived ? '✅ Table Installée' : '⏳ En attente (Installer)'}</span>
-              </button>
-
-              <div class="flex items-center gap-1 bg-black/40 border border-white/15 rounded-xl px-1.5 py-1">
-                <button onclick="updateTablePax(${t.id}, -1)" class="ios-btn w-6 h-6 rounded-lg bg-white/10 text-white font-black text-xs">-</button>
-                <span class="px-1.5 text-xs font-extrabold text-white">${t.partyCount || 1}p</span>
-                <button onclick="updateTablePax(${t.id}, 1)" class="ios-btn w-6 h-6 rounded-lg bg-white/10 text-white font-black text-xs">+</button>
-              </div>
-
-              <div class="flex items-center bg-[#110306] border border-emerald-400/40 rounded-2xl px-3 py-1.5">
-                <input type="number" inputmode="decimal" value="${t.amount}"
-                  onchange="updateTableAmount(${t.id}, this.value)"
-                  class="w-20 bg-transparent text-right text-base font-black text-emerald-300 focus:outline-none" />
-                <span class="text-sm font-black text-emerald-400 ml-1">€</span>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
+            `;
+          }).join('')}
+        </div>
+      `;
     }
 
     function changeCount(delta) {
@@ -1565,15 +1560,24 @@
     }
 
     function renderJaugeBadge() {
+      // Calcul du nombre total d'entrées validées pour le badge de l'onglet Arrivés
+      let totalArrivedGuests = 0;
+      const hostsToCount = currentUser === 'cynthia' ? ['cynthia'] : ['steven', 'gabriel', 'cynthia'];
+      hostsToCount.forEach(h => {
+        totalArrivedGuests += (guests[h] || []).filter(g => g.entered).length;
+      });
+      const navBadge = document.getElementById('nav-arrives-badge');
+      if (navBadge) navBadge.textContent = totalArrivedGuests;
+
       document.getElementById('mini-jauge-text').textContent = `${count} / 200`;
       const miniDot = document.getElementById('mini-dot');
 
       if (count >= MAX) {
-        miniDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping';
+        miniDot.className = 'w-2 h-2 rounded-full bg-rose-500 animate-ping';
       } else if (count >= 170) {
-        miniDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+        miniDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
       } else {
-        miniDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        miniDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
       }
     }
 

@@ -428,38 +428,57 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- POPUP MENU (1 à 10 PERSONNES)              -->
+    <!-- POPUP ÉDITION NOM/PRÉNOM & PERSONNES       -->
     <!-- ========================================== -->
     <div id="picker-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
       <div class="bg-[#22080E] border-2 border-amber-400/40 rounded-3xl p-4 w-full max-w-xs shadow-2xl space-y-3">
         <div class="text-center">
-          <div id="picker-title-badge" class="inline-block text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300">Nombre de personnes</div>
+          <div id="picker-title-badge" class="inline-block text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300">Modifier la fiche</div>
           <div id="picker-guest-name" class="text-base font-black text-white mt-1">NOM Prénom</div>
         </div>
 
-        <div class="grid grid-cols-5 gap-1.5">
-          <button onclick="confirmPickerCount(1)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">1</button>
-          <button onclick="confirmPickerCount(2)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">2</button>
-          <button onclick="confirmPickerCount(3)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">3</button>
-          <button onclick="confirmPickerCount(4)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">4</button>
-          <button onclick="confirmPickerCount(5)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">5</button>
-          <button onclick="confirmPickerCount(6)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">6</button>
-          <button onclick="confirmPickerCount(7)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">7</button>
-          <button onclick="confirmPickerCount(8)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">8</button>
-          <button onclick="confirmPickerCount(9)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">9</button>
-          <button onclick="confirmPickerCount(10)" class="ios-btn py-3 rounded-xl bg-emerald-600 text-white font-black text-sm">10</button>
+        <!-- Champs pour modifier le Nom et le Prénom à tout moment (même déjà validé) -->
+        <div class="bg-black/40 border border-white/15 rounded-2xl p-2.5 space-y-2">
+          <div class="text-[11px] font-extrabold uppercase tracking-wider text-amber-200/80">✏️ Modifier Nom / Prénom</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <input id="edit-guest-nom" type="text" placeholder="NOM"
+              onkeydown="if(event.key==='Enter') saveGuestNameOnly()"
+              class="w-full h-9 bg-[#130408] border border-white/20 rounded-xl px-2.5 text-sm font-black uppercase text-white placeholder-white/35 focus:outline-none focus:border-amber-400" />
+            <input id="edit-guest-prenom" type="text" placeholder="Prénom"
+              onkeydown="if(event.key==='Enter') saveGuestNameOnly()"
+              class="w-full h-9 bg-[#130408] border border-white/20 rounded-xl px-2.5 text-sm font-bold text-amber-100 placeholder-white/35 focus:outline-none focus:border-amber-400" />
+          </div>
+          <button onclick="saveGuestNameOnly()" class="ios-btn w-full py-2 rounded-xl bg-amber-400 text-[#2B0508] font-black text-xs shadow">
+            ✓ Enregistrer le Nom / Prénom
+          </button>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 text-center">👥 Nombre de personnes (1 à 10)</div>
+          <div class="grid grid-cols-5 gap-1.5">
+            <button onclick="confirmPickerCount(1)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">1</button>
+            <button onclick="confirmPickerCount(2)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">2</button>
+            <button onclick="confirmPickerCount(3)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">3</button>
+            <button onclick="confirmPickerCount(4)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">4</button>
+            <button onclick="confirmPickerCount(5)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">5</button>
+            <button onclick="confirmPickerCount(6)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">6</button>
+            <button onclick="confirmPickerCount(7)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">7</button>
+            <button onclick="confirmPickerCount(8)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">8</button>
+            <button onclick="confirmPickerCount(9)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">9</button>
+            <button onclick="confirmPickerCount(10)" class="ios-btn py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm">10</button>
+          </div>
         </div>
 
         <div id="picker-cancel-entry-wrap" class="hidden pt-2 border-t border-white/10 space-y-1.5">
-          <button onclick="confirmPickerCount(0)" class="ios-btn w-full py-2.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/40 font-extrabold text-xs">
+          <button onclick="confirmPickerCount(0)" class="ios-btn w-full py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/40 font-extrabold text-xs">
             ↩️ Remettre en non arrivé (0)
           </button>
-          <button onclick="deleteGuestFromModal()" class="ios-btn w-full py-2.5 rounded-xl bg-rose-600/25 text-rose-300 border border-rose-500/40 font-extrabold text-xs">
+          <button onclick="deleteGuestFromModal()" class="ios-btn w-full py-2 rounded-xl bg-rose-600/25 text-rose-300 border border-rose-500/40 font-extrabold text-xs">
             🗑️ Supprimer cet invité
           </button>
         </div>
 
-        <button onclick="closePickerModal()" class="ios-btn w-full py-2.5 rounded-xl bg-white/10 text-xs font-bold text-white/80">
+        <button onclick="closePickerModal()" class="ios-btn w-full py-2 rounded-xl bg-white/10 text-xs font-bold text-white/80">
           Fermer
         </button>
       </div>
@@ -1022,7 +1041,6 @@
 
     // Ligne ultra-serrée style Snapchat (sans pastille de lettre sur le côté)
     function snapRowHTML(g, hostKey, showHostBadge = false) {
-      const admin = isAdmin();
       const isFav = !!g.fav;
 
       const rowBg = g.entered
@@ -1052,34 +1070,35 @@
               <span id="hold-bar-${g.id}" class="hidden absolute left-0 top-0 bottom-0 bg-amber-300/70 pointer-events-none"></span>
               <span class="relative z-10">Arrivé ${pCount}</span>
             </button>
-            ${admin ? `<button onclick="deleteGuest('${hostKey}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-white/5 text-white/40 hover:text-rose-400 flex items-center justify-center text-xs font-bold">✕</button>` : ''}
+            <button onclick="deleteGuest('${hostKey}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-white/5 text-white/40 hover:text-rose-400 flex items-center justify-center text-xs font-bold" title="Supprimer">✕</button>
           </div>
         `;
       } else {
         rightActionHTML = `
           <div class="flex items-center gap-1 shrink-0">
             <button
-              ${admin ? `onclick="openPickerModal('${hostKey}', ${g.id}, 'arrive')"` : 'disabled'}
+              onclick="openPickerModal('${hostKey}', ${g.id}, 'arrive')"
               class="ios-btn px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
               <span>✅ ${g.partyCount}p</span>
-              ${admin ? '<span class="text-[10px] opacity-75">✎</span>' : ''}
+              <span class="text-[10px] opacity-80">✎</span>
             </button>
-            ${admin ? `<button onclick="deleteGuest('${hostKey}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-white/5 text-white/40 hover:text-rose-400 flex items-center justify-center text-xs font-bold">✕</button>` : ''}
+            <button onclick="deleteGuest('${hostKey}', ${g.id})" class="ios-btn w-7 h-7 rounded-full bg-white/5 text-white/40 hover:text-rose-400 flex items-center justify-center text-xs font-bold" title="Supprimer">✕</button>
           </div>
         `;
       }
 
       return `
         <div class="flex items-center justify-between px-3 py-2 gap-2 ${rowBg}">
-          <div class="flex items-center gap-2.5 min-w-0">
+          <div class="flex items-center gap-2.5 min-w-0 flex-1">
             <button onclick="toggleFav('${hostKey}', ${g.id})" class="ios-btn text-base leading-none shrink-0" title="Favori ⭐">
               ${isFav ? '⭐' : '<span class="opacity-30">☆</span>'}
             </button>
 
-            <div class="min-w-0">
+            <div onclick="openPickerModal('${hostKey}', ${g.id}, '${g.entered ? 'arrive' : 'planned'}')" class="min-w-0 flex-1 cursor-pointer active:opacity-70" title="Toucher pour modifier le nom ou prénom">
               <div class="flex items-center gap-1.5 truncate">
                 <span class="text-[15px] font-black text-white uppercase tracking-tight">${g.nom}</span>
                 <span class="text-[15px] font-semibold text-amber-100/95 truncate">${g.prenom || ''}</span>
+                <span class="text-[11px] text-white/35">✎</span>
               </div>
               <div class="flex items-center gap-1.5 text-[11px] font-semibold leading-tight">
                 ${hostBadgeHTML}
@@ -1194,12 +1213,13 @@
               const hostTheme = HOST_THEMES[item.hostKey] || HOST_THEMES.steven;
               return `
                 <div class="flex items-center justify-between px-3 py-2 gap-2 bg-emerald-950/35">
-                  <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="flex items-center gap-2.5 min-w-0 flex-1">
                     <span class="text-base leading-none shrink-0">🍾</span>
-                    <div class="min-w-0">
+                    <div onclick="openTableEditModal(${item.id})" class="min-w-0 flex-1 cursor-pointer active:opacity-70" title="Toucher pour modifier le nom ou prénom">
                       <div class="flex items-center gap-1.5 truncate">
                         <span class="text-[15px] font-black text-white uppercase tracking-tight">${item.nom}</span>
                         <span class="text-[15px] font-semibold text-amber-100/95 truncate">${item.prenom || ''}</span>
+                        <span class="text-[11px] text-white/35">✎</span>
                         ${item.tableName ? `<span class="px-1.5 py-0.2 rounded bg-amber-400 text-[#2B0508] text-[10px] font-black uppercase">${item.tableName}</span>` : ''}
                       </div>
                       <div class="flex items-center gap-1.5 text-[11px] font-semibold leading-tight">
@@ -1208,8 +1228,9 @@
                       </div>
                     </div>
                   </div>
-                  <button onclick="toggleTableArrived(${item.id})" class="ios-btn px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0">
-                    ✅ ${item.partyCount}p
+                  <button onclick="openTableEditModal(${item.id})" class="ios-btn px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0 flex items-center gap-1">
+                    <span>✅ ${item.partyCount}p</span>
+                    <span class="text-[10px] opacity-80">✎</span>
                   </button>
                 </div>
               `;
@@ -1232,7 +1253,7 @@
     }
 
     function deleteGuest(hostKey, id) {
-      if (!isAdmin()) return;
+      if (currentUser === 'cynthia' && hostKey !== 'cynthia') return;
       const list = guests[hostKey];
       const idx = list.findIndex(g => g.id === id);
       if (idx === -1) return;
@@ -1249,8 +1270,12 @@
     }
 
     function deleteGuestFromModal() {
-      if (!isAdmin() || pickerTargetId === null || !pickerTargetHost) return;
-      deleteGuest(pickerTargetHost, pickerTargetId);
+      if (pickerTargetId === null || !pickerTargetHost) return;
+      if (pickerTargetHost === '__table__') {
+        deleteTableEntry(pickerTargetId);
+      } else {
+        deleteGuest(pickerTargetHost, pickerTargetId);
+      }
       closePickerModal();
     }
 
@@ -1258,8 +1283,6 @@
       if (event && event.type === 'mousedown' && event.button !== 0) return;
       const item = (guests[hostKey] || []).find(g => g.id === id);
       if (!item) return;
-
-      if (item.entered && !isAdmin()) return;
 
       longPressTriggered = false;
       const fillEl = document.getElementById('hold-bar-' + id);
@@ -1297,7 +1320,7 @@
 
       if (!item.entered) {
         validateGuestArrival(hostKey, item, item.plannedCount || 1);
-      } else if (isAdmin()) {
+      } else {
         openPickerModal(hostKey, id, 'arrive');
       }
     }
@@ -1312,23 +1335,85 @@
     }
 
     function openPickerModal(hostKey, id, mode = 'arrive') {
+      if (currentUser === 'cynthia' && hostKey !== 'cynthia') return;
       const item = (guests[hostKey] || []).find(g => g.id === id);
       if (!item) return;
       pickerTargetId = id;
       pickerTargetHost = hostKey;
       pickerMode = mode;
 
-      document.getElementById('picker-title-badge').textContent = mode === 'planned' ? 'Nombre prévu sur la liste' : 'Validation Arrivée';
+      document.getElementById('picker-title-badge').textContent = item.entered ? 'Invité Validé • Modifier' : 'Invité en attente • Modifier';
       document.getElementById('picker-guest-name').textContent = `${item.nom.toUpperCase()} ${item.prenom || ''}`;
 
+      document.getElementById('edit-guest-nom').value = item.nom || '';
+      document.getElementById('edit-guest-prenom').value = item.prenom || '';
+
       const cancelWrap = document.getElementById('picker-cancel-entry-wrap');
-      if (isAdmin() && mode === 'arrive') {
-        cancelWrap.classList.remove('hidden');
-      } else {
-        cancelWrap.classList.add('hidden');
-      }
+      cancelWrap.classList.remove('hidden');
 
       document.getElementById('picker-modal').classList.remove('hidden');
+    }
+
+    function applyEditedNameToTarget(item) {
+      const newNom = document.getElementById('edit-guest-nom').value.trim();
+      const newPrenom = document.getElementById('edit-guest-prenom').value.trim();
+      if (newNom || newPrenom) {
+        // Si l'utilisateur a tapé "Nom Prénom" ensemble dans la case Nom et laissé Prénom vide
+        if (newNom.includes(' ') && !newPrenom) {
+          const parsed = parseFullName(newNom);
+          if (parsed) {
+            item.nom = parsed.nom;
+            item.prenom = parsed.prenom;
+            return;
+          }
+        }
+        item.nom = (newNom || newPrenom).toUpperCase();
+        item.prenom = newNom ? newPrenom : '';
+      }
+    }
+
+    function openTableEditModal(tableId) {
+      const t = tables.find(item => item.id === tableId);
+      if (!t) return;
+      if (currentUser === 'cynthia' && t.host !== 'cynthia') return;
+
+      pickerTargetId = tableId;
+      pickerTargetHost = '__table__';
+      pickerMode = 'table';
+
+      document.getElementById('picker-title-badge').textContent = 'Table VIP • Modifier';
+      document.getElementById('picker-guest-name').textContent = `${t.nom.toUpperCase()} ${t.prenom || ''}`;
+      document.getElementById('edit-guest-nom').value = t.nom || '';
+      document.getElementById('edit-guest-prenom').value = t.prenom || '';
+      document.getElementById('picker-cancel-entry-wrap').classList.remove('hidden');
+      document.getElementById('picker-modal').classList.remove('hidden');
+    }
+
+    function saveGuestNameOnly() {
+      if (pickerTargetId === null || !pickerTargetHost) return;
+
+      if (pickerTargetHost === '__table__') {
+        const t = tables.find(item => item.id === pickerTargetId);
+        if (t) {
+          applyEditedNameToTarget(t);
+          saveAppState();
+          renderJaugeBadge();
+          if (currentMainView === 'arrives') renderArrivesView();
+          else renderTablesView();
+        }
+        closePickerModal();
+        return;
+      }
+
+      const item = (guests[pickerTargetHost] || []).find(g => g.id === pickerTargetId);
+      if (!item) return;
+
+      applyEditedNameToTarget(item);
+      saveAppState();
+      renderJaugeBadge();
+      if (currentMainView === 'arrives') renderArrivesView();
+      else renderGuests();
+      closePickerModal();
     }
 
     function closePickerModal() {
@@ -1340,11 +1425,33 @@
     function confirmPickerCount(val) {
       const num = parseInt(val, 10);
       if (isNaN(num) || pickerTargetId === null || !pickerTargetHost) return;
+
+      if (pickerTargetHost === '__table__') {
+        const t = tables.find(item => item.id === pickerTargetId);
+        if (t) {
+          applyEditedNameToTarget(t);
+          if (num <= 0) {
+            t.arrived = false;
+          } else {
+            t.partyCount = num;
+          }
+          saveAppState();
+          renderJaugeBadge();
+          if (currentMainView === 'arrives') renderArrivesView();
+          else renderTablesView();
+        }
+        closePickerModal();
+        return;
+      }
+
       const item = (guests[pickerTargetHost] || []).find(g => g.id === pickerTargetId);
       if (!item) return;
 
-      if (pickerMode === 'planned') {
-        item.plannedCount = num > 0 ? num : 1;
+      // Sauvegarde aussi le nom/prénom si modifié dans les champs
+      applyEditedNameToTarget(item);
+
+      if (pickerMode === 'planned' && num > 0 && !item.entered) {
+        item.plannedCount = num;
         saveAppState();
         renderJaugeBadge();
         renderGuests();
@@ -1547,14 +1654,15 @@
 
             return `
               <div class="px-2.5 py-2 flex items-center justify-between gap-2 ${isArrived ? 'bg-emerald-950/35' : ''}">
-                <div class="flex items-center gap-2 min-w-0">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
                   <button onclick="toggleTableFavItem(${t.id})" class="ios-btn text-base leading-none shrink-0">
                     ${isFav ? '⭐' : '🍾'}
                   </button>
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1.5 truncate">
+                  <div class="min-w-0 flex-1">
+                    <div onclick="openTableEditModal(${t.id})" class="flex items-center gap-1.5 truncate cursor-pointer active:opacity-70" title="Toucher pour modifier le nom ou prénom">
                       <span class="text-[15px] font-black text-white uppercase">${t.nom}</span>
                       <span class="text-[15px] font-semibold text-amber-100 truncate">${t.prenom || ''}</span>
+                      <span class="text-[11px] text-white/35">✎</span>
                       ${t.tableName ? `<span class="px-1.5 py-0.2 rounded bg-amber-400 text-[#2B0508] text-[10px] font-black uppercase">${t.tableName}</span>` : ''}
                     </div>
                     <div class="flex items-center gap-1.5 text-[11px] font-semibold">

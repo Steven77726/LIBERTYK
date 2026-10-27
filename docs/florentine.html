@@ -275,9 +275,6 @@
           </div>
         </div>
 
-        <!-- MINI INDEX A-Z ULTRA FIN -->
-        <div id="alpha-bar" class="flex items-center gap-0.5 overflow-x-auto py-1 px-1 bg-black/25 rounded-xl border border-white/5 text-[11px] font-black"></div>
-
         <!-- LISTE ULTRA SERRÉE STYLE SNAPCHAT -->
         <div id="guests-container" class="flex-1 space-y-2 pb-6"></div>
 
@@ -957,17 +954,6 @@
 
       const sortedAll = sortAlpha(filtered);
 
-      // Barre d'index A-Z ultra compacte
-      const presentLetters = new Set(sortedAll.map(g => getInitialLetter(g)));
-      const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-      const alphaBar = document.getElementById('alpha-bar');
-      alphaBar.innerHTML = alphabet.map(l => {
-        const has = presentLetters.has(l);
-        return has
-          ? `<button onclick="scrollToLetter('${l}')" class="ios-btn w-6 h-6 rounded-md bg-amber-400/20 text-amber-300 font-black text-[11px] shrink-0 flex items-center justify-center">${l}</button>`
-          : `<span class="w-5 h-6 text-white/20 font-bold text-[10px] shrink-0 flex items-center justify-center">${l}</span>`;
-      }).join('');
-
       const container = document.getElementById('guests-container');
 
       if (!sortedAll.length) {
@@ -1002,10 +988,10 @@
           html += `
             <div>
               <div class="flex items-center justify-between px-2 py-1">
-                <span class="text-[11px] font-black uppercase tracking-wider text-white/60">🔤 Ordre Alphabétique (${others.length})</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-white/60">Liste (${others.length})</span>
               </div>
               <div class="bg-[#1A060B] border border-white/12 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
-                ${renderSnapAlphabeticalBlock(others, activeHost)}
+                ${others.map(g => snapRowHTML(g, activeHost, false)).join('')}
               </div>
             </div>
           `;
@@ -1015,42 +1001,16 @@
       } else {
         container.innerHTML = `
           <div class="bg-[#1A060B] border border-white/12 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
-            ${renderSnapAlphabeticalBlock(sortedAll, activeHost)}
+            ${sortedAll.map(g => snapRowHTML(g, activeHost, false)).join('')}
           </div>
         `;
       }
     }
 
-    function renderSnapAlphabeticalBlock(list, hostKey) {
-      let currentLetter = null;
-      let assignedAnchors = new Set();
-      let out = '';
-
-      list.forEach(g => {
-        const letter = getInitialLetter(g);
-        if (letter !== currentLetter) {
-          currentLetter = letter;
-          const anchorId = !assignedAnchors.has(letter) ? `id="letter-sec-${letter}"` : '';
-          assignedAnchors.add(letter);
-          out += `
-            <div ${anchorId} class="bg-black/45 px-3 py-1 flex items-center justify-between text-[11px] font-black text-amber-300 tracking-wider scroll-mt-32">
-              <span>${letter}</span>
-            </div>
-          `;
-        }
-        out += snapRowHTML(g, hostKey, false);
-      });
-      return out;
-    }
-
-    // Ligne ultra-serrée style Snapchat
+    // Ligne ultra-serrée style Snapchat (sans pastille de lettre sur le côté)
     function snapRowHTML(g, hostKey, showHostBadge = false) {
       const admin = isAdmin();
       const isFav = !!g.fav;
-      const letter = getInitialLetter(g);
-      const avatarColor = isFav
-        ? 'from-amber-300 to-orange-500 text-[#2B0508]'
-        : getLetterColor(letter);
 
       const rowBg = g.entered
         ? 'bg-emerald-950/35'
@@ -1097,15 +1057,11 @@
       }
 
       return `
-        <div class="flex items-center justify-between px-2.5 py-2 gap-2 ${rowBg}">
-          <div class="flex items-center gap-2 min-w-0">
+        <div class="flex items-center justify-between px-3 py-2 gap-2 ${rowBg}">
+          <div class="flex items-center gap-2.5 min-w-0">
             <button onclick="toggleFav('${hostKey}', ${g.id})" class="ios-btn text-base leading-none shrink-0" title="Favori ⭐">
               ${isFav ? '⭐' : '<span class="opacity-30">☆</span>'}
             </button>
-
-            <div class="w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor} font-black text-xs flex items-center justify-center shrink-0">
-              ${letter}
-            </div>
 
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 truncate">

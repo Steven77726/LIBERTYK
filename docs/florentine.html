@@ -163,10 +163,10 @@
             <div class="min-w-0">
               <div class="flex items-center gap-1.5">
                 <span id="session-badge" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white leading-none">Steven</span>
-                <span id="live-sync-badge" class="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1 leading-none">
+                <button onclick="pullCloudState(true)" id="live-sync-badge" class="ios-btn text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1 leading-none" title="Synchronisation instantanée">
                   <span id="live-sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span id="live-sync-text">LIVE</span>
-                </span>
+                </button>
                 <button onclick="logout()" class="text-[11px] font-semibold text-amber-200/80 underline">Verrouiller</button>
               </div>
               <div id="app-subtitle" class="text-sm font-black tracking-tight text-white truncate">Liste Steven</div>
@@ -590,17 +590,31 @@
     const DEVICE_ID_FL = 'dev_' + Math.random().toString(36).slice(2, 10);
 
     let tables = [];
-    let lastStateTimestamp = 0;
+    let currentRev = 0;
+    let lastChangeId = '';
+    let ignorePollUntil = 0;
+    let isPushing = false;
     let supabaseClient = null;
     let liveChannel = null;
+    let channelSubscribed = false;
 
     function setLiveIndicator(status) {
       const dot = document.getElementById('live-sync-dot');
       const txt = document.getElementById('live-sync-text');
+      const badge = document.getElementById('live-sync-badge');
       if (!dot || !txt) return;
       if (status === 'syncing') {
         dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping';
-        txt.textContent = 'SYNC...';
+        txt.textContent = 'SYNC';
+      } else if (status === 'flash') {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-300 animate-ping';
+        txt.textContent = 'LIVE ⚡';
+        if (badge) badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-400 text-[#04241C] flex items-center gap-1 leading-none transition-all';
+        setTimeout(() => {
+          if (badge) badge.className = 'text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1 leading-none transition-all';
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
+          txt.textContent = 'LIVE';
+        }, 700);
       } else if (status === 'ok') {
         dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
         txt.textContent = 'LIVE';
@@ -617,13 +631,26 @@
       else renderGuests();
     }
 
+    function getStateFingerprint(gObj, tArr) {
+      try {
+        return JSON.stringify({ g: gObj, t: tArr });
+      } catch (e) {
+        return '';
+      }
+    }
+
     function saveAppState() {
-      lastStateTimestamp = Date.now();
+      currentRev = (currentRev || 0) + 1;
+      lastChangeId = DEVICE_ID_FL + '_' + Date.now() + '_' + currentRev;
+      ignorePollUntil = Date.now() + 2500;
+
       const payload = {
         count,
         guests,
         tables,
-        updatedAt: lastStateTimestamp,
+        rev: currentRev,
+        changeId: lastChangeId,
+        updatedAt: Date.now(),
         senderId: DEVICE_ID_FL
       };
       try {
@@ -642,22 +669,26 @@
           if (typeof parsed.count === 'number') count = parsed.count;
           if (parsed.guests) guests = parsed.guests;
           if (Array.isArray(parsed.tables)) tables = parsed.tables;
-          if (typeof parsed.updatedAt === 'number') lastStateTimestamp = parsed.updatedAt;
+          if (typeof parsed.rev === 'number') currentRev = parsed.rev;
+          if (typeof parsed.changeId === 'string') lastChangeId = parsed.changeId;
         }
       } catch (e) {}
     }
 
     async function pushStateToCloud(payload) {
       if (!supabaseClient) return;
+      isPushing = true;
       setLiveIndicator('syncing');
       try {
-        if (liveChannel) {
+        // 1. Envoi WebSocket Broadcast instantané (<20ms) vers tous les autres appareils connectés
+        if (liveChannel && channelSubscribed) {
           liveChannel.send({
             type: 'broadcast',
             event: 'florentine_update',
             payload: payload
           });
         }
+        // 2. Sauvegarde persistante dans la table Supabase (déclenche aussi postgres_changes en temps réel)
         const { error } = await supabaseClient
           .from('florentine_state')
           .upsert({
@@ -668,31 +699,53 @@
         setLiveIndicator(error ? 'err' : 'ok');
       } catch (e) {
         setLiveIndicator('err');
+      } finally {
+        isPushing = false;
       }
     }
 
-    function applyRemoteState(remoteState) {
+    // Applique instantanément l'état reçu d'un autre appareil sans dépendre de l'horloge du téléphone
+    function applyRemoteState(remoteState, source = 'poll') {
       if (!remoteState || typeof remoteState !== 'object') return;
       if (remoteState.senderId === DEVICE_ID_FL) return;
-      if (remoteState.updatedAt && remoteState.updatedAt < lastStateTimestamp) return;
+      if (remoteState.changeId && remoteState.changeId === lastChangeId) return;
+
+      // Si on vient de faire une action locale ou de recevoir un broadcast direct, on ignore un poll obsolète
+      if (source === 'poll' && (isPushing || Date.now() < ignorePollUntil)) return;
+
+      // Vérifie si le contenu a réellement changé
+      const currentFp = getStateFingerprint(guests, tables);
+      const remoteFp = getStateFingerprint(remoteState.guests, remoteState.tables);
+      if (currentFp === remoteFp) {
+        if (remoteState.changeId) lastChangeId = remoteState.changeId;
+        if (typeof remoteState.rev === 'number') currentRev = Math.max(currentRev, remoteState.rev);
+        return;
+      }
+
+      if (source === 'realtime') {
+        ignorePollUntil = Date.now() + 2000;
+      }
 
       if (remoteState.guests) guests = remoteState.guests;
       if (Array.isArray(remoteState.tables)) tables = remoteState.tables;
       if (typeof remoteState.count === 'number') count = remoteState.count;
-      lastStateTimestamp = remoteState.updatedAt || Date.now();
+      if (typeof remoteState.rev === 'number') currentRev = Math.max(currentRev, remoteState.rev);
+      if (remoteState.changeId) lastChangeId = remoteState.changeId;
 
       try {
         localStorage.setItem(STORAGE_KEY_FL, JSON.stringify({
           count,
           guests,
           tables,
-          updatedAt: lastStateTimestamp,
+          rev: currentRev,
+          changeId: lastChangeId,
+          updatedAt: Date.now(),
           senderId: remoteState.senderId || 'cloud'
         }));
       } catch (e) {}
 
       refreshAllViews();
-      setLiveIndicator('ok');
+      setLiveIndicator('flash');
     }
 
     // Fusionne les rajouts locaux d'un téléphone qui avait travaillé hors-ligne avant la mise en place du Cloud
@@ -729,8 +782,9 @@
       return { hasNewLocalAdditions, mergedGuests, mergedTables };
     }
 
-    async function pullCloudState() {
+    async function pullCloudState(force = false) {
       if (!supabaseClient) return;
+      if (!force && (isPushing || Date.now() < ignorePollUntil)) return;
       try {
         const { data, error } = await supabaseClient
           .from('florentine_state')
@@ -746,7 +800,6 @@
         const alreadyMigrated = localStorage.getItem(MIGRATION_KEY_FL) === '1';
 
         if (!data || !data.state || !data.state.guests) {
-          // Le Cloud est encore vide : ce téléphone envoie sa liste actuelle dans le Cloud !
           localStorage.setItem(MIGRATION_KEY_FL, '1');
           saveAppState();
           return;
@@ -758,13 +811,14 @@
           if (hasNewLocalAdditions) {
             guests = mergedGuests;
             tables = mergedTables;
+            currentRev = (data.state.rev || 0) + 1;
             refreshAllViews();
             saveAppState();
             return;
           }
         }
 
-        applyRemoteState(data.state);
+        applyRemoteState(data.state, force ? 'realtime' : 'poll');
       } catch (e) {
         setLiveIndicator('err');
       }
@@ -772,34 +826,44 @@
 
     function initLiveCloudSync() {
       if (!window.supabase || !window.supabase.createClient) return;
-      supabaseClient = window.supabase.createClient(SUPABASE_URL_FL, SUPABASE_ANON_KEY_FL);
+      supabaseClient = window.supabase.createClient(SUPABASE_URL_FL, SUPABASE_ANON_KEY_FL, {
+        realtime: { params: { eventsPerSecond: 20 } }
+      });
 
-      pullCloudState();
+      pullCloudState(true);
 
       liveChannel = supabaseClient
-        .channel('florentine-live-room')
+        .channel('florentine-live-room', {
+          config: { broadcast: { self: false, ack: false } }
+        })
         .on('broadcast', { event: 'florentine_update' }, (msg) => {
           if (msg && msg.payload) {
-            applyRemoteState(msg.payload);
+            applyRemoteState(msg.payload, 'realtime');
           }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'florentine_state', filter: 'id=eq.main' }, (payload) => {
           if (payload && payload.new && payload.new.state) {
-            applyRemoteState(payload.new.state);
+            applyRemoteState(payload.new.state, 'realtime');
           }
         })
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED') setLiveIndicator('ok');
+          if (status === 'SUBSCRIBED') {
+            channelSubscribed = true;
+            setLiveIndicator('ok');
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            channelSubscribed = false;
+          }
         });
 
-      // Rafraîchissement automatique de sécurité toutes les 3 secondes + au réveil de l'iPhone
+      // Rafraîchissement continu toutes les 1,5 seconde + instantané au réveil de l'écran
       setInterval(() => {
-        if (!document.hidden) pullCloudState();
-      }, 3000);
+        if (!document.hidden) pullCloudState(false);
+      }, 1500);
 
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) pullCloudState();
+        if (!document.hidden) pullCloudState(true);
       });
+      window.addEventListener('focus', () => pullCloudState(true));
     }
 
     function isAdmin() {

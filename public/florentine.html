@@ -168,12 +168,21 @@
             </div>
           </div>
 
-          <!-- BOUTON / JAUGE DIRECTE VERS LES ARRIVÉS -->
-          <button onclick="switchMain('arrives')" class="ios-btn bg-black/45 border border-emerald-400/35 rounded-full px-3 py-1 flex items-center gap-1.5 shrink-0 shadow">
-            <span id="mini-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span id="mini-jauge-text" class="text-xs font-black text-emerald-300">0 / 200</span>
-            <span class="text-[10px] text-white/60 font-bold">Arrivés</span>
-          </button>
+          <!-- LES 2 COMPTEURS EN HAUT : 1) NB PRÉVU (NON ARRIVÉ) & 2) ARRIVÉS (LISTES + TABLES) -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <div class="bg-black/45 border border-amber-400/35 rounded-xl px-2.5 py-1 flex flex-col items-center justify-center shadow" title="Personnes notées mais pas encore arrivées (Listes + Tables)">
+              <span class="text-[9px] uppercase tracking-wider text-amber-200/80 font-extrabold leading-none">NB Prévu</span>
+              <span id="counter-prevu-text" class="text-xs font-black text-amber-300 leading-tight mt-0.5">0 pers.</span>
+            </div>
+
+            <button onclick="switchMain('arrives')" class="ios-btn bg-black/45 border border-emerald-400/40 rounded-xl px-2.5 py-1 flex flex-col items-center justify-center shadow" title="Personnes arrivées (Listes + Tables)">
+              <div class="flex items-center gap-1">
+                <span id="mini-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-[9px] uppercase tracking-wider text-emerald-200/90 font-extrabold leading-none">Arrivés</span>
+              </div>
+              <span id="mini-jauge-text" class="text-xs font-black text-emerald-300 leading-tight mt-0.5">0 pers.</span>
+            </button>
+          </div>
         </div>
 
         <!-- BARRE D'ONGLETS PRINCIPALE (AVEC ONGLET DÉDIÉ "✅ ARRIVÉS" + "🍾 TABLES") -->
@@ -258,16 +267,16 @@
             </button>
           </div>
 
-          <!-- PILULES DE FILTRE AVEC "ARRIVÉS" BIEN VISIBLE -->
+          <!-- PILULES DE FILTRE AVEC "ARRIVÉS" ET "PRÉVU" BIEN VISIBLES -->
           <div class="grid grid-cols-4 gap-1 bg-black/35 p-1 rounded-xl border border-white/10">
             <button onclick="setListFilter('all')" id="filter-all" class="ios-btn py-1.5 rounded-lg text-xs font-extrabold bg-white text-[#2B0508] shadow text-center">
               Tous (<span id="badge-all-count">0</span>)
             </button>
+            <button onclick="setListFilter('waiting')" id="filter-waiting" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-amber-200 text-center">
+              ⏳ Prévu (<span id="badge-wait-count">0</span>)
+            </button>
             <button onclick="setListFilter('present')" id="filter-present" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-emerald-300 text-center">
               ✅ Arrivés (<span id="badge-pres-count">0</span>)
-            </button>
-            <button onclick="setListFilter('waiting')" id="filter-waiting" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-white/75 text-center">
-              ⏳ Attente (<span id="badge-wait-count">0</span>)
             </button>
             <button onclick="setListFilter('fav')" id="filter-fav" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-amber-300 text-center">
               ⭐ Favoris (<span id="badge-fav-count">0</span>)
@@ -285,15 +294,24 @@
       <!-- ========================================== -->
       <div id="view-arrives" class="hidden flex-1 flex flex-col px-2.5 pt-2.5 pb-6 safe-bottom space-y-2.5">
 
-        <!-- BANDEAU RÉCAP DES ARRIVÉS -->
-        <div class="bg-gradient-to-r from-emerald-900/50 via-teal-900/40 to-[#1A060B] border border-emerald-400/35 rounded-2xl p-3 flex items-center justify-between">
-          <div>
-            <div class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">✅ Personnes entrées</div>
-            <div id="arrives-summary-title" class="text-lg font-black text-white leading-tight mt-0.5">0 invité • 0 pers.</div>
+        <!-- BANDEAU RÉCAP DES 2 COMPTEURS (NB PRÉVU NON ARRIVÉ + ARRIVÉS, LISTES & TABLES INCLUSES) -->
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-gradient-to-br from-amber-500/20 to-[#1A060B] border border-amber-400/35 rounded-2xl p-2.5 flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-extrabold uppercase tracking-wider text-amber-300">⏳ NB Prévu (Attente)</div>
+              <div id="arrives-prevu-big" class="text-base font-black text-white mt-0.5">0 pers.</div>
+              <div id="arrives-prevu-detail" class="text-[11px] font-semibold text-amber-200/75">Pas encore arrivés</div>
+            </div>
+            <span class="text-lg">⏳</span>
           </div>
-          <div class="text-right">
-            <div class="text-[11px] font-bold text-white/60">Capacité max</div>
-            <div id="arrives-jauge-big" class="text-base font-black text-emerald-400">0 / 200</div>
+
+          <div class="bg-gradient-to-br from-emerald-500/25 to-[#1A060B] border border-emerald-400/40 rounded-2xl p-2.5 flex items-center justify-between">
+            <div>
+              <div class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">✅ Compteur Arrivés</div>
+              <div id="arrives-jauge-big" class="text-base font-black text-emerald-300 mt-0.5">0 pers.</div>
+              <div id="arrives-summary-title" class="text-[11px] font-semibold text-white/75">Listes + Tables</div>
+            </div>
+            <span class="text-lg">✅</span>
           </div>
         </div>
 
@@ -878,6 +896,7 @@
       updateQuickCountBtn();
 
       saveAppState();
+      renderJaugeBadge();
       renderGuests();
 
       if (!openModalAfter) {
@@ -894,7 +913,7 @@
       const styles = {
         all:     { active: 'bg-white text-[#2B0508] shadow font-extrabold', idle: 'text-white/75 font-bold' },
         present: { active: 'bg-emerald-400 text-[#05291A] shadow font-extrabold', idle: 'text-emerald-300 font-bold' },
-        waiting: { active: 'bg-white text-[#2B0508] shadow font-extrabold', idle: 'text-white/75 font-bold' },
+        waiting: { active: 'bg-amber-400 text-[#2B0508] shadow font-extrabold', idle: 'text-amber-200 font-bold' },
         fav:     { active: 'bg-amber-400 text-[#2B0508] shadow font-extrabold', idle: 'text-amber-300 font-bold' }
       };
 
@@ -918,25 +937,19 @@
       renderGuests();
     }
 
-    function scrollToLetter(letter) {
-      const target = document.getElementById('letter-sec-' + letter);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-
     function renderGuests() {
       const query = (document.getElementById('search-input').value || '').toLowerCase().trim();
       const rawHostList = guests[activeHost] || [];
 
       const totalFavs = rawHostList.filter(g => g.fav).length;
-      const totalWaiting = rawHostList.filter(g => !g.entered).length;
+      const waitingList = rawHostList.filter(g => !g.entered);
+      const totalWaitingPax = waitingList.reduce((acc, g) => acc + (Number(g.plannedCount) || 1), 0);
       const totalPresents = rawHostList.filter(g => g.entered);
-      const totalPresentPax = totalPresents.reduce((acc, g) => acc + (g.partyCount || 1), 0);
+      const totalPresentPax = totalPresents.reduce((acc, g) => acc + (Number(g.partyCount) || 1), 0);
 
       document.getElementById('badge-all-count').textContent = rawHostList.length;
-      document.getElementById('badge-pres-count').textContent = `${totalPresents.length}`;
-      document.getElementById('badge-wait-count').textContent = totalWaiting;
+      document.getElementById('badge-wait-count').textContent = `${totalWaitingPax}p`;
+      document.getElementById('badge-pres-count').textContent = `${totalPresentPax}p`;
       document.getElementById('badge-fav-count').textContent = totalFavs;
 
       let filtered = rawHostList.filter(g =>
@@ -1111,35 +1124,64 @@
 
       const query = (document.getElementById('arrives-search-input').value || '').toLowerCase().trim();
 
-      let allArrived = [];
+      // Calcul des 2 compteurs pour le filtre sélectionné (Listes + Tables)
+      let prevuGuestsPax = 0;
+      let prevuTablesPax = 0;
+      let arrivedItems = [];
+
       allowedHosts.forEach(hKey => {
         (guests[hKey] || []).forEach(g => {
           if (g.entered) {
-            allArrived.push({ ...g, hostKey: hKey });
+            arrivedItems.push({ ...g, hostKey: hKey, itemType: 'guest' });
+          } else {
+            prevuGuestsPax += (Number(g.plannedCount) || 1);
           }
         });
       });
 
+      tables.filter(t => allowedHosts.includes(t.host)).forEach(t => {
+        if (t.arrived) {
+          arrivedItems.push({
+            id: t.id,
+            nom: t.nom,
+            prenom: t.prenom,
+            fav: t.fav,
+            entered: true,
+            partyCount: Number(t.partyCount) || 1,
+            tableName: t.tableName,
+            amount: t.amount,
+            hostKey: t.host,
+            itemType: 'table'
+          });
+        } else {
+          prevuTablesPax += (Number(t.partyCount) || 1);
+        }
+      });
+
+      const totalPrevuPax = prevuGuestsPax + prevuTablesPax;
+      const totalArrivedPaxAll = arrivedItems.reduce((sum, item) => sum + (Number(item.partyCount) || 1), 0);
+
+      document.getElementById('arrives-prevu-big').textContent = `${totalPrevuPax} pers.`;
+      document.getElementById('arrives-prevu-detail').textContent = `Listes: ${prevuGuestsPax}p • Tables: ${prevuTablesPax}p`;
+      document.getElementById('arrives-jauge-big').textContent = `${totalArrivedPaxAll} pers.`;
+      document.getElementById('arrives-summary-title').textContent = `${arrivedItems.length} entrée${arrivedItems.length > 1 ? 's' : ''} (Listes + Tables)`;
+
       if (query) {
-        allArrived = allArrived.filter(g =>
+        arrivedItems = arrivedItems.filter(g =>
           (g.nom + ' ' + g.prenom).toLowerCase().includes(query) ||
           (g.prenom + ' ' + g.nom).toLowerCase().includes(query)
         );
       }
 
-      const sortedArrived = sortAlpha(allArrived);
-      const totalPax = sortedArrived.reduce((sum, g) => sum + (g.partyCount || 1), 0);
-
-      document.getElementById('arrives-summary-title').textContent = `${sortedArrived.length} invité${sortedArrived.length > 1 ? 's' : ''} • ${totalPax} pers.`;
-      document.getElementById('arrives-jauge-big').textContent = `${count} / 200`;
+      const sortedArrived = sortAlpha(arrivedItems);
 
       const container = document.getElementById('arrives-list-container');
       if (!sortedArrived.length) {
         container.innerHTML = `
           <div class="bg-[#1A060B] border border-white/10 rounded-2xl p-6 text-center space-y-1">
             <div class="text-2xl">✅</div>
-            <div class="text-sm font-bold text-white">Aucun invité arrivé pour le moment</div>
-            <div class="text-xs text-white/50">Dès que vous cliquez sur "Arrivé +1" dans une liste, la personne apparaît ici.</div>
+            <div class="text-sm font-bold text-white">Aucune personne arrivée pour le moment</div>
+            <div class="text-xs text-white/50">Dès qu'un invité passe en "Arrivé" ou qu'une table passe en "Installée", il s'affiche ici.</div>
           </div>
         `;
         return;
@@ -1147,7 +1189,33 @@
 
       container.innerHTML = `
         <div class="bg-[#1A060B] border border-emerald-500/30 rounded-2xl divide-y divide-white/10 overflow-hidden shadow">
-          ${sortedArrived.map(g => snapRowHTML(g, g.hostKey, true)).join('')}
+          ${sortedArrived.map(item => {
+            if (item.itemType === 'table') {
+              const hostTheme = HOST_THEMES[item.hostKey] || HOST_THEMES.steven;
+              return `
+                <div class="flex items-center justify-between px-3 py-2 gap-2 bg-emerald-950/35">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="text-base leading-none shrink-0">🍾</span>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5 truncate">
+                        <span class="text-[15px] font-black text-white uppercase tracking-tight">${item.nom}</span>
+                        <span class="text-[15px] font-semibold text-amber-100/95 truncate">${item.prenom || ''}</span>
+                        ${item.tableName ? `<span class="px-1.5 py-0.2 rounded bg-amber-400 text-[#2B0508] text-[10px] font-black uppercase">${item.tableName}</span>` : ''}
+                      </div>
+                      <div class="flex items-center gap-1.5 text-[11px] font-semibold leading-tight">
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${hostTheme.badgeBg}">${PROFILE_LABELS[item.hostKey]}</span>
+                        <span class="text-emerald-400 font-extrabold">● Table Installée (${item.partyCount} pers.)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button onclick="toggleTableArrived(${item.id})" class="ios-btn px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0">
+                    ✅ ${item.partyCount}p
+                  </button>
+                </div>
+              `;
+            }
+            return snapRowHTML(item, item.hostKey, true);
+          }).join('')}
         </div>
       `;
     }
@@ -1278,6 +1346,7 @@
       if (pickerMode === 'planned') {
         item.plannedCount = num > 0 ? num : 1;
         saveAppState();
+        renderJaugeBadge();
         renderGuests();
       } else {
         validateGuestArrival(pickerTargetHost, item, num);
@@ -1374,6 +1443,7 @@
       document.getElementById('table-amount-input').value = '';
       document.getElementById('table-num-input').value = '';
       saveAppState();
+      renderJaugeBadge();
       renderTablesView();
     }
 
@@ -1382,6 +1452,20 @@
       if (t) {
         t.arrived = !t.arrived;
         saveAppState();
+        renderJaugeBadge();
+        if (currentMainView === 'arrives') renderArrivesView();
+        else renderTablesView();
+      }
+    }
+
+    function cycleTablePax(tableId) {
+      const t = tables.find(item => item.id === tableId);
+      if (t) {
+        const cycle = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15];
+        const idx = cycle.indexOf(Number(t.partyCount) || 4);
+        t.partyCount = cycle[(idx + 1) % cycle.length];
+        saveAppState();
+        renderJaugeBadge();
         renderTablesView();
       }
     }
@@ -1408,6 +1492,7 @@
       if (!isAdmin() && currentUser !== 'cynthia') return;
       tables = tables.filter(item => item.id !== tableId);
       saveAppState();
+      renderJaugeBadge();
       renderTablesView();
     }
 
@@ -1474,7 +1559,7 @@
                     </div>
                     <div class="flex items-center gap-1.5 text-[11px] font-semibold">
                       <span class="px-1.5 py-0.2 rounded border ${hostTheme.badgeBg} text-[10px] font-extrabold">${PROFILE_LABELS[t.host]}</span>
-                      <span class="text-white/65">${t.partyCount || 1}p</span>
+                      <button onclick="cycleTablePax(${t.id})" class="ios-btn px-1.5 py-0.2 rounded bg-white/10 text-amber-200 font-extrabold text-[11px]" title="Toucher pour modifier le nombre de personnes">${t.partyCount || 1} pers. ✎</button>
                     </div>
                   </div>
                 </div>
@@ -1485,7 +1570,7 @@
                       ? 'bg-emerald-500 text-[#04241C]'
                       : 'bg-white/10 text-amber-200 border border-white/15'
                   }">
-                    ${isArrived ? '✅ Installée' : '⏳ Attente'}
+                    ${isArrived ? '✅ Installée' : '⏳ Prévu'}
                   </button>
 
                   <div class="flex items-center bg-black/45 border border-emerald-400/35 rounded-xl px-2 py-1">
@@ -1505,35 +1590,56 @@
     }
 
     function changeCount(delta) {
-      if (delta > 0) {
-        count += delta;
-      } else {
-        const remove = Math.min(count, Math.abs(delta));
-        count -= remove;
-      }
       saveAppState();
       renderJaugeBadge();
     }
 
     function renderJaugeBadge() {
-      // Calcul du nombre total d'entrées validées pour le badge de l'onglet Arrivés
-      let totalArrivedGuests = 0;
       const hostsToCount = currentUser === 'cynthia' ? ['cynthia'] : ['steven', 'gabriel', 'cynthia'];
-      hostsToCount.forEach(h => {
-        totalArrivedGuests += (guests[h] || []).filter(g => g.entered).length;
-      });
-      const navBadge = document.getElementById('nav-arrives-badge');
-      if (navBadge) navBadge.textContent = totalArrivedGuests;
 
-      document.getElementById('mini-jauge-text').textContent = `${count} / 200`;
+      // 1er Compteur : NB Prévu (personnes notées mais PAS ENCORE ARRIVÉES : Listes + Tables)
+      let nbPrevuPax = 0;
+      // 2e Compteur : Arrivés (personnes EFFECTIVEMENT ARRIVÉES : Listes + Tables)
+      let nbArrivedPax = 0;
+
+      hostsToCount.forEach(h => {
+        (guests[h] || []).forEach(g => {
+          if (g.entered) {
+            nbArrivedPax += (Number(g.partyCount) || 1);
+          } else {
+            nbPrevuPax += (Number(g.plannedCount) || 1);
+          }
+        });
+      });
+
+      tables.filter(t => hostsToCount.includes(t.host)).forEach(t => {
+        const pax = Number(t.partyCount) || 1;
+        if (t.arrived) {
+          nbArrivedPax += pax;
+        } else {
+          nbPrevuPax += pax;
+        }
+      });
+
+      count = nbArrivedPax;
+
+      // Mise à jour du Compteur 1 (NB Prévu non arrivé)
+      const prevuEl = document.getElementById('counter-prevu-text');
+      if (prevuEl) prevuEl.textContent = `${nbPrevuPax} pers.`;
+
+      // Mise à jour du Compteur 2 (Arrivés) + Badge onglet Arrivés
+      const navBadge = document.getElementById('nav-arrives-badge');
+      if (navBadge) navBadge.textContent = nbArrivedPax;
+
+      document.getElementById('mini-jauge-text').textContent = `${nbArrivedPax} pers.`;
       const miniDot = document.getElementById('mini-dot');
 
-      if (count >= MAX) {
-        miniDot.className = 'w-2 h-2 rounded-full bg-rose-500 animate-ping';
-      } else if (count >= 170) {
-        miniDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+      if (nbArrivedPax >= MAX) {
+        miniDot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping';
+      } else if (nbArrivedPax >= 170) {
+        miniDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse';
       } else {
-        miniDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        miniDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
       }
     }
 

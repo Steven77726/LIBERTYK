@@ -41,10 +41,10 @@
       font-size: 16px !important; /* Empêche le zoom auto iOS */
     }
     .safe-top {
-      padding-top: max(0.5rem, env(safe-area-inset-top));
+      padding-top: max(0.65rem, calc(env(safe-area-inset-top, 0px) + 0.35rem)) !important;
     }
     .safe-bottom {
-      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+      padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem)) !important;
     }
     .ios-spring {
       transition: all 0.18s cubic-bezier(0.32, 0.72, 0, 1);
@@ -160,60 +160,60 @@
     <div id="screen-app" class="hidden flex-1 flex flex-col min-h-[100dvh]">
 
       <!-- HEADER COMPACT COLLÉ EN HAUT -->
-      <header id="app-header" class="bg-gradient-to-b from-[#6B0B14] to-[#2D0509] text-[#FAF5EE] px-3 pt-2 pb-2.5 safe-top border-b border-white/10 sticky top-0 z-30 shadow-md transition-colors duration-200">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 min-w-0">
+      <header id="app-header" class="bg-gradient-to-b from-[#6B0B14] to-[#2D0509] text-[#FAF5EE] px-2.5 pt-2 pb-2.5 safe-top border-b border-white/15 sticky top-0 z-30 shadow-lg transition-colors duration-200">
+        <div class="flex items-center justify-between gap-1.5">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
             <img src="images/florentine-icon-blanc-casse.png" alt="Florentine" class="w-8 h-8 rounded-xl object-cover border border-amber-300/40 shrink-0" />
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5">
-                <span id="session-badge" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white leading-none">Steven</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1 flex-wrap">
+                <span id="session-badge" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/20 text-white leading-none">Steven</span>
                 <button onclick="pullCloudState(true)" id="live-sync-badge" class="ios-btn text-[10px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1 leading-none" title="Synchronisation instantanée">
                   <span id="live-sync-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span id="live-sync-text">LIVE</span>
                 </button>
-                <button onclick="logout()" class="text-[11px] font-semibold text-amber-200/80 underline">Verrouiller</button>
+                <button onclick="logout()" class="ios-btn text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-black/35 text-amber-200 border border-amber-300/30 leading-none">🔒</button>
               </div>
-              <div id="app-subtitle" class="text-sm font-black tracking-tight text-white truncate">Liste Steven</div>
+              <div id="app-subtitle" class="text-[13px] font-black tracking-tight text-white truncate mt-0.5">Liste Steven</div>
             </div>
           </div>
 
           <!-- LES 2 COMPTEURS EN HAUT : 1) NB PRÉVU (NON ARRIVÉ) & 2) ARRIVÉS (LISTES + TABLES) -->
-          <div class="flex items-center gap-1.5 shrink-0">
-            <div class="bg-black/45 border border-amber-400/35 rounded-xl px-2.5 py-1 flex flex-col items-center justify-center shadow" title="Personnes notées mais pas encore arrivées (Listes + Tables)">
-              <span class="text-[9px] uppercase tracking-wider text-amber-200/80 font-extrabold leading-none">NB Prévu</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <div class="bg-black/50 border border-amber-400/40 rounded-xl px-2 py-1 flex flex-col items-center justify-center shadow" title="Personnes notées mais pas encore arrivées (Listes + Tables)">
+              <span class="text-[9px] uppercase tracking-wider text-amber-200/90 font-extrabold leading-none">NB Prévu</span>
               <span id="counter-prevu-text" class="text-xs font-black text-amber-300 leading-tight mt-0.5">0 pers.</span>
             </div>
 
-            <button onclick="switchMain('arrives')" class="ios-btn bg-black/45 border border-emerald-400/40 rounded-xl px-2.5 py-1 flex flex-col items-center justify-center shadow" title="Personnes arrivées (Listes + Tables)">
+            <button onclick="switchMain('arrives')" class="ios-btn bg-black/50 border border-emerald-400/45 rounded-xl px-2 py-1 flex flex-col items-center justify-center shadow" title="Personnes arrivées (Listes + Tables)">
               <div class="flex items-center gap-1">
                 <span id="mini-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span class="text-[9px] uppercase tracking-wider text-emerald-200/90 font-extrabold leading-none">Arrivés</span>
+                <span class="text-[9px] uppercase tracking-wider text-emerald-200 font-extrabold leading-none">Arrivés</span>
               </div>
               <span id="mini-jauge-text" class="text-xs font-black text-emerald-300 leading-tight mt-0.5">0 pers.</span>
             </button>
           </div>
         </div>
 
-        <!-- BARRE D'ONGLETS PRINCIPALE (AVEC ONGLET DÉDIÉ "✅ ARRIVÉS" + "🍾 TABLES") -->
-        <div id="nav-bar" class="grid grid-cols-5 gap-1 bg-black/40 p-1 rounded-xl mt-2 border border-white/10">
-          <button onclick="selectHost('steven')" id="tab-steven" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+        <!-- BARRE D'ONGLETS PRINCIPALE ADAPTÉE IPHONE (BOUTONS LARGES ET NOMS BIEN VISIBLES) -->
+        <div id="nav-bar" class="grid grid-cols-6 gap-1.5 bg-black/55 p-1.5 rounded-2xl mt-2 border border-white/15 shadow-inner">
+          <button onclick="selectHost('steven')" id="tab-steven" class="col-span-2 ios-spring py-2 px-2 rounded-xl text-[13px] font-black flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-full bg-rose-400 shrink-0"></span>
             <span>Steven</span>
           </button>
-          <button onclick="selectHost('gabriel')" id="tab-gabriel" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+          <button onclick="selectHost('gabriel')" id="tab-gabriel" class="col-span-2 ios-spring py-2 px-2 rounded-xl text-[13px] font-black flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
             <span>Gabriel</span>
           </button>
-          <button onclick="selectHost('cynthia')" id="tab-cynthia" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>
+          <button onclick="selectHost('cynthia')" id="tab-cynthia" class="col-span-2 ios-spring py-2 px-2 rounded-xl text-[13px] font-black flex items-center justify-center gap-1.5 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-full bg-fuchsia-400 shrink-0"></span>
             <span>Cynthia</span>
           </button>
-          <button onclick="switchMain('arrives')" id="tab-arrives" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
+          <button onclick="switchMain('arrives')" id="tab-arrives" class="col-span-3 ios-spring py-2 px-2.5 rounded-xl text-[13px] font-black flex items-center justify-center gap-1.5 whitespace-nowrap">
             <span>✅</span>
             <span>Arrivés</span>
-            <span id="nav-arrives-badge" class="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 text-[10px] font-black">0</span>
+            <span id="nav-arrives-badge" class="px-1.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 text-[11px] font-black leading-none">0</span>
           </button>
-          <button onclick="switchMain('tables')" id="tab-tables" class="ios-spring py-1.5 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1">
+          <button onclick="switchMain('tables')" id="tab-tables" class="col-span-3 ios-spring py-2 px-2.5 rounded-xl text-[13px] font-black flex items-center justify-center gap-1.5 whitespace-nowrap">
             <span>🍾</span>
             <span>Tables</span>
           </button>
@@ -277,17 +277,17 @@
           </div>
 
           <!-- PILULES DE FILTRE AVEC "ARRIVÉS" ET "PRÉVU" BIEN VISIBLES -->
-          <div class="grid grid-cols-4 gap-1 bg-black/35 p-1 rounded-xl border border-white/10">
-            <button onclick="setListFilter('all')" id="filter-all" class="ios-btn py-1.5 rounded-lg text-xs font-extrabold bg-white text-[#2B0508] shadow text-center">
+          <div class="grid grid-cols-4 gap-1 bg-black/45 p-1 rounded-xl border border-white/15">
+            <button onclick="setListFilter('all')" id="filter-all" class="ios-btn py-2 px-1 rounded-lg text-[11px] font-black bg-white text-[#2B0508] shadow text-center whitespace-nowrap">
               Tous (<span id="badge-all-count">0</span>)
             </button>
-            <button onclick="setListFilter('waiting')" id="filter-waiting" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-amber-200 text-center">
+            <button onclick="setListFilter('waiting')" id="filter-waiting" class="ios-btn py-2 px-1 rounded-lg text-[11px] font-extrabold bg-white/5 text-amber-200 border border-amber-400/25 text-center whitespace-nowrap">
               ⏳ Prévu (<span id="badge-wait-count">0</span>)
             </button>
-            <button onclick="setListFilter('present')" id="filter-present" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-emerald-300 text-center">
+            <button onclick="setListFilter('present')" id="filter-present" class="ios-btn py-2 px-1 rounded-lg text-[11px] font-extrabold bg-white/5 text-emerald-300 border border-emerald-400/25 text-center whitespace-nowrap">
               ✅ Arrivés (<span id="badge-pres-count">0</span>)
             </button>
-            <button onclick="setListFilter('fav')" id="filter-fav" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-amber-300 text-center">
+            <button onclick="setListFilter('fav')" id="filter-fav" class="ios-btn py-2 px-1 rounded-lg text-[11px] font-extrabold bg-white/5 text-amber-300 border border-amber-400/25 text-center whitespace-nowrap">
               ⭐ Favoris (<span id="badge-fav-count">0</span>)
             </button>
           </div>
@@ -326,17 +326,17 @@
 
         <!-- FILTRE PAR HÔTE DANS L'ONGLET ARRIVÉS + RECHERCHE -->
         <div class="flex flex-col gap-1.5">
-          <div id="arrives-host-filters" class="grid grid-cols-4 gap-1 bg-black/35 p-1 rounded-xl border border-white/10">
-            <button onclick="setArrivesHostFilter('all')" id="arr-filter-all" class="ios-btn py-1.5 rounded-lg text-xs font-extrabold bg-emerald-400 text-[#05291A] shadow">
+          <div id="arrives-host-filters" class="grid grid-cols-4 gap-1.5 bg-black/45 p-1.5 rounded-xl border border-white/15">
+            <button onclick="setArrivesHostFilter('all')" id="arr-filter-all" class="ios-btn py-2 px-1 rounded-lg text-xs font-black bg-emerald-400 text-[#05291A] shadow whitespace-nowrap">
               Tous
             </button>
-            <button onclick="setArrivesHostFilter('steven')" id="arr-filter-steven" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-rose-300">
+            <button onclick="setArrivesHostFilter('steven')" id="arr-filter-steven" class="ios-btn py-2 px-1 rounded-lg text-xs font-extrabold bg-rose-950/60 text-rose-200 border border-rose-400/35 whitespace-nowrap">
               Steven
             </button>
-            <button onclick="setArrivesHostFilter('gabriel')" id="arr-filter-gabriel" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-sky-300">
+            <button onclick="setArrivesHostFilter('gabriel')" id="arr-filter-gabriel" class="ios-btn py-2 px-1 rounded-lg text-xs font-extrabold bg-sky-950/60 text-sky-200 border border-sky-400/35 whitespace-nowrap">
               Gabriel
             </button>
-            <button onclick="setArrivesHostFilter('cynthia')" id="arr-filter-cynthia" class="ios-btn py-1.5 rounded-lg text-xs font-bold text-fuchsia-300">
+            <button onclick="setArrivesHostFilter('cynthia')" id="arr-filter-cynthia" class="ios-btn py-2 px-1 rounded-lg text-xs font-extrabold bg-fuchsia-950/60 text-fuchsia-200 border border-fuchsia-400/35 whitespace-nowrap">
               Cynthia
             </button>
           </div>
@@ -514,31 +514,36 @@
       steven: {
         headerGrad: 'from-[#6B0B14] to-[#2D0509]',
         badgeBg: 'bg-rose-500/20 text-rose-200 border-rose-400/40',
-        tabActive: 'bg-gradient-to-r from-rose-500 to-[#7A1220] text-white shadow border border-rose-300/40',
+        tabActive: 'bg-gradient-to-r from-rose-500 to-[#7A1220] text-white shadow-md border-2 border-rose-200',
+        tabIdle: 'bg-rose-950/65 text-rose-100 border border-rose-400/40',
         dot: 'bg-rose-400'
       },
       gabriel: {
         headerGrad: 'from-[#0F2952] to-[#081326]',
         badgeBg: 'bg-sky-500/20 text-sky-200 border-sky-400/40',
-        tabActive: 'bg-gradient-to-r from-sky-500 to-blue-700 text-white shadow border border-sky-300/40',
+        tabActive: 'bg-gradient-to-r from-sky-500 to-blue-700 text-white shadow-md border-2 border-sky-200',
+        tabIdle: 'bg-sky-950/65 text-sky-100 border border-sky-400/40',
         dot: 'bg-sky-400'
       },
       cynthia: {
         headerGrad: 'from-[#4A1259] to-[#200629]',
         badgeBg: 'bg-fuchsia-500/20 text-fuchsia-200 border-fuchsia-400/40',
-        tabActive: 'bg-gradient-to-r from-fuchsia-500 to-purple-700 text-white shadow border border-fuchsia-300/40',
+        tabActive: 'bg-gradient-to-r from-fuchsia-500 to-purple-700 text-white shadow-md border-2 border-fuchsia-200',
+        tabIdle: 'bg-fuchsia-950/65 text-fuchsia-100 border border-fuchsia-400/40',
         dot: 'bg-fuchsia-400'
       },
       arrives: {
         headerGrad: 'from-[#064E3B] to-[#04241C]',
         badgeBg: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40',
-        tabActive: 'bg-gradient-to-r from-emerald-400 to-teal-500 text-[#04241C] shadow border border-emerald-200',
+        tabActive: 'bg-gradient-to-r from-emerald-400 to-teal-500 text-[#04241C] shadow-md border-2 border-white',
+        tabIdle: 'bg-emerald-950/65 text-emerald-100 border border-emerald-400/40',
         dot: 'bg-emerald-400'
       },
       tables: {
         headerGrad: 'from-[#5C3409] to-[#241203]',
         badgeBg: 'bg-amber-500/20 text-amber-200 border-amber-400/40',
-        tabActive: 'bg-gradient-to-r from-amber-400 to-amber-500 text-[#2B0508] shadow border border-amber-200',
+        tabActive: 'bg-gradient-to-r from-amber-400 to-amber-500 text-[#2B0508] shadow-md border-2 border-white',
+        tabIdle: 'bg-amber-950/65 text-amber-100 border border-amber-400/40',
         dot: 'bg-amber-400'
       }
     };
@@ -953,7 +958,7 @@
         tabSteven.classList.add('hidden');
         tabGabriel.classList.add('hidden');
         tabCynthia.classList.remove('hidden');
-        navBar.className = 'grid grid-cols-3 gap-1 bg-black/40 p-1 rounded-xl mt-2 border border-white/10';
+        navBar.className = 'grid grid-cols-6 gap-1.5 bg-black/55 p-1.5 rounded-2xl mt-2 border border-white/15 shadow-inner';
         arrHostFilters.classList.add('hidden');
         arrivesHostFilter = 'cynthia';
         selectHost('cynthia');
@@ -961,7 +966,7 @@
         tabSteven.classList.remove('hidden');
         tabGabriel.classList.remove('hidden');
         tabCynthia.classList.remove('hidden');
-        navBar.className = 'grid grid-cols-5 gap-1 bg-black/40 p-1 rounded-xl mt-2 border border-white/10';
+        navBar.className = 'grid grid-cols-6 gap-1.5 bg-black/55 p-1.5 rounded-2xl mt-2 border border-white/15 shadow-inner';
         arrHostFilters.classList.remove('hidden');
         arrivesHostFilter = 'all';
         selectHost(currentUser === 'gabriel' ? 'gabriel' : 'steven');
@@ -980,22 +985,35 @@
     function applyHeaderTheme(themeKey) {
       const theme = HOST_THEMES[themeKey] || HOST_THEMES.steven;
       const header = document.getElementById('app-header');
-      header.className = `bg-gradient-to-b ${theme.headerGrad} text-[#FAF5EE] px-3 pt-2 pb-2.5 safe-top border-b border-white/10 sticky top-0 z-30 shadow-md transition-colors duration-200`;
+      header.className = `bg-gradient-to-b ${theme.headerGrad} text-[#FAF5EE] px-2.5 pt-2 pb-2.5 safe-top border-b border-white/15 sticky top-0 z-30 shadow-lg transition-colors duration-200`;
     }
 
     function updateNavTabsUI(selectedTab) {
+      const isCynthiaUser = currentUser === 'cynthia';
       ['steven', 'gabriel', 'cynthia', 'arrives', 'tables'].forEach(t => {
         const btn = document.getElementById('tab-' + t);
         const theme = HOST_THEMES[t];
+        const spanClass = isCynthiaUser
+          ? 'col-span-2'
+          : ((t === 'arrives' || t === 'tables') ? 'col-span-3' : 'col-span-2');
         if (t === selectedTab) {
-          btn.className = `ios-spring py-1.5 rounded-lg text-xs font-black flex items-center justify-center gap-1 ${theme.tabActive}`;
+          btn.className = `${spanClass} ios-spring py-2 px-2 rounded-xl text-[13px] font-black flex items-center justify-center gap-1.5 whitespace-nowrap ${theme.tabActive}`;
         } else {
-          btn.className = 'ios-spring py-1.5 rounded-lg text-xs font-bold text-white/75 hover:text-white flex items-center justify-center gap-1';
+          btn.className = `${spanClass} ios-spring py-2 px-2 rounded-xl text-[13px] font-extrabold flex items-center justify-center gap-1.5 whitespace-nowrap ${theme.tabIdle}`;
         }
-        if (currentUser === 'cynthia' && (t === 'steven' || t === 'gabriel')) {
+        if (isCynthiaUser && (t === 'steven' || t === 'gabriel')) {
           btn.classList.add('hidden');
         }
       });
+
+      const navArrBadge = document.getElementById('nav-arrives-badge');
+      if (navArrBadge) {
+        if (selectedTab === 'arrives') {
+          navArrBadge.className = 'px-1.5 py-0.5 rounded-full bg-[#04241C] text-emerald-300 text-[11px] font-black leading-none';
+        } else {
+          navArrBadge.className = 'px-1.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/35 text-[11px] font-black leading-none';
+        }
+      }
     }
 
     function selectHost(host) {
@@ -1196,15 +1214,15 @@
     function setListFilter(filter) {
       listFilter = filter;
       const styles = {
-        all:     { active: 'bg-white text-[#2B0508] shadow font-extrabold', idle: 'text-white/75 font-bold' },
-        present: { active: 'bg-emerald-400 text-[#05291A] shadow font-extrabold', idle: 'text-emerald-300 font-bold' },
-        waiting: { active: 'bg-amber-400 text-[#2B0508] shadow font-extrabold', idle: 'text-amber-200 font-bold' },
-        fav:     { active: 'bg-amber-400 text-[#2B0508] shadow font-extrabold', idle: 'text-amber-300 font-bold' }
+        all:     { active: 'bg-white text-[#2B0508] shadow font-black', idle: 'bg-white/5 text-white/85 border border-white/15 font-extrabold' },
+        present: { active: 'bg-emerald-400 text-[#05291A] shadow font-black', idle: 'bg-white/5 text-emerald-300 border border-emerald-400/25 font-extrabold' },
+        waiting: { active: 'bg-amber-400 text-[#2B0508] shadow font-black', idle: 'bg-white/5 text-amber-200 border border-amber-400/25 font-extrabold' },
+        fav:     { active: 'bg-amber-400 text-[#2B0508] shadow font-black', idle: 'bg-white/5 text-amber-300 border border-amber-400/25 font-extrabold' }
       };
 
       ['all', 'present', 'waiting', 'fav'].forEach(f => {
         const btn = document.getElementById('filter-' + f);
-        btn.className = `ios-btn py-1.5 rounded-lg text-xs text-center ${f === filter ? styles[f].active : styles[f].idle}`;
+        btn.className = `ios-btn py-2 px-1 rounded-lg text-[11px] text-center whitespace-nowrap ${f === filter ? styles[f].active : styles[f].idle}`;
       });
       renderGuests();
     }
@@ -1388,15 +1406,15 @@
     function setArrivesHostFilter(hFilter) {
       arrivesHostFilter = hFilter;
       const styles = {
-        all:     { active: 'bg-emerald-400 text-[#05291A] shadow font-extrabold', idle: 'text-white/75 font-bold' },
-        steven:  { active: 'bg-rose-500 text-white shadow font-extrabold', idle: 'text-rose-300 font-bold' },
-        gabriel: { active: 'bg-sky-500 text-white shadow font-extrabold', idle: 'text-sky-300 font-bold' },
-        cynthia: { active: 'bg-fuchsia-500 text-white shadow font-extrabold', idle: 'text-fuchsia-300 font-bold' }
+        all:     { active: 'bg-emerald-400 text-[#05291A] shadow font-black border-2 border-white', idle: 'bg-white/10 text-white border border-white/20 font-extrabold' },
+        steven:  { active: 'bg-rose-500 text-white shadow font-black border-2 border-rose-200', idle: 'bg-rose-950/60 text-rose-200 border border-rose-400/35 font-extrabold' },
+        gabriel: { active: 'bg-sky-500 text-white shadow font-black border-2 border-sky-200', idle: 'bg-sky-950/60 text-sky-200 border border-sky-400/35 font-extrabold' },
+        cynthia: { active: 'bg-fuchsia-500 text-white shadow font-black border-2 border-fuchsia-200', idle: 'bg-fuchsia-950/60 text-fuchsia-200 border border-fuchsia-400/35 font-extrabold' }
       };
       ['all', 'steven', 'gabriel', 'cynthia'].forEach(f => {
         const btn = document.getElementById('arr-filter-' + f);
         if (btn) {
-          btn.className = `ios-btn py-1.5 rounded-lg text-xs ${f === hFilter ? styles[f].active : styles[f].idle}`;
+          btn.className = `ios-btn py-2 px-1 rounded-lg text-xs whitespace-nowrap ${f === hFilter ? styles[f].active : styles[f].idle}`;
         }
       });
       renderArrivesView();
